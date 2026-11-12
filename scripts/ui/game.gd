@@ -1688,45 +1688,75 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 
 # ================================================================ header
 
+## One slim strip: pause, ante + where you are, (in a stop) the shelf vs the
+## target and Time, then cash. Everything else on screen gets the room.
 func _header() -> void:
-	var h := _hbox(12)
-	var menu := _button("II", _open_menu, Color(0.16, 0.14, 0.2), 22, 72)
+	var land := is_landscape()
+	var h := _hbox(10)
+	var menu := _button("II", _open_menu, Color(0.16, 0.14, 0.2), 20, 60)
 	menu.set_meta("pad_skip", true)
-	menu.custom_minimum_size.x = 72
+	menu.custom_minimum_size.x = 60
 	menu.tooltip_text = "Menu"
 	h.add_child(menu)
-	var left := _vbox(0)
+	var left := _vbox(-4)
 	var ante_txt := "ANTE %d/%d" % [run.ante, Balance.ANTES_TO_WIN]
 	if run.endless:
-		ante_txt = "ANTE %d  ENDLESS" % run.ante
-	left.add_child(_title_label(ante_txt, 30, INK))
+		ante_txt = "ANTE %d" % run.ante
+	left.add_child(_title_label(ante_txt, 26, INK))
 	var stop_txt := "Stop %d of 3: %s" % [run.stop + 1, run.slot_name()]
 	if screen == "venue":
 		stop_txt = String(run.venue["name"])
-	left.add_child(_label(stop_txt, 19, run.venue.get("color", MUTED) if screen == "venue" else MUTED))
+	var sl := _label(stop_txt, 16, run.venue.get("color", MUTED) if screen == "venue" else MUTED)
+	left.add_child(sl)
+	left.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(left)
 	h.add_child(_spacer(false))
 	if screen == "venue":
-		var tv := _vbox(6)
-		tv.add_child(_label("TIME %d" % run.time_left, 15, MUTED))
-		var pips := _hbox(5)
+		var ap := run.appraise()
+		var total := int(ap["total"])
+		var tgt := run.target()
+		var mid := _vbox(-4)
+		mid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var row := _hbox(6)
+		row.add_child(_title_label(_money(total), 26, GOOD if total >= tgt else INK))
+		row.add_child(_label("/", 18, MUTED))
+		row.add_child(_title_label(_money(tgt), 26, GOLD))
+		mid.add_child(row)
+		var sub := _hbox(6)
+		sub.add_child(_label("SHELF vs TARGET", 13, MUTED))
+		sub.add_child(_label("x%.2f" % float(ap["mult"]), 14, Color("b07cff")))
+		mid.add_child(sub)
+		h.add_child(mid)
+		if run.is_boss_stop():
+			var boss := Venues.boss(run.boss_id)
+			var bp := _pill("BOSS: " + String(boss["name"]).to_upper(), BAD, 13)
+			bp.tooltip_text = String(boss["desc"])
+			bp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			h.add_child(bp)
+		h.add_child(_spacer(false))
+		var pips := _hbox(4)
+		pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pips.tooltip_text = "Time left"
 		for k in maxi(run.time_left, 1):
 			var pip := ColorRect.new()
-			pip.custom_minimum_size = Vector2(14, 24)
+			pip.custom_minimum_size = Vector2(11, 22)
 			pip.color = Color("ffb347") if run.time_left > 0 else Color(BAD, 0.6)
 			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			pips.add_child(pip)
-		tv.add_child(pips)
-		h.add_child(tv)
-	var cv := _vbox(0)
-	cv.add_child(_label("CASH", 15, MUTED))
+		h.add_child(pips)
 	if _shown_cash < 0 or fast:
 		_shown_cash = run.cash
-	_cash_label = _title_label(_money(_shown_cash), 40, GOLD)
+	_cash_label = _title_label(_money(_shown_cash), 34, GOLD)
 	_cash_label.add_theme_color_override("font_outline_color", Color("3a2600"))
-	cv.add_child(_cash_label)
-	h.add_child(cv)
+	_cash_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(_cash_label)
 	var hp := _panel(Color(0.04, 0.035, 0.05, 0.82))
+	var hs := _box(Color(0.04, 0.035, 0.05, 0.82), 6)
+	hs.content_margin_top = 3
+	hs.content_margin_bottom = 3
+	hs.content_margin_left = 6
+	hs.content_margin_right = 12
+	hp.add_theme_stylebox_override("panel", hs)
 	hp.add_child(h)
 	_root_box.add_child(hp)
 	if _shown_cash != run.cash:
@@ -3065,19 +3095,6 @@ func _build_venue() -> void:
 	var ap := run.appraise()
 	var total := int(ap["total"])
 	var tgt := run.target()
-	var bar := _panel(PANEL)
-	var bh := _hbox()
-	bar.add_child(bh)
-	bh.add_child(_label("Shelf appraises", 18, MUTED))
-	bh.add_child(_title_label(_money(total), 28, GOOD if total >= tgt else INK))
-	bh.add_child(_label("of", 18, MUTED))
-	bh.add_child(_title_label(_money(tgt), 28, GOLD))
-	bh.add_child(_spacer(false))
-	bh.add_child(_label("x%.2f Mult" % float(ap["mult"]), 18, Color("b07cff")))
-	_root_box.add_child(bar)
-	if run.is_boss_stop():
-		var boss := Venues.boss(run.boss_id)
-		_root_box.add_child(_label("BOSS: %s - %s" % [boss["name"], boss["desc"]], 18, BAD, true))
 	var main: VBoxContainer
 	var side: VBoxContainer
 	var show_sale := true
@@ -3093,6 +3110,9 @@ func _build_venue() -> void:
 		side = main
 		show_sale = _venue_tab != "shelf"
 		show_shelf = _venue_tab == "shelf"
+	if run.is_boss_stop():
+		var boss := Venues.boss(run.boss_id)
+		main.add_child(_label("BOSS %s: %s" % [String(boss["name"]).to_upper(), boss["desc"]], 16, BAD, true))
 	if not show_sale:
 		_shelf_grid(side, _side_w())
 		var hint0 := _venue_hint()
