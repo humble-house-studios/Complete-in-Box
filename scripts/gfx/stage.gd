@@ -23,6 +23,8 @@ var scene_id := ""
 var _key := ""
 var _focus := 0.3
 var _zoom := 1.0
+## Landscape centre-strip layout: look down onto the table like phones do.
+var look_down := false
 var _look := Vector3.ZERO
 var _cam_pos := Vector3(0, 1.4, 1.6)
 var _fov := 50.0
@@ -98,6 +100,30 @@ func show_scene(id: String, items: Array = []) -> void:
 	world = Node3D.new()
 	vp.add_child(world)
 	_build(id, items)
+	if Lite.perf:
+		_trim_lights(4)
+
+
+## Weak devices: keep only the strongest few lamps (each one costs every draw).
+func _trim_lights(keep: int) -> void:
+	var lamps: Array = []
+	_collect_lamps(world, lamps)
+	lamps.sort_custom(func(a, b): return a.light_energy > b.light_energy)
+	for i in range(keep, lamps.size()):
+		var l: Light3D = lamps[i]
+		l.visible = false
+		for f in _flicker.duplicate():
+			if f[0] == l:
+				_flicker.erase(f)
+	for k in range(1, _sweep.size()):
+		(_sweep[k] as Node3D).visible = false
+
+
+func _collect_lamps(n: Node, out: Array) -> void:
+	for c in n.get_children():
+		if c is OmniLight3D or c is SpotLight3D:
+			out.append(c)
+		_collect_lamps(c, out)
 
 
 ## Where the table should appear: 0 = top of the screen, 1 = bottom.
@@ -176,7 +202,7 @@ func _apply_cam() -> void:
 	var portrait := aspect < 1.0
 	var sway := Vector3(sin(_t * 0.31) * 0.03, sin(_t * 0.47) * 0.015, 0)
 	# Phones see a narrow band: look down a bit more so back rows show.
-	var raise := Vector3(0, 0.28, -0.1) if portrait else Vector3.ZERO
+	var raise := Vector3(0, 0.28, -0.1) if portrait else (Vector3(0, 0.42, -0.25) if look_down else Vector3.ZERO)
 	var fov := minf((_fov + (14.0 if portrait else 0.0)) * _zoom, 100.0)
 	if cine_on:
 		cam.position = cam.position.lerp(cine_pos, 0.35)

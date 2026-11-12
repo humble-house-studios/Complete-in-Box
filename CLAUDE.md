@@ -71,10 +71,19 @@ The web build in Safari is the test for every platform.
   pick when a run ends) and the BINDER (every catalog item by platform: WALL /
   OWN NOW / OWNED / SEEN / ? not yet). Anything shown in a stop counts as seen.
 - Xbox-style controller (`# controller` in game.gd): stick / D-pad move focus,
-  A press, B back / close, LB / RB tabs (guide pages, binder consoles), Start
-  skips the intro or starts a run, right stick spins the turntable. A cyan focus
-  frame shows only in pad mode; touch or mouse turns it off. Any new button made
-  with `_button` / `_card_shell` gets this for free.
+  A press, B back / close, Y = the screen's main action (buttons marked with
+  `_mark_main`), X = switch halves (sale/shelf, route/shelf, wall/binder),
+  LB / RB tabs (guide pages, binder consoles), LT / RT page-scroll, right stick
+  scrolls the focused list (and spins the turntable), View = how to play,
+  Start skips the intro or starts a run. Pad mode shows a cyan focus frame,
+  subtle Xbox glyphs (`_glyph`: Y on main buttons, LB/RB on tab bars) and a
+  hint strip at the bottom; touch or mouse turns it all off. Focus is restored
+  by button identity after each rebuild and kept inside the top layer.
+- Landscape = three columns (`_land_cols`): tall panels left and right, the 3D
+  room in the middle strip (camera `look_down`), the main action button under it.
+- Screen changes go through `_transition` (a quick dip to black) so rebuilds
+  don't stutter on slow devices. `tools/perf_probe.gd` prints frame times and
+  the CPU cost of room builds, UI rebuilds and cover painting.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
   flavor and the actions. `_open_sheet(..., item)` routes there.

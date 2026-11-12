@@ -110,6 +110,22 @@ func test_pad_a_presses_focused_button() -> void:
 	assert_eq(hits[0], 1, "A pressed the focused button once")
 
 
+func test_pad_y_does_main_action_and_x_switches() -> void:
+	game.start_new_run(21)
+	await wait_frames(4)
+	_pad_press(JOY_BUTTON_DPAD_DOWN)
+	await wait_frames(8)
+	var before: String = game._home_tab
+	_pad_press(JOY_BUTTON_X)
+	await wait_frames(4)
+	assert_ne(game._home_tab, before, "X switches the home tab")
+	game._set_home_tab("route")
+	await wait_frames(4)
+	_pad_press(JOY_BUTTON_Y)
+	await wait_frames(8)
+	assert_eq(game.screen, "venue", "Y heads to the venue")
+
+
 func test_home_then_venue_then_appraisal() -> void:
 	game.start_new_run(77)
 	await wait_frames(2)
