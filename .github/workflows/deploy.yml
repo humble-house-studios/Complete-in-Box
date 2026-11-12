@@ -77,6 +77,36 @@ jobs:
             exit 1
           fi
 
+      # Android TV app: same game as a native app (the TV browser can't run the
+      # web build). Never blocks the web deploy; the .apk is published next to
+      # the game as tv.apk so the TV can download it with the Downloader app.
+      - name: Export Android TV app
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          JAVA_HOME_GUESS=$(dirname $(dirname $(readlink -f $(which java))))
+          KS=/root/debug.keystore
+          if [ ! -f "$KS" ]; then
+            keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore "$KS" -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+          fi
+          SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/lib/android-sdk}}
+          for d in ~/.config/godot /root/.config/godot; do
+            mkdir -p "$d"
+            for v in 4 4.3; do
+              printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$SDK" "$JAVA_HOME_GUESS" "$KS" > "$d/editor_settings-$v.tres"
+            done
+          done
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$KS" GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          mkdir -p build/android
+          godot --headless --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
+          if [ -f build/android/complete-in-box-tv.apk ]; then
+            cp build/android/complete-in-box-tv.apk build/web/tv.apk
+            echo "::notice title=Android TV app::tv.apk $(du -h build/android/complete-in-box-tv.apk | cut -f1)"
+          else
+            { grep -iE "error|fail|missing|invalid|not found" android.log || tail -20 android.log; } | head -25 | while IFS= read -r line; do echo "::warning title=Android export::${line}"; done
+          fi
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
