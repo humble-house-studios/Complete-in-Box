@@ -106,7 +106,20 @@ jobs:
           # Each build gets a higher version so Android accepts it as an update.
           sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/; s/^version\/name=.*/version\/name=\"0.1.${GITHUB_RUN_NUMBER}\"/" export_presets.cfg
           grep -E "^version/(code|name)" export_presets.cfg
+          export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
+          # Full Gradle build: writes the manifest properly (internet permission
+          # for self-update, TV launcher entry). The quick prebuilt export's
+          # patched manifest would not install on the TV.
+          godot --headless --install-android-build-template 2>&1 | tail -3
+          sed -i 's/^gradle_build\/use_gradle_build=.*/gradle_build\/use_gradle_build=true/' export_presets.cfg
           godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
+          if [ ! -f build/android/complete-in-box-tv.apk ]; then
+            grep -iE "error|fail|what went wrong|BUILD" android.log | grep -v savepack | head -30 | while IFS= read -r line; do echo "::warning title=Gradle build::${line}"; done
+            # Fallback: quick export without extra permissions (installs, no self-update).
+            sed -i 's/^gradle_build\/use_gradle_build=.*/gradle_build\/use_gradle_build=false/; s/^permissions\/internet=.*/permissions\/internet=false/' export_presets.cfg
+            godot --headless --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tail -5
+            echo "::warning title=Android TV app::Gradle build failed; published a quick build without self-update"
+          fi
           if [ -f build/android/complete-in-box-tv.apk ]; then
             cp build/android/complete-in-box-tv.apk build/web/tv.apk
             # Game data alone, for the TV app's self-update.
