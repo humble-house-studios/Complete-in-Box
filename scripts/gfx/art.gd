@@ -17,6 +17,7 @@ const MAX_CACHE := 600
 static var _host: Art
 static var _tex: Dictionary = {}
 static var _order: Array = []
+static var _done: Dictionary = {}
 
 var _queue: Array = []
 var _busy := false
@@ -48,15 +49,20 @@ static func back(item: Dictionary) -> Texture2D:
 ## 3D render for cards. Boxed copies show the retail box, loose ones the cart/disc.
 static func icon(item: Dictionary, boxed: bool) -> Texture2D:
 	var k := "I|%s|%d|%s" % [_key(item), 1 if boxed else 0, item.get("cond", "") if item.get("cond", "") == "Sealed" else ""]
-	if not _tex.has(k):
-		front(item)
-		if boxed:
-			back(item)
-	return _request(k, ICON, item, "icon_box" if boxed else "icon_loose")
+	# Cards on screen jump the queue (ahead of background decor).
+	_request("F|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "front", true)
+	return _request(k, ICON, item, "icon_box" if boxed else "icon_loose", true)
 
 
-static func _request(k: String, size: Vector2i, item: Dictionary, kind: String) -> Texture2D:
+## Postcard snapshot of a venue's 3D room (for the destination cards).
+static func venue(id: String) -> Texture2D:
+	return _request("V|" + id, Vector2i(360, 200), {"id": id}, "venue", true)
+
+
+static func _request(k: String, size: Vector2i, item: Dictionary, kind: String, prio: bool = false) -> Texture2D:
 	if _tex.has(k):
+		if prio and _host != null and is_instance_valid(_host):
+			_host._bump(k)
 		return _tex[k]
 	var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0) if kind.begins_with("icon") else Color(0.15, 0.13, 0.18))
@@ -64,7 +70,11 @@ static func _request(k: String, size: Vector2i, item: Dictionary, kind: String) 
 	_tex[k] = t
 	_order.append(k)
 	if DisplayServer.get_name() != "headless":
-		_get_host()._queue.append({"key": k, "item": item.duplicate(), "kind": kind, "size": size})
+		var job := {"key": k, "item": item.duplicate(), "kind": kind, "size": size}
+		if prio:
+			_get_host()._queue.push_front(job)
+		else:
+			_get_host()._queue.append(job)
 	_trim()
 	return t
 
@@ -85,6 +95,16 @@ static func _trim() -> void:
 	_order = keep
 
 
+## Move a waiting job to the front of the queue.
+func _bump(k: String) -> void:
+	for i in _queue.size():
+		if _queue[i]["key"] == k and not _queue[i].has("vp"):
+			var j: Dictionary = _queue[i]
+			_queue.remove_at(i)
+			_queue.push_front(j)
+			return
+
+
 func _process(_delta: float) -> void:
 	if _busy or _queue.is_empty():
 		return
@@ -93,23 +113,36 @@ func _process(_delta: float) -> void:
 
 func _run_batch() -> void:
 	_busy = true
-	# Covers first: icons need their cover already painted.
+	# In request order, but an icon waits until its own cover is painted.
 	var batch: Array = []
 	var rest: Array = []
-	var covers_waiting := false
 	for j in _queue:
-		if not String(j["kind"]).begins_with("icon"):
-			covers_waiting = true
-	for j in _queue:
-		var is_icon := String(j["kind"]).begins_with("icon")
-		if batch.size() < PER_FRAME and (not is_icon or not covers_waiting):
+		var ready := true
+		if String(j["kind"]).begins_with("icon"):
+			ready = _done.has("F|" + _key(j["item"]))
+		if batch.size() < PER_FRAME and ready:
 			batch.append(j)
 		else:
 			rest.append(j)
 	_queue = rest
 	var vps: Array = []
+	var later: Array = []
 	for j in batch:
-		vps.append(_make_viewport(j))
+		if j["kind"] == "venue" and not j.has("vp"):
+			# Two passes: build the room now, snap it once its box art is in.
+			j["vp"] = _make_viewport(j)
+			j["wait"] = 2
+			later.append(j)
+			vps.append(null)
+		elif j.has("vp"):
+			j["wait"] = int(j["wait"]) - 1
+			if int(j["wait"]) > 0 or _has_covers_pending():
+				later.append(j)
+				vps.append(null)
+			else:
+				vps.append(j["vp"])
+		else:
+			vps.append(_make_viewport(j))
 	# A few frames so fonts have uploaded their glyphs before we grab the image.
 	for f in 3:
 		await RenderingServer.frame_post_draw
@@ -125,8 +158,17 @@ func _run_batch() -> void:
 			if img.get_size() != sz:
 				img.resize(sz.x, sz.y, Image.INTERPOLATE_NEAREST)
 			t.update(img)
+		_done[batch[i]["key"]] = true
 		vp.queue_free()
+	_queue.append_array(later)
 	_busy = false
+
+
+func _has_covers_pending() -> bool:
+	for j in _queue:
+		if j["kind"] == "front" or j["kind"] == "back":
+			return true
+	return false
 
 
 func _make_viewport(j: Dictionary) -> SubViewport:
@@ -135,6 +177,14 @@ func _make_viewport(j: Dictionary) -> SubViewport:
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	var kind := String(j["kind"])
 	var item: Dictionary = j["item"]
+	if kind == "venue":
+		vp.disable_3d = false
+		add_child(vp)
+		var st := Stage.new()
+		vp.add_child(st)
+		st.show_scene(String(item["id"]), [])
+		st.set_focus(0.42, 1.0)
+		return vp
 	if kind == "front" or kind == "back":
 		vp.disable_3d = true
 		vp.transparent_bg = false

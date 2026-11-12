@@ -55,6 +55,13 @@ The web build in Safari is the test for every platform.
   headers, light icon wells. Flavor text lives in `scripts/data/flavor.gd`
   (condition notes, seller quotes per venue, venue moods, appraiser quips);
   quoted lines render as speech panels in sheets. Keep body text >= 16 px.
+- Menus are tabbed to stay uncluttered: Home = ROUTE / PERK SHOP / SHELF
+  (landscape: route left, tabs right); venues on phones = FOR SALE / YOUR SHELF.
+  Picking a destination previews its room (with teaser items) behind the menu;
+  venue cards show a postcard of the room (`Art.venue`). Perk cards are
+  trading cards: category colour (`PERK_CATS`), striped art, effect badge.
+- Scrolling: `_scroll_col` remembers its position across rebuilds, fades its
+  edges when there's more, and a drag never counts as a tap (`_guarded`).
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
   flavor and the actions. `_open_sheet(..., item)` routes there.

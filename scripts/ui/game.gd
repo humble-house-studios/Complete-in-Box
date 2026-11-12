@@ -61,6 +61,14 @@ var _shown_cash := -1
 var _cash_label: Label
 var _cash_tween: Tween
 var _title_item: Dictionary = {}
+## Which tab each screen shows, the destination picked at Home, and scroll memory.
+var _home_tab := "route"
+var _venue_tab := "sale"
+var _dest := ""
+var _scroll_mem: Dictionary = {}
+var _scroll_reg: Dictionary = {}
+var _press_pos := Vector2.ZERO
+var _drag_moved := false
 
 
 func _ready() -> void:
@@ -161,6 +169,11 @@ func _do_refresh() -> void:
 	_refresh_queued = false
 	if _root_box == null:
 		return
+	for k in _scroll_reg:
+		var sc: ScrollContainer = _scroll_reg[k]
+		if is_instance_valid(sc):
+			_scroll_mem[k] = sc.scroll_vertical
+	_scroll_reg.clear()
 	for c in _root_box.get_children():
 		_root_box.remove_child(c)
 		c.queue_free()
@@ -186,7 +199,10 @@ func _sync_stage() -> void:
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("title")
 		"home":
-			_stage.show_scene("home", run.shelf)
+			if _dest != "":
+				_stage.show_scene(_dest, _teaser_items(_dest))
+			else:
+				_stage.show_scene("home", run.shelf)
 			_sfx.music("home")
 		"venue":
 			var items: Array = []
@@ -224,6 +240,26 @@ func _update_focus() -> void:
 		_stage.set_focus((r.position.y + r.size.y * 0.62) / vh, zoom)
 	else:
 		_stage.set_focus(0.42)
+
+
+## A few items laid out on the destination's table as a teaser (display only;
+## uses its own RNG so the run's dice aren't touched).
+func _teaser_items(venue_id: String) -> Array:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("%d/%d/%d/%s" % [run.seed_value, run.ante, run.stop, venue_id])
+	var out: Array = []
+	var d := Venues.get_def(venue_id)
+	var n := clampi(int(d.get("stock", 4)), 3, 5)
+	var tries := 0
+	while out.size() < n and tries < 200:
+		tries += 1
+		var def: Dictionary = Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()]
+		if int(def["tier"]) > 1 or not run.is_active_plat(String(def["plat"])):
+			continue
+		var it: Dictionary = def.duplicate()
+		it["cond"] = ["Loose", "CIB", "Loose"][r.randi() % 3]
+		out.append(it)
+	return out
 
 
 ## The big sealed box spinning on the title screen.
@@ -341,7 +377,7 @@ func _button(text: String, cb: Callable, color: Color = PANEL_HI, fs: int = 24, 
 	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
 	b.add_theme_constant_override("outline_size", 4)
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
-	b.pressed.connect(cb)
+	b.pressed.connect(_guarded.bind(cb))
 	b.button_down.connect(_click)
 	if color.get_luminance() > 0.55:
 		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
@@ -365,6 +401,22 @@ func _btn_box(color: Color, edge: int) -> StyleBoxFlat:
 	s.shadow_size = 1
 	s.shadow_offset = Vector2(0, 3)
 	return s
+
+
+## A drag that scrolls a list shouldn't also tap the card under the finger.
+func _input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed):
+		_press_pos = event.position
+		_drag_moved = false
+	elif event is InputEventScreenDrag or (event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0):
+		if event.position.distance_to(_press_pos) > 18.0:
+			_drag_moved = true
+
+
+func _guarded(cb: Callable) -> void:
+	if _drag_moved:
+		return
+	cb.call()
 
 
 func _click() -> void:
@@ -450,32 +502,106 @@ func _pill(text: String, bg: Color, fs: int = 15, fg: Color = DARK_TXT) -> Panel
 	return p
 
 
+## A scrolling column on smoked glass. Remembers where you were scrolled to
+## (the UI rebuilds after every action), fades its edges when there's more
+## to see, and starts scrolling after a short drag.
 func _scroll_col(parent: Control, ratio: float) -> VBoxContainer:
-	# Smoked-glass backing so text reads over the bright 3D rooms.
 	var back := PanelContainer.new()
 	var st := _box(Color(0.03, 0.025, 0.045, 0.72), 8)
 	st.content_margin_left = 8
 	st.content_margin_right = 4
-	st.content_margin_top = 8
-	st.content_margin_bottom = 8
+	st.content_margin_top = 4
+	st.content_margin_bottom = 4
 	st.shadow_size = 0
 	back.add_theme_stylebox_override("panel", st)
 	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	back.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	back.size_flags_stretch_ratio = ratio
 	parent.add_child(back)
+	var stack := Control.new()
+	stack.clip_contents = true
+	back.add_child(stack)
 	var sc := ScrollContainer.new()
-	sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	back.add_child(sc)
+	sc.scroll_deadzone = 10
+	stack.add_child(sc)
 	var v := _vbox(14)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(v)
+	var key := "%s/%s/%d" % [screen, _home_tab if screen == "home" else _venue_tab, _scroll_reg.size()]
+	_scroll_reg[key] = sc
+	var top := _fade(true)
+	var bot := _fade(false)
+	stack.add_child(top)
+	stack.add_child(bot)
+	var bar := sc.get_v_scroll_bar()
+	var upd := func() -> void:
+		if not is_instance_valid(sc):
+			return
+		top.visible = sc.scroll_vertical > 4
+		bot.visible = bar.max_value - bar.page - sc.scroll_vertical > 4
+	bar.value_changed.connect(func(_v: float) -> void: upd.call())
+	bar.changed.connect(upd)
+	_restore_scroll.call_deferred(sc, int(_scroll_mem.get(key, 0)))
 	return v
 
 
-## [main column, side column]: the same column in portrait.
+func _fade(top: bool) -> TextureRect:
+	var g := Gradient.new()
+	g.set_color(0, Color(0.02, 0.015, 0.03, 0.95) if top else Color(0.02, 0.015, 0.03, 0.0))
+	g.set_color(1, Color(0.02, 0.015, 0.03, 0.0) if top else Color(0.02, 0.015, 0.03, 0.95))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0, 1)
+	gt.width = 4
+	gt.height = 32
+	var tr := TextureRect.new()
+	tr.texture = gt
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.anchor_left = 0.0
+	tr.anchor_right = 1.0
+	tr.anchor_top = 0.0 if top else 1.0
+	tr.anchor_bottom = 0.0 if top else 1.0
+	tr.offset_top = 0.0 if top else -36.0
+	tr.offset_bottom = 36.0 if top else 0.0
+	tr.visible = false
+	return tr
+
+
+func _restore_scroll(sc: ScrollContainer, y: int) -> void:
+	if y <= 0 or not is_instance_valid(sc):
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(sc):
+		sc.scroll_vertical = y
+
+
+## Segmented tab bar: [[key, label], ...]. The selected tab is gold.
+func _tabs(options: Array, current: String, cb: Callable) -> HBoxContainer:
+	var h := _hbox(6)
+	for o in options:
+		var on: bool = String(o[0]) == current
+		var b := _button(String(o[1]), cb.bind(String(o[0])), GOLD if on else Color(0.16, 0.13, 0.22), 22, 88)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(b)
+	return h
+
+
+func _set_home_tab(t: String) -> void:
+	_home_tab = t
+	request_refresh()
+
+
+func _set_venue_tab(t: String) -> void:
+	_venue_tab = t
+	request_refresh()
+
+
 func _columns() -> Array:
 	if is_landscape():
 		var hb := _hbox(20)
@@ -517,7 +643,7 @@ func _card_shell(w: float, h: float, stripe: Color, cb: Callable, bg: Color = PA
 	b.add_theme_stylebox_override("hover", _card_box(base.lightened(0.06), stripe))
 	b.add_theme_stylebox_override("pressed", _card_box(base.darkened(0.2), stripe))
 	b.add_theme_stylebox_override("disabled", _card_box(base.darkened(0.35), stripe.darkened(0.5)))
-	b.pressed.connect(cb)
+	b.pressed.connect(_guarded.bind(cb))
 	b.button_down.connect(_click)
 	return b
 
@@ -1020,6 +1146,9 @@ func _show_how_to() -> void:
 # ================================================================ run flow
 
 func start_new_run(seed_value: int = 0) -> void:
+	_home_tab = "route"
+	_dest = ""
+	_scroll_mem.clear()
 	run = Run.new()
 	run.start(seed_value)
 	_save["runs"] = int(_save["runs"]) + 1
@@ -1043,70 +1172,132 @@ func _act(res: Dictionary, good: String = "coin") -> void:
 # ================================================================ home
 
 func _build_home() -> void:
+	if _dest == "" or not run.venue_choices.has(_dest):
+		_dest = String(run.venue_choices[0]) if not run.venue_choices.is_empty() else ""
 	_header()
 	_root_box.add_child(_stage_gap(130 if is_landscape() else 250))
-	var cols := _columns()
-	var main: VBoxContainer = cols[0]
-	var side: VBoxContainer = cols[1]
-	# Next stop.
-	var target_row := _hbox()
-	target_row.add_child(_label("Appraisal target", 20, MUTED))
-	target_row.add_child(_spacer(false))
-	target_row.add_child(_title_label(_money(run.target()), 30, INK))
-	_section(main, "NEXT: " + run.slot_name().to_upper())
-	main.add_child(target_row)
+	var shelf_tab := "SHELF %d/%d" % [run.slots_used(), run.shelf_cap]
+	if is_landscape():
+		var hb := _hbox(20)
+		hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_root_box.add_child(hb)
+		var left := _vbox(8)
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		left.size_flags_stretch_ratio = 0.55
+		hb.add_child(left)
+		_route_tab(_scroll_col(left, 1.0))
+		var right := _vbox(8)
+		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		right.size_flags_stretch_ratio = 0.45
+		hb.add_child(right)
+		if _home_tab == "route":
+			_home_tab = "perks"
+		right.add_child(_tabs([["perks", "PERK SHOP"], ["shelf", shelf_tab]], _home_tab, _set_home_tab))
+		var col := _scroll_col(right, 1.0)
+		if _home_tab == "shelf":
+			_shelf_grid(col, _side_w())
+		else:
+			_perks_tab(col, _side_w())
+	else:
+		_root_box.add_child(_tabs([["route", "ROUTE"], ["perks", "PERK SHOP"], ["shelf", shelf_tab]], _home_tab, _set_home_tab))
+		var col := _scroll_col(_root_box, 1.0)
+		match _home_tab:
+			"perks": _perks_tab(col, _main_w())
+			"shelf": _shelf_grid(col, _main_w())
+			_: _route_tab(col)
+	if _dest != "" and (is_landscape() or _home_tab == "route"):
+		var d := Venues.get_def(_dest)
+		var go := _button("HEAD TO %s  >" % String(d["name"]).to_upper(), func(): go_to_venue(_dest), STICKER, 28, 96)
+		_root_box.add_child(go)
+
+
+## Where you're going next: target, boss, market, and the venues to pick from.
+func _route_tab(col: VBoxContainer) -> void:
+	var top := _panel(Color(0.06, 0.05, 0.08, 0.85), Color(GOLD, 0.25), 2)
+	var tv := _vbox(4)
+	top.add_child(tv)
+	var tr := _hbox()
+	tr.add_child(_title_label("NEXT: " + run.slot_name().to_upper(), 26, GOLD))
+	tr.add_child(_spacer(false))
+	tr.add_child(_label("target", 16, MUTED))
+	tr.add_child(_title_label(_money(run.target()), 30, INK))
+	tv.add_child(tr)
 	var boss := Venues.boss(run.boss_id)
 	if run.is_boss_stop():
-		var bp := _panel(Color("3a1f2a"), BAD, 2)
-		var bv := _vbox(2)
-		bp.add_child(bv)
-		bv.add_child(_label("BOSS: " + String(boss["name"]), 22, BAD))
-		bv.add_child(_label(String(boss["desc"]), 19, INK, true))
-		main.add_child(bp)
+		tv.add_child(_pill("BOSS: " + String(boss["name"]).to_upper(), BAD, 16))
+		tv.add_child(_label(String(boss["desc"]), 18, INK, true))
 	else:
-		main.add_child(_label("This ante's boss: %s (%s)" % [boss["name"], boss["desc"]], 18, MUTED, true))
-	_market_panel(main)
-	_section(main, "WHERE TO?")
+		tv.add_child(_label("Ante boss later: %s" % boss["name"], 16, MUTED, true))
+	col.add_child(top)
+	_market_panel(col)
+	_section(col, "WHERE TO?")
 	for id in run.venue_choices:
-		main.add_child(_venue_button(String(id)))
+		col.add_child(_venue_button(String(id)))
 	if DEV:
 		var dev := _hbox()
 		dev.add_child(_button("DEV +$100", _dev_cash, Color("444055"), 18, 60))
 		dev.add_child(_button("DEV +1 ANTE", _dev_ante, Color("444055"), 18, 60))
-		main.add_child(dev)
-	# Perk shop.
+		col.add_child(dev)
+
+
+func _perks_tab(col: VBoxContainer, w: float) -> void:
 	var reroll := _button("Reroll %s" % _money(run.reroll_cost), func(): _act(run.reroll_perks(), "tick"), PANEL_HI, 18, 56)
-	_section(side, "PERK SHOP", reroll)
-	var gc: Array = _grid(_side_w(), 200, 10)
+	_section(col, "PERK SHOP", reroll)
+	var gc: Array = _grid(w, 200, 10)
 	var g: GridContainer = gc[0]
 	for pid in run.perk_offers:
 		g.add_child(_perk_card(String(pid), gc[1], false))
 	if not run.upgrade_offer.is_empty():
 		g.add_child(_upgrade_card(gc[1]))
-	side.add_child(g)
-	_section(side, "PERKS %d/%d" % [run.perks.size(), run.perk_cap])
+	col.add_child(g)
+	_section(col, "YOUR PERKS %d/%d" % [run.perks.size(), run.perk_cap])
 	if run.perks.is_empty():
-		side.add_child(_label("None yet. Perks bend the rules in your favor.", 18, MUTED, true))
+		col.add_child(_label("None yet. Perks bend the rules in your favor.", 18, MUTED, true))
 	else:
-		var pg: Array = _grid(_side_w(), 200, 10)
+		var pg: Array = _grid(w, 200, 10)
 		var gg: GridContainer = pg[0]
 		for pid in run.perks:
 			gg.add_child(_perk_card(String(pid), pg[1], true))
-		side.add_child(gg)
-	_shelf_grid(side, _side_w())
+		col.add_child(gg)
 
 
-## A destination card: coloured sign band, mood line, fact pills.
+func _pick_dest(id: String) -> void:
+	if _dest == id:
+		go_to_venue(id)
+		return
+	_dest = id
+	_sfx.play("open")
+	request_refresh()
+
+
+## A destination postcard: a snapshot of the room, a sign, mood and facts.
+## Tap to preview it behind the menu; tap again (or HEAD TO) to go.
 func _venue_button(id: String) -> Button:
 	var d := Venues.get_def(id)
 	var col: Color = d["color"]
-	var b := _card_shell(0, 210, col, func(): go_to_venue(id), PANEL)
+	var sel := id == _dest
+	var b := _card_shell(0, 262, GOLD if sel else col, func(): _pick_dest(id), PANEL)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var v := _card_inner(b)
+	var pic := PanelContainer.new()
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = col.darkened(0.6)
+	ps.set_corner_radius_all(6)
+	pic.add_theme_stylebox_override("panel", ps)
+	pic.custom_minimum_size = Vector2(0, 160)
+	pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var tex := TextureRect.new()
+	tex.texture = Art.venue(id)
+	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pic.add_child(tex)
+	var over := VBoxContainer.new()
+	over.alignment = BoxContainer.ALIGNMENT_END
+	pic.add_child(over)
 	var band := PanelContainer.new()
 	var bs := StyleBoxFlat.new()
-	bs.bg_color = col
-	bs.set_corner_radius_all(5)
+	bs.bg_color = Color(col, 0.92)
 	bs.content_margin_left = 10
 	bs.content_margin_right = 10
 	band.add_theme_stylebox_override("panel", bs)
@@ -1116,16 +1307,12 @@ func _venue_button(id: String) -> Button:
 	nm.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.25))
 	top.add_child(nm)
 	top.add_child(_spacer(false))
-	var go := _title_label("GO >", 26, DARK_TXT)
-	go.add_theme_constant_override("outline_size", 0)
-	top.add_child(go)
+	if sel:
+		top.add_child(_pill("TAP TO GO >", GOLD, 16))
 	band.add_child(top)
-	v.add_child(band)
-	var mood := _label(Flavor.mood(id), 18, FLAVOR_C, true)
-	v.add_child(mood)
-	var blurb := _label(String(d["blurb"]), 17, INK, true)
-	blurb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(blurb)
+	over.add_child(band)
+	v.add_child(pic)
+	v.add_child(_label(Flavor.mood(id), 18, FLAVOR_C, true))
 	var facts := HFlowContainer.new()
 	facts.add_theme_constant_override("h_separation", 5)
 	facts.add_theme_constant_override("v_separation", 4)
@@ -1157,17 +1344,50 @@ func _venue_facts(d: Dictionary) -> String:
 	return " | ".join(bits)
 
 
+## Perk families: colour + label for the card frame.
+const PERK_CATS := {
+	"hunt": ["THE HUNT", Color("ff9a3d")], "appraisal": ["APPRAISAL", Color("c77dff")],
+	"money": ["MONEY", Color("ffcc33")], "time": ["TIME & SPACE", Color("5fb3ff")], "market": ["MARKET", Color("4fd9a0")],
+}
+const PERK_CAT_OF := {
+	"price_guide": "hunt", "silver_tongue": "hunt", "early_bird": "hunt", "eagle_eye": "hunt", "lucky_lots": "hunt", "coupon": "hunt",
+	"piggy_bank": "money", "flipper": "money", "power_seller": "money", "sticker_gun": "money",
+	"extra_hour": "time", "moms_basement": "time", "time_capsule": "time",
+	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market",
+}
+
+
+## Big badge text pulled from a perk's description: "x2", "+$8", "+1", "25%".
+func _perk_badge(desc: String, name: String) -> String:
+	var re := RegEx.new()
+	re.compile("(x\\d+(\\.\\d+)?|\\+\\$?\\d+(\\.\\d+)?|\\d+%)")
+	var m := re.search(desc)
+	if m != null:
+		return m.get_string()
+	return name.left(1)
+
+
+## Trading-card style perk: category header, striped art panel with a big
+## effect badge, name, rule text, price.
 func _perk_card(id: String, w: float, owned: bool) -> Button:
 	var d := Perks.get_def(id)
-	var col := Color("b07cff") if not owned else GOOD
-	var b := _card_shell(w, 190, col, func(): _open_perk(id, owned), PANEL)
+	var cat: Array = PERK_CATS[PERK_CAT_OF.get(id, "appraisal")]
+	var col: Color = cat[1]
+	var b := _card_shell(w, 250, col if not owned else GOOD, func(): _open_perk(id, owned), PANEL)
 	var v := _card_inner(b)
-	v.add_child(_pill("OWNED" if owned else "PERK", col, 13))
+	var head := _hbox(6)
+	head.add_child(_pill(String(cat[0]), col, 13))
+	head.add_child(_spacer(false))
+	if owned:
+		head.add_child(_pill("OWNED", GOOD, 13))
+	v.add_child(head)
+	v.add_child(_perk_art(_perk_badge(String(d["desc"]), String(d["name"])), col))
 	var nm := _title_label(String(d["name"]), 22, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(nm)
-	var desc := _label(String(d["desc"]), 17, Color("ddd5ea"), true)
+	var desc := _label(String(d["desc"]), 16, Color("ddd5ea"), true)
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	desc.max_lines_visible = 3
 	v.add_child(desc)
 	var bottom := _hbox()
 	bottom.add_child(_spacer(false))
@@ -1180,15 +1400,66 @@ func _perk_card(id: String, w: float, owned: bool) -> Button:
 	return b
 
 
+static var _stripe_cache: Dictionary = {}
+
+
+## Diagonal-striped art window with a round badge in the middle.
+func _perk_art(badge: String, col: Color) -> Control:
+	var key := col.to_html()
+	if not _stripe_cache.has(key):
+		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+		for y in 32:
+			for x in 32:
+				var on := ((x + y) / 6) % 2 == 0
+				img.set_pixel(x, y, col.darkened(0.55) if on else col.darkened(0.7))
+		_stripe_cache[key] = ImageTexture.create_from_image(img)
+	var pc := PanelContainer.new()
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = col.darkened(0.7)
+	ps.set_corner_radius_all(6)
+	ps.set_border_width_all(2)
+	ps.border_color = Color(col, 0.6)
+	pc.add_theme_stylebox_override("panel", ps)
+	pc.custom_minimum_size = Vector2(0, 72)
+	var tr := TextureRect.new()
+	tr.texture = _stripe_cache[key]
+	tr.stretch_mode = TextureRect.STRETCH_TILE
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pc.add_child(tr)
+	var cc := CenterContainer.new()
+	pc.add_child(cc)
+	var disc := PanelContainer.new()
+	var ds := StyleBoxFlat.new()
+	ds.bg_color = col
+	ds.set_corner_radius_all(40)
+	ds.set_border_width_all(3)
+	ds.border_color = Color(1, 1, 1, 0.85)
+	ds.content_margin_left = 14
+	ds.content_margin_right = 14
+	ds.shadow_color = Color(0, 0, 0, 0.5)
+	ds.shadow_size = 3
+	ds.shadow_offset = Vector2(0, 3)
+	disc.add_theme_stylebox_override("panel", ds)
+	var l := _title_label(badge, 30, DARK_TXT)
+	l.add_theme_constant_override("outline_size", 0)
+	l.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.3))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	disc.add_child(l)
+	cc.add_child(disc)
+	return pc
+
+
 func _upgrade_card(w: float) -> Button:
 	var d := run.upgrade_offer
-	var b := _card_shell(w, 190, GOLD, func(): _open_upgrade(), Color(0.17, 0.13, 0.2, 0.93))
+	var b := _card_shell(w, 250, GOLD, func(): _open_upgrade(), Color(0.17, 0.13, 0.2, 0.93))
 	var v := _card_inner(b)
-	v.add_child(_pill("UPGRADE", GOLD, 13))
+	v.add_child(_pill("UPGRADE - LASTS ALL RUN", GOLD, 13))
+	v.add_child(_perk_art(_perk_badge(String(d["desc"]), String(d["name"])), GOLD))
 	var nm := _title_label(String(d["name"]), 22, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(nm)
-	var desc := _label(String(d["desc"]), 17, Color("ddd5ea"), true)
+	var desc := _label(String(d["desc"]), 16, Color("ddd5ea"), true)
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(desc)
 	var bottom := _hbox()
@@ -1220,6 +1491,8 @@ func _open_upgrade() -> void:
 
 func go_to_venue(id: String) -> void:
 	var res := run.enter_venue(id)
+	_venue_tab = "sale"
+	_scroll_mem.clear()
 	if bool(res["ok"]):
 		screen = "venue"
 		_sfx.play("door")
@@ -1263,9 +1536,29 @@ func _build_venue() -> void:
 	if run.is_boss_stop():
 		var boss := Venues.boss(run.boss_id)
 		_root_box.add_child(_label("BOSS: %s - %s" % [boss["name"], boss["desc"]], 18, BAD, true))
-	var cols := _columns()
-	var main: VBoxContainer = cols[0]
-	var side: VBoxContainer = cols[1]
+	var main: VBoxContainer
+	var side: VBoxContainer
+	var show_sale := true
+	var show_shelf := true
+	if is_landscape():
+		var cols := _columns()
+		main = cols[0]
+		side = cols[1]
+	else:
+		var sale_n := run.stock.size() + run.lots.size() + run.auctions.size()
+		_root_box.add_child(_tabs([["sale", "FOR SALE (%d)" % sale_n], ["shelf", "YOUR SHELF %d/%d" % [run.slots_used(), run.shelf_cap]]], _venue_tab, _set_venue_tab))
+		main = _scroll_col(_root_box, 1.0)
+		side = main
+		show_sale = _venue_tab != "shelf"
+		show_shelf = _venue_tab == "shelf"
+	if not show_sale:
+		_shelf_grid(side, _side_w())
+		var hint0 := _venue_hint()
+		if hint0 != "":
+			side.add_child(_label(hint0, 17, MUTED, true))
+		var done0 := _button("APPRAISE & LEAVE   %s / %s" % [_money(total), _money(tgt)], _confirm_done, STICKER if total >= tgt else Color("8a4a3a"), 26, 96)
+		_root_box.add_child(done0)
+		return
 	var gc: Array = _grid(_main_w(), 300, 10)
 	var g: GridContainer = gc[0]
 	var w: float = gc[1]
@@ -1296,9 +1589,10 @@ func _build_venue() -> void:
 		dig.disabled = run.time_left <= 0
 		main.add_child(dig)
 	var hint := _venue_hint()
-	if hint != "":
+	if hint != "" and show_shelf:
 		main.add_child(_label(hint, 17, MUTED, true))
-	_shelf_grid(side, _side_w())
+	if show_shelf:
+		_shelf_grid(side, _side_w())
 	var done := _button("APPRAISE & LEAVE   %s / %s" % [_money(total), _money(tgt)], _confirm_done, STICKER if total >= tgt else Color("8a4a3a"), 26, 96)
 	_root_box.add_child(done)
 
@@ -1691,6 +1985,9 @@ func _on_appraisal_input(event: InputEvent) -> void:
 
 func _after_appraisal() -> void:
 	_sfx.duck(false)
+	_home_tab = "route"
+	_dest = ""
+	_scroll_mem.clear()
 	var layer := _overlay.get_node_or_null("Appraisal")
 	if layer != null:
 		_overlay.remove_child(layer)
