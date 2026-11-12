@@ -82,7 +82,8 @@ The web build in Safari is the test for every platform.
 - Landscape = three columns (`_land_cols`): tall panels left and right, the 3D
   room in the middle strip (camera `look_down`), the main action button under it.
 - Screen changes go through `_transition` (a quick dip to black) so rebuilds
-  don't stutter on slow devices. `tools/perf_probe.gd` prints frame times and
+  don't stutter on slow devices. `tools/pad_probe.gd` plays the start with simulated pad presses and prints
+  the focus after each; `tools/perf_probe.gd` prints frame times and
   the CPU cost of room builds, UI rebuilds and cover painting.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,

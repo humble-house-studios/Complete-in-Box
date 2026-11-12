@@ -577,12 +577,26 @@ func _pad_focus(idx: int = 0) -> void:
 		return
 	for b in list:
 		_focus_style(b)
-	var pick: Control = list[clampi(idx, 0, list.size() - 1)]
+	var pick: Control = null
 	if _focus_key != "":
 		for b in list:
 			if _key_of(b) == _focus_key:
 				pick = b
 				break
+	if pick == null and idx <= 0:
+		# Fresh screen or sheet: start on its main button (NEXT, HEAD TO...),
+		# else the first real one (not SKIP or the pause button).
+		for b in list:
+			if (b as Control).has_meta("pad_main"):
+				pick = b
+				break
+		if pick == null:
+			for b in list:
+				if not (b as Control).has_meta("pad_skip"):
+					pick = b
+					break
+	if pick == null:
+		pick = list[clampi(idx, 0, list.size() - 1)]
 	pick.grab_focus()
 
 
@@ -1530,6 +1544,7 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 func _header() -> void:
 	var h := _hbox(12)
 	var menu := _button("II", _open_menu, Color(0.16, 0.14, 0.2), 22, 72)
+	menu.set_meta("pad_skip", true)
 	menu.custom_minimum_size.x = 72
 	menu.tooltip_text = "Menu"
 	h.add_child(menu)
@@ -1906,6 +1921,13 @@ func _finish_intro() -> void:
 	var layer := _intro
 	_intro = null
 	_intro_skip = true
+	# The fading intro must not keep the controller's focus.
+	for b in _focusables(layer):
+		(b as Control).focus_mode = Control.FOCUS_NONE
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_focus_key = ""
+	if _pad:
+		_pad_focus.call_deferred(0)
 	var hero := _stage.hero()
 	if hero != null and is_instance_valid(hero):
 		hero.position.y = 0.75
@@ -2189,6 +2211,7 @@ func _open_guide(on_done: Callable) -> void:
 	top.add_child(_spacer(false))
 	var land := is_landscape()
 	var skip := _button("SKIP", _guide_finish, PANEL_HI, 20, 72 if not land else 56)
+	skip.set_meta("pad_skip", true)
 	skip.custom_minimum_size.x = 130
 	top.add_child(skip)
 	v.add_child(top)
