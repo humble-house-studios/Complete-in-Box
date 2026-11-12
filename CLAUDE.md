@@ -75,8 +75,11 @@ The web build in Safari is the test for every platform.
   get an ink outline (`Psx.outline`, `assets/shaders/outline.gdshader`), warm dust
   motes drift in view (`_motes`), and `post.gdshader` grades shadows purple and
   highlights gold. Outlines and motes are off in `Lite.perf`.
-- People: Kenney Mini Characters (`props/people/character-*`), picked per spot, looping
-  their `idle` (`_person(pos, rot, tint, h, who, anim)`). Arcade machines in `props/arcade/`.
+- People: realistic Microsoft Rocketbox avatars (MIT), baked to static meshes with arms
+  lowered (`tools/gen_people.sh CLONE GODOT` -> `tools/bake_people.gd` ->
+  `assets/models/people_rb/<name>.res` + 256 px body/head textures), loaded with
+  `Psx.person(name)` (hair cards alpha-cut). `Stage._person(pos, rot, tint, h, who)`
+  picks from `PEOPLE` by spot; they breathe slightly. Arcade machines in `props/arcade/`.
 - The title vault: velvet plinth with gold rings and a GRAIL plaque, museum ropes, a
   light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets and a
   COMPLETE IN BOX neon.

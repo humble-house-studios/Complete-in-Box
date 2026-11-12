@@ -101,6 +101,7 @@ func show_scene(id: String, items: Array = []) -> void:
 	_flicker.clear()
 	_spin.clear()
 	_swing.clear()
+	_breathe.clear()
 	world = Node3D.new()
 	vp.add_child(world)
 	_build(id, items)
@@ -254,6 +255,9 @@ func _process(delta: float) -> void:
 	for s in _spin:
 		if is_instance_valid(s):
 			(s as Node3D).rotation.y += delta * 0.22
+	for b in _breathe:
+		if is_instance_valid(b[0]):
+			(b[0] as Node3D).scale.y = float(b[1]) * (1.0 + sin(_t * 1.6 + float(b[2])) * 0.006)
 	for s in _swing:
 		if is_instance_valid(s):
 			(s as Node3D).rotation.z = sin(_t * 1.3) * 0.12
@@ -427,20 +431,27 @@ func _poster_ids(seed_value: int, n: int) -> Array:
 
 
 ## Shopkeeper / shopper (Kenney mini-market character), tinted.
-## Shopkeepers and shoppers: Kenney mini characters (same family as the
-## furniture), picked by spot so a room keeps its cast, idling in a loop and
-## inked like the cards.
-const PEOPLE := ["female-a", "female-b", "female-c", "female-d", "female-e", "female-f",
-	"male-a", "male-b", "male-c", "male-d", "male-e", "male-f", "male-g", "worker"]
+## Shopkeepers and shoppers: realistic Rocketbox people (baked by
+## tools/bake_people.gd), picked by spot so a room keeps its cast, breathing
+## gently. `who` picks someone specific (e.g. "business_male_02").
+const PEOPLE := ["male_adult_01", "male_adult_03", "male_adult_05", "male_adult_08", "male_adult_11", "male_adult_14", "male_adult_17",
+	"female_adult_01", "female_adult_03", "female_adult_05", "female_adult_08", "female_adult_11", "female_adult_14"]
+var _breathe: Array = []
 
 
-func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45, who: String = "", anim: String = "idle") -> Node3D:
+func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45, who: String = "", _anim: String = "") -> Node3D:
 	var pick := who
-	if pick == "":
+	if pick == "" or not ResourceLoader.exists("res://assets/models/people_rb/%s.res" % pick):
 		pick = String(PEOPLE[absi(hash(Vector2i(int(pos.x * 10.0), int(pos.z * 10.0)))) % PEOPLE.size()])
-	var n := _prop("people/character-" + pick, pos, rot_y, h * 0.9, Color.WHITE.lerp(tint, 0.2))
-	_animate(n, anim, absf(pos.x * 0.37 + pos.z * 0.19))
-	Psx.outline(n)
+	var n := Psx.person(pick)
+	n.scale = Vector3.ONE * (h / 1.45) * 0.86
+	n.position = pos
+	n.rotation_degrees.y = rot_y
+	world.add_child(n)
+	if tint != Color.WHITE:
+		Psx.tint_all(n, Color.WHITE.lerp(tint, 0.15))
+	Psx.outline(n, 1.0)
+	_breathe.append([n, n.scale.y, absf(pos.x * 1.7 + pos.z)])
 	return n
 
 
@@ -965,7 +976,7 @@ func _garage(items: Array) -> void:
 	_prop("shop/hand-truck", Vector3(-2.6, 0, 0.6), 40, 1.2)
 	_prop("bear", Vector3(1.8, 0.9, 0.3), -10, 0.3)
 	_prop("radio", Vector3(-2.6, 0.9, -1.4), 70, 0.25)
-	_person(Vector3(-1.7, 0, -2.3), 25, Color(1.0, 0.85, 0.8))
+	_person(Vector3(-1.6, 0, -2.8), 25, Color(1.0, 0.85, 0.8))
 	_bulb(Vector3(0, 1.9, 0.2), Color(1.0, 0.85, 0.6), 2.6, 5.0, 2.8)
 	_light(Vector3(0, 1.8, -2.4), Color(1.0, 0.8, 0.6), 1.8, 5.0)
 	_view(Vector3(0, 1.45, 1.75), Vector3(0, 0.85, -0.05))
@@ -987,7 +998,7 @@ func _flea(items: Array) -> void:
 			Psx.cyl(0.025, 2.2, Psx.mat(Color(0.75, 0.75, 0.78)), Vector3(x, 1.1, z), world, 6)
 	var table := _prop("tableCloth", Vector3(0, 0, 0), 0, 0.0, Color(1, 1, 1), 2.1)
 	_lay_items(items, Vector3(0, _top(table), 0.0), 1.8, 0.32, 4)
-	_person(Vector3(1.15, 0, -1.25), -15, Color(0.9, 0.95, 1.0))
+	_person(Vector3(1.1, 0, -2.2), -15, Color(0.9, 0.95, 1.0))
 	_prop("cardboardBoxOpen", Vector3(-1.4, 0, -0.7), 20, 0.45)
 	# Other stalls under parasols.
 	var r := RandomNumberGenerator.new()
@@ -1091,7 +1102,7 @@ func _storage(items: Array) -> void:
 			_items.append(b)
 	else:
 		_lay_items(items, Vector3(0, 0.15, 0.2), 1.4, 0.35, 4)
-	_person(Vector3(-2.3, 0, -0.3), 50, Color(0.9, 0.9, 1.0))
+	_person(Vector3(-2.3, 0, -0.3), 50, Color(0.9, 0.9, 1.0), 1.45, "construction_male_01")
 	_prop("urban/detail-light-double", Vector3(-4.5, 0, 1.5), 90, 4.0)
 	_prop("urban/detail-light-double", Vector3(4.5, 0, 1.5), -90, 4.0)
 	_prop("urban/truck-grey", Vector3(5.0, 0, 3.5), 100, 0.0, Color.WHITE, 5.0)
@@ -1125,7 +1136,7 @@ func _retro(items: Array) -> void:
 	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.85, 0.9), null, Vector2.ONE, 0.35), Vector3(0, 0.92, 0), world)
 	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
 	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
-	_person(Vector3(1.0, 0, -1.3), -10, Color(0.85, 0.95, 1.0))
+	_person(Vector3(0.9, 0, -2.6), -10, Color(0.85, 0.95, 1.0))
 	_crt(Vector3(-1.6, 0.94, -0.1), 0.45, Color(0.5, 0.95, 0.6), 25)
 	_prop("shop/gacha-machine", Vector3(-3.0, 0, 0.4), 60, 1.4)
 	_prop("arcade/arcade-machine", Vector3(-3.1, 0, 1.4), 75, 1.75)
@@ -1172,7 +1183,7 @@ func _pawn(items: Array) -> void:
 	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.8, 0.85), null, Vector2.ONE, 0.25), Vector3(0, 0.97, 0), world)
 	_lay_items(items, Vector3(-0.2, 0.99, 0.0), 1.9, 0.3, 4)
 	_prop("shop/cash-register", Vector3(1.1, 0.99, -0.1), -20, 0.35)
-	_person(Vector3(-1.0, 0, -1.3), 10, Color(1.0, 0.9, 0.75))
+	_person(Vector3(-0.6, 0, -2.4), 10, Color(1.0, 0.9, 0.75))
 	_neon("PAWN", Vector3(1.2, 2.45, -3.4), Color(1.0, 0.85, 0.2), 110)
 	_panel_light(Vector3(0, 2.85, -0.6), 2.0, Color(0.9, 1.0, 0.9), 6.0, 0.2)
 	_panel_light(Vector3(0, 2.85, -2.4), 1.4, Color(0.9, 1.0, 0.9), 5.0)
@@ -1209,7 +1220,7 @@ func _convention(items: Array) -> void:
 	# Free-play corner: cabinets and a pinball with players.
 	for k in 3:
 		_prop(["arcade/arcade-machine", "arcade/dance-machine", "arcade/pinball"][k], Vector3(-6.0 + k * 1.3, 0, -1.5), 20, 1.8 if k < 2 else 1.2)
-	_person(Vector3(-5.6, 0, -0.7), 200, Color.WHITE, 1.4, "male-c")
+	_person(Vector3(-5.6, 0, -0.7), 200, Color.WHITE, 1.4)
 	_prop("arcade/basketball-game", Vector3(6.0, 0, -1.4), -30, 1.9)
 	for x in [-5.0, 5.0]:
 		_prop("shop/column", Vector3(x, 0, -3.0), 0, 5.5)
@@ -1274,7 +1285,8 @@ func _heritage(items: Array) -> void:
 	rope.rotation_degrees.z = 90.0
 	# Auctioneer at the podium, bidders in rows.
 	Psx.box(Vector3(0.7, 1.15, 0.55), Psx.mat(Color(0.6, 0.42, 0.3), Psx.tex("wood092")), Vector3(2.4, 0.575, -1.8), world)
-	_person(Vector3(2.4, 0, -2.3), -10, Color(1.0, 0.95, 0.85))
+	_person(Vector3(2.4, 0, -2.3), -10, Color(1.0, 0.95, 0.85), 1.45, "business_male_02")
+	_person(Vector3(-4.9, 0, -3.4), 30, Color.WHITE, 1.45, "security_male_01")
 	var r := RandomNumberGenerator.new()
 	r.seed = 9
 	for row in 2:
@@ -1282,8 +1294,9 @@ func _heritage(items: Array) -> void:
 			var x := -4.2 + k * 0.7
 			var z := -2.2 - row * 0.9
 			_prop("chairCushion", Vector3(x, 0, z), 70, 0.0, Color(0.8, 0.3, 0.3), 0.6)
-			if r.randf() < 0.6:
-				_person(Vector3(x, 0.25, z), 70, Color.from_hsv(r.randf(), 0.25, 1.0), 1.3)
+			if r.randf() < 0.45:
+				# Bidders standing at the back of their row.
+				_person(Vector3(x - 0.45, 0, z), 70, Color.from_hsv(r.randf(), 0.25, 1.0))
 	for x in [-4.6, -1.6, 1.6, 4.6]:
 		_prop("shop/column", Vector3(x, 0, -4.1), 0, 4.2, Color(1.0, 0.95, 0.85))
 	var ids := _poster_ids(88, 3)

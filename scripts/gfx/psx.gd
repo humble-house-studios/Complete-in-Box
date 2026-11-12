@@ -151,6 +151,55 @@ static func _convert(n: Node, tint: Color, texture: Texture2D) -> void:
 		_convert(c, tint, texture)
 
 
+## A realistic person (Rocketbox avatar baked by tools/bake_people.gd): the
+## body and head in the PSX look, hair cards cut out with alpha.
+static var _people_mesh: Dictionary = {}
+
+
+static func person(name: String) -> Node3D:
+	var holder := Node3D.new()
+	var base := "res://assets/models/people_rb/" + name
+	if not _people_mesh.has(name):
+		_people_mesh[name] = load(base + ".res") if ResourceLoader.exists(base + ".res") else null
+	var mesh: Mesh = _people_mesh[name]
+	if mesh == null:
+		return holder
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var tex_names := ["body", "head", "opacity"]
+	for i in mesh.get_surface_count():
+		var tn: String = tex_names[mini(i, 2)]
+		var tp := "%s_%s.png" % [base, tn]
+		var t: Texture2D = load(tp) if ResourceLoader.exists(tp) else null
+		if tn == "opacity":
+			var sm := StandardMaterial3D.new()
+			sm.albedo_texture = t
+			sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			sm.alpha_scissor_threshold = 0.5
+			sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+			sm.roughness = 1.0
+			mi.set_surface_override_material(i, sm)
+		else:
+			mi.set_surface_override_material(i, mat(Color.WHITE, t))
+	holder.add_child(mi)
+	return holder
+
+
+## Multiplies the colour of every PSX surface under n (shop lights, moods).
+static func tint_all(n: Node, t: Color) -> void:
+	if n is MeshInstance3D:
+		var mi := n as MeshInstance3D
+		for i in (mi.mesh.get_surface_count() if mi.mesh else 0):
+			var m := mi.get_surface_override_material(i)
+			if m is ShaderMaterial:
+				var c = (m as ShaderMaterial).get_shader_parameter("albedo")
+				if c is Color:
+					(m as ShaderMaterial).set_shader_parameter("albedo", (c as Color) * t)
+	for c in n.get_children():
+		tint_all(c, t)
+
+
 ## Gives every mesh under n an ink outline (the cards' thick border, in 3D).
 ## Off on weak devices (it draws each mesh twice).
 static func outline(n: Node, width: float = 1.4) -> void:
