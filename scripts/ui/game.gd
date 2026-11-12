@@ -2316,14 +2316,36 @@ func _build_debug_hud() -> void:
 	_dbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dbg.anchor_top = 1.0
 	_dbg.anchor_bottom = 1.0
+	_dbg.anchor_left = 1.0
+	_dbg.anchor_right = 1.0
 	_dbg.offset_top = -30
-	_dbg.offset_left = 8
+	_dbg.offset_right = -10
+	_dbg.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_dbg.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	add_child(_dbg)
 	var t := Timer.new()
 	t.wait_time = 0.5
 	t.autostart = true
 	t.timeout.connect(_dbg_update)
 	add_child(t)
+
+
+## Build number (CI run) and time, e.g. "#41 11-12 10:20".
+func _build_label() -> String:
+	if _build_txt == "":
+		var f := FileAccess.open("res://build_id.txt", FileAccess.READ)
+		var stamp := f.get_as_text().strip_edges().to_int() if f != null else 0
+		var rf := FileAccess.open("res://build_run.txt", FileAccess.READ)
+		var vn := rf.get_as_text().strip_edges() if rf != null else ""
+		if stamp > 0:
+			var d := Time.get_datetime_dict_from_unix_time(stamp)
+			_build_txt = "%s%02d-%02d %02d:%02d UTC" % [("#" + vn + " ") if vn != "" else "", d["month"], d["day"], d["hour"], d["minute"]]
+		else:
+			_build_txt = "dev"
+	return _build_txt
+
+
+var _build_txt := ""
 
 
 func _dbg_note(e: InputEvent) -> void:
@@ -2348,7 +2370,7 @@ func _dbg_update() -> void:
 	var ftxt := "none"
 	if fo is Button:
 		ftxt = (fo as Button).text.substr(0, 24) if (fo as Button).text != "" else "card"
-	_dbg.text = "FPS %d  |  %s  |  pads %d  |  pad mode %s  |  focus: %s" % [Engine.get_frames_per_second(), _dbg_last, Input.get_connected_joypads().size(), "on" if _pad else "off", ftxt]
+	_dbg.text = "FPS %d  |  %s  |  pads %d  |  pad mode %s  |  focus: %s  |  build %s" % [Engine.get_frames_per_second(), _dbg_last, Input.get_connected_joypads().size(), "on" if _pad else "off", ftxt, _build_label()]
 
 
 ## FULL = everything; FAST = lower-res 3D, no shadows / CRT, 30 fps;
@@ -4310,7 +4332,7 @@ func _process(delta: float) -> void:
 			_manual_t -= delta
 		else:
 			_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
-			_spin_model.rotation.y += (0.8 + _spin_vel) * delta
+			_spin_model.rotation.y += (0.35 + _spin_vel) * delta
 			_spin_model.rotation.x = lerpf(_spin_model.rotation.x, 0.0, delta * 2.0)
 
 

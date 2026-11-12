@@ -35,7 +35,9 @@ jobs:
 
       # Build time stamp: the TV app compares it to fetch newer game data.
       - name: Stamp build
-        run: date +%s > build_id.txt
+        run: |
+          date +%s > build_id.txt
+          echo "${GITHUB_RUN_NUMBER}" > build_run.txt
 
       - name: Import project
         run: godot --headless --import || true
