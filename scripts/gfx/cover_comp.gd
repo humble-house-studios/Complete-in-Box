@@ -75,6 +75,70 @@ const SCENES := {
 
 static var _tex: Dictionary = {}
 static var _fonts: Dictionary = {}
+## The title of the item being painted (BoxArt sets it), so the cover can show
+## what the game is about (Subjects.WORDS).
+static var current_title := ""
+const TINT := preload("res://assets/shaders/tint.gdshader")
+const Subjects := preload("res://scripts/gfx/subjects.gd")
+static var _tint_mats: Dictionary = {}
+
+## CG layouts used with Subjects renders.
+const CG_LAYOUTS := ["cg_hero", "cg_hero", "cg_duo", "cg_burst", "cg_scene", "cg_orbit"]
+
+
+## Subject refs a title is about, most specific first (two-word phrases too).
+static func subjects_for(title: String) -> Array:
+	var out: Array = []
+	var t := title.to_lower()
+	for ch in [":", ",", "!", "?", "(", ")", "&"]:
+		t = t.replace(ch, " ")
+	var words := t.split(" ", false)
+	for table in [Subjects.WORDS, Subjects.WEAK]:
+		for i in words.size():
+			var cands: Array = [String(words[i])]
+			if i + 1 < words.size():
+				cands.push_front(String(words[i]) + " " + String(words[i + 1]))
+			for w in cands:
+				for ref in (table as Dictionary).get(w, []):
+					if not out.has(ref):
+						out.append(ref)
+	return out
+
+
+## [texture, tint or null] for a subject ref ("gorilla", "hedgehog#4f7cff").
+static func subject(g: RandomNumberGenerator, ref: String) -> Array:
+	var parts := ref.split("#")
+	var list: Array = Subjects.SPRITES.get(parts[0], [])
+	if list.is_empty():
+		return [null, null]
+	var t := tex(String(list[g.randi() % list.size()]))
+	return [t, Color("#" + parts[1]) if parts.size() > 1 else null]
+
+
+## A glossy 3D subject standing on `foot`, `h` tall, with a soft drop shadow.
+static func cg(c: Control, g: RandomNumberGenerator, ref: String, foot: Vector2, h: float, flip := false, rot := 0.0, shadow := true) -> TextureRect:
+	var st := subject(g, ref)
+	if st[0] == null:
+		return null
+	if shadow:
+		var sh := sprite(c, st[0], foot + Vector2(h * 0.05, h * 0.04), h, flip, Color(0, 0, 0, 0.38), rot)
+		sh.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	var tr := sprite(c, st[0], foot, h, flip, Color.WHITE, rot)
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if st[1] != null:
+		var key := (st[1] as Color).to_html()
+		if not _tint_mats.has(key):
+			var m := ShaderMaterial.new()
+			m.shader = TINT
+			m.set_shader_parameter("tint", st[1])
+			_tint_mats[key] = m
+		tr.material = _tint_mats[key]
+	return tr
+
+
+static func glow(c: Control, at: Vector2, rad: float, col: Color) -> void:
+	for k in 4:
+		BoxArt.circle(c, at, rad * (1.0 - k * 0.18), Color(col, 0.16 + k * 0.08), 28)
 
 
 static func tex(path: String) -> Texture2D:
@@ -196,6 +260,21 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 	var w := rr.size.x
 	var h := rr.size.y
 	var tint := Color.WHITE.lerp(pal[3], g.randf_range(0.0, 0.25))
+	# What the title is about: its subjects (or the genre's) as glossy 3D renders.
+	var subs := subjects_for(current_title)
+	var strong := not subs.is_empty()
+	if not strong:
+		var pool: Array = Subjects.GENRE.get(genre, [])
+		for k in mini(3, pool.size()):
+			var ref = pool[g.randi() % pool.size()]
+			if not subs.has(ref):
+				subs.append(ref)
+	if not subs.is_empty() and g.randf() < (0.72 if strong else 0.3):
+		_compose_cg(holder, rr, g, pal, genre, subs)
+		return
+	if strong and h > 60:
+		# Pixel-art cover, plus the title's subject as a prop in a corner.
+		cg(holder, g, String(subs[0]), Vector2(w * 0.82, h * 0.42), h * 0.26, true)
 	match layout:
 		"hero_center":
 			sprite(holder, pick(g, fc), Vector2(w * 0.18, h * 0.86), h * 0.32, false)
@@ -338,6 +417,55 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 	if g.randf() < 0.35 and h > 60:
 		for k in 3:
 			sprite(holder, pick(g, "item"), Vector2(g.randf_range(0.1, 0.9) * w, g.randf_range(0.15, 0.45) * h), h * 0.08)
+
+
+## CGI-style covers: the title's subjects as big glossy renders over a backdrop.
+static func _compose_cg(holder: Control, rr: Rect2, g: RandomNumberGenerator, pal: Array, genre: String, subs: Array) -> void:
+	var w := rr.size.x
+	var h := rr.size.y
+	var lay := String(CG_LAYOUTS[g.randi() % CG_LAYOUTS.size()])
+	if subs.size() < 2 and lay in ["cg_duo", "cg_orbit"]:
+		lay = "cg_hero"
+	var main := String(subs[0])
+	var alt := String(subs[1 % subs.size()])
+	var extra := String(subs[2 % subs.size()])
+	var base_layout := "hero_center"
+	if lay == "cg_burst":
+		base_layout = "versus"
+	elif lay == "cg_scene":
+		base_layout = "landscape"
+	_backdrop(holder, rr, g, pal, genre, base_layout)
+	if lay == "cg_scene" and SCENES.has(genre):
+		_scene(holder, rr, pick(g, String(SCENES[genre])), Color.WHITE.lerp(pal[1], 0.2))
+	match lay:
+		"cg_hero":
+			glow(holder, Vector2(w * 0.5, h * 0.56), minf(w, h) * 0.46, pal[3])
+			cg(holder, g, alt, Vector2(w * 0.17, h * 0.95), h * 0.3, false, -8.0)
+			cg(holder, g, extra, Vector2(w * 0.84, h * 0.9), h * 0.26, true, 8.0)
+			cg(holder, g, main, Vector2(w * 0.5, h * 0.98), h * 0.7, g.randf() < 0.4)
+		"cg_duo":
+			BoxArt.poly(holder, PackedVector2Array([Vector2(w * 0.6, -5), Vector2(w + 5, -5), Vector2(w + 5, h + 5), Vector2(w * 0.4, h + 5)]), Color(pal[3], 0.35))
+			cg(holder, g, main, Vector2(w * 0.3, h * 1.0), h * 0.64)
+			cg(holder, g, alt, Vector2(w * 0.74, h * 0.92), h * 0.54, true)
+		"cg_burst":
+			glow(holder, Vector2(w * 0.5, h * 0.5), minf(w, h) * 0.5, pal[3])
+			for k in 5:
+				var a := TAU * k / 5.0 + g.randf_range(-0.3, 0.3)
+				var at := Vector2(w * 0.5, h * 0.55) + Vector2(cos(a) * w * 0.4, sin(a) * h * 0.36)
+				cg(holder, g, alt if k % 2 == 0 else extra, at, h * 0.16, k % 2 == 1, g.randf_range(-25, 25), false)
+			cg(holder, g, main, Vector2(w * 0.5, h * 0.9), h * 0.62)
+		"cg_scene":
+			BoxArt.rect(holder, Rect2(0, h * 0.84, w, h * 0.16), Color(pal[2], 0.6))
+			cg(holder, g, alt, Vector2(w * 0.8, h * 0.88), h * 0.3, true)
+			cg(holder, g, main, Vector2(w * 0.38, h * 1.0), h * 0.62)
+		"cg_orbit":
+			glow(holder, Vector2(w * 0.5, h * 0.5), minf(w, h) * 0.42, pal[4])
+			for k in 3:
+				cg(holder, g, String(subs[(k + 1) % subs.size()]), Vector2(w * (0.18 + k * 0.32), h * (0.32 if k != 1 else 0.24)), h * 0.18, k == 2, 0.0, false)
+			cg(holder, g, main, Vector2(w * 0.5, h * 1.0), h * 0.6)
+	if g.randf() < 0.3 and h > 60:
+		for k in 3:
+			sprite(holder, pick(g, "item"), Vector2(g.randf_range(0.1, 0.9) * w, g.randf_range(0.12, 0.4) * h), h * 0.07)
 
 
 static func _backdrop(c: Control, r: Rect2, g: RandomNumberGenerator, pal: Array, genre: String, layout: String) -> void:

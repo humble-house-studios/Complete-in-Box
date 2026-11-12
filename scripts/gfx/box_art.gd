@@ -222,6 +222,7 @@ static var _product: Texture2D
 
 
 static func paint_front(c: Control, item: Dictionary) -> void:
+	CoverComp.current_title = String(item.get("name", ""))
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	var plat := String(item["plat"])
 	var pd: Dictionary = Catalog.platform(plat)
@@ -379,6 +380,7 @@ static func _variant_overlay(c: Control, item: Dictionary, variant: String) -> v
 # ---------------------------------------------------------------- back
 
 static func paint_back(c: Control, item: Dictionary) -> void:
+	CoverComp.current_title = String(item.get("name", ""))
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	var plat := String(item["plat"])
 	var pd: Dictionary = Catalog.platform(plat)

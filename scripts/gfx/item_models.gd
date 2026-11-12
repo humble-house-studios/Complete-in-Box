@@ -14,6 +14,10 @@ const CART_BIG := "res://assets/models/items/gameCartridge1.glb"
 const CART_SMALL := "res://assets/models/items/handheldCartridge1.glb"
 const CART_BIG_TEX := "res://assets/models/items/gameCartridge1.png"
 const CART_SMALL_TEX := "res://assets/models/items/handheldCartridge1.png"
+## A real N64-style shell (115.5 x 76 x 18.6 mm, converted from a printable
+## STL by tools/stl_to_glb.py): front-view UVs, front facing +Z, no texture.
+const CART_F64 := "res://assets/models/items/n64Cartridge.glb"
+const F64_LABEL := Rect2(0.205, 0.09, 0.59, 0.64)
 ## Where the sticker sits on each cart texture (UV).
 const BIG_LABEL := Rect2(0.22, 0.05, 0.205, 0.42)
 const SMALL_LABEL := Rect2(0.078, 0.312, 0.344, 0.297)
@@ -184,6 +188,13 @@ static func _tint(n: Node, t: Color) -> void:
 # ---------------------------------------------------------------- games
 
 static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
+	if plat == "F64" and ResourceLoader.exists(CART_F64):
+		if not _carts.has(CART_F64):
+			_carts[CART_F64] = load(CART_F64)
+		var n64: Node3D = (_carts[CART_F64] as PackedScene).instantiate()
+		_apply(n64, Psx.label_mat(_white(), label, F64_LABEL, Color(0.36, 0.36, 0.39)))
+		model.add_child(n64)
+		return
 	var spec: Array = CART.get(plat, CART["FES"])
 	var small: bool = spec[0] == "small"
 	var path := CART_SMALL if small else CART_BIG
@@ -197,6 +208,17 @@ static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
 	inner.scale = spec[1]
 	inner.rotation_degrees.y = -90.0
 	model.add_child(inner)
+
+
+static var _white_tex: Texture2D
+
+
+static func _white() -> Texture2D:
+	if _white_tex == null:
+		var img := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		_white_tex = ImageTexture.create_from_image(img)
+	return _white_tex
 
 
 static func _apply(n: Node, m: Material) -> void:
@@ -220,6 +242,25 @@ static func _disc(model: Node3D, label: Texture2D, plat: String = "") -> void:
 	var lm := Psx.mat(Color.WHITE, label)
 	lm.set_shader_parameter("circle", true)
 	Psx.quad(Vector2(r * 1.88, r * 1.88), lm, Vector3(0, r, 0.042), model)
+	# The data side: mirror silver with the diffraction rainbow (black on PS1/PS2 discs).
+	var back := Psx.quad(Vector2(r * 2.0, r * 2.0), disc_back_mat(plat), Vector3(0, r, 0.018), model)
+	back.rotation_degrees.y = 180.0
+
+
+const DISC_BACK := preload("res://assets/shaders/disc_back.gdshader")
+
+
+static func disc_back_mat(plat: String = "") -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = DISC_BACK
+	var black := plat == "PST" or plat == "PST2"
+	m.set_shader_parameter("base", Color(0.12, 0.1, 0.16) if black else Color(0.8, 0.82, 0.88))
+	m.set_shader_parameter("strength", 0.8 if black else 1.0)
+	m.set_shader_parameter("snap", Psx.snap)
+	m.set_shader_parameter("fog_color", Psx.fog_color)
+	m.set_shader_parameter("fog_near", Psx.fog_near)
+	m.set_shader_parameter("fog_far", Psx.fog_far)
+	return m
 
 
 ## Cardboard (or plastic) retail box with the label as its front art.

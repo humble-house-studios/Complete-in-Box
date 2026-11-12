@@ -17,6 +17,8 @@ import re, hashlib, json, os, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GAMES = os.path.join(ROOT, "docs/research/retro_gaming_top_500.txt")
 HW = os.path.join(ROOT, "docs/research/retro_hardware_top_250.txt")
+# Extra games read as their own sections (so the main list's ranks stay put).
+MORE_GAMES = [os.path.join(ROOT, "docs/research/retro_gaming_n64_more.txt")]
 OUT = os.path.join(ROOT, "scripts/data/catalog_items.gd")
 
 
@@ -45,7 +47,9 @@ SUBS = {
     "Saturn": "Saturnine", "Dreamcast": "Dreamcaster", "Neo Geo": "Neon Geo", "Atari": "Ataro", "Jaguar": "Jagwire",
     "Panther": "Panthar", "Pioneer LaserActive": "Pyoneer LazerActive", "3DO": "4DO", "Panasonic": "Panasonik", "Sharp": "Sharpe",
     "Konami": "Konamo", "Namco": "Namcoo", "Hori": "Horo", "Amstrad": "Amstrud", "JVC": "JBC", "X'Eye": "X'Ayy", "Coleco": "Colecko",
-    "Sears": "Seers", "Pikachu": "Pikapal", "Pokémon": "Pocket Critters", "Pokemon": "Pocket Critters",
+    "Sears": "Seers", "Star Wars": "Starr Warz", "Indiana Jones": "Indianna Bones", "WWF": "WWFF", "NFL": "NFFL",
+    "Mortal Kombat": "Mortel Kombot", "Ken Griffey Jr.": "Ken Griffo Jr.", "Clay Fighter": "Clay Fightur", "Superman": "Supurman",
+    "Toy Story": "Toy Storie", "Pikachu": "Pikapal", "Pokémon": "Pocket Critters", "Pokemon": "Pocket Critters",
     # hardware bits
     "Control Deck": "Control Dock", "R.O.B.": "R.O.B.B.", "Robotic Operating Buddy": "Robotic Operating Pal",
     "Zapper": "Zappr", "Power Pad": "Power Padd", "Power Glove": "Power Mitt", "Four Score": "Four Scour", "Satellite": "Satellyte",
@@ -192,6 +196,7 @@ GAME_SECTIONS = {
     "NES": "FES", "SNES": "SFES", "N64": "F64", "GAME BOY / GAME BOY COLOR": "PBOY", "GAME BOY ADVANCE": "PBA",
     "PLAYSTATION": "PST", "PS2 / XBOX / DS / PSP / OTHER LATE RETRO": "PST2", "GAMECUBE": "FCUBE", "DREAMCAST": "DC",
     "GENESIS / MEGA DRIVE": "GEN", "SATURN": "SAT", "NEO GEO (AES / MVS / CD)": "NEO", "ATARI 2600": "A26",
+    "N64 MORE": "F64",
 }
 SUFFIX_PLAT = {"NES": "FES", "SNES": "SFES", "N64": "F64", "Dreamcast": "DC", "PS1": "PST", "Hardware": None}
 DISC_PLATS = {"PST", "PST2", "DC", "SAT", "FCUBE", "XBX", "PSPK"}
@@ -336,9 +341,32 @@ BLURBS = {
 RATING = {"Horror": "M", "Shooter": "T", "Fighting": "T", "Action": "T"}
 
 
+# Exact genres for the extra lists (checked before GENRE_WORDS).
+GENRE_EXACT = {
+    "Clay Fighter: Sculptor's Cut": "Fighting", "Killer Instinct Gold": "Fighting", "WWF No Mercy": "Fighting",
+    "Mortal Kombat Trilogy": "Fighting", "Bio F.R.E.A.K.S.": "Fighting", "Fighters Destiny": "Fighting",
+    "Pokémon Puzzle League": "Puzzle", "Dr. Mario 64": "Puzzle", "Tetrisphere": "Puzzle", "Worms Armageddon": "Strategy",
+    "Stunt Racer 64": "Racing", "Star Wars Episode I: Racer": "Racing", "San Francisco Rush 2049": "Racing",
+    "Cruis'n World": "Racing", "Cruis'n USA": "Racing", "Road Rash 64": "Racing", "Extreme-G": "Racing",
+    "Wipeout 64": "Racing", "Beetle Adventure Racing": "Racing", "Top Gear Rally": "Racing", "Ridge Racer 64": "Racing",
+    "Snowboard Kids 2": "Racing", "Doom 64": "Shooter", "Duke Nukem 64": "Shooter", "Quake II": "Shooter",
+    "Hexen": "Horror", "Star Wars: Rogue Squadron": "Shooter", "Shadows of the Empire": "Shooter",
+    "Body Harvest": "Shooter", "Army Men: Sarge's Heroes": "Shooter", "Buck Bumble": "Shooter",
+    "NFL Blitz": "Sports", "Ken Griffey Jr.'s Slugfest": "Sports", "Waialae Country Club Golf": "Sports",
+    "Glover": "Platformer", "Chameleon Twist": "Platformer", "Gex 64: Enter the Gecko": "Platformer",
+    "Rocket: Robot on Wheels": "Platformer", "Toy Story 2": "Platformer", "Bomberman Hero": "Platformer",
+    "Mega Man 64": "Action", "Mystical Ninja Starring Goemon": "Adventure", "Goemon's Great Adventure": "Platformer",
+    "Indiana Jones and the Infernal Machine": "Adventure", "Superman 64": "Action", "Rampage World Tour": "Action",
+    "Gauntlet Legends": "RPG", "Hey You, Pikachu!": "Life Sim", "Mario Party 2": "Puzzle", "Mario Party": "Puzzle",
+    "Ogre Battle 64": "Strategy", "Bomberman 64: The Second Attack": "Action",
+}
+
+
 def genre_of(name, kind):
     if kind != "game":
         return "Hardware"
+    if name in GENRE_EXACT:
+        return GENRE_EXACT[name]
     for g, words in GENRE_WORDS:
         for w in words:
             if w.lower() in name.lower():
@@ -417,6 +445,8 @@ def main():
     ids = set()
     merged = {}
     games = parse(GAMES)
+    for extra in MORE_GAMES:
+        games += parse(extra)
     hw = parse(HW)
     hw_names = {n for _, n, _ in hw}
 
