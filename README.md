@@ -1,6 +1,9 @@
-# Complete In Box
+# Collector's Curse
 
-A Balatro/CloverPit-style roguelike about hunting, flipping and hoarding retro games.
+(Repo name: Complete In Box.)
+
+A Balatro/CloverPit-style roguelike about hunting, flipping and hoarding retro games,
+to pay off a dead uncle's debt to a Buyer who collects collectors.
 Built in Godot 4.3.
 
 **Play the latest build:** https://humble-house-studios.github.io/Complete-in-Box/
@@ -16,7 +19,7 @@ Every push to `main` rebuilds that link (see `.github/workflows/deploy.yml`).
   list items for auction, bid, grade and repair.
 - Leaving a stop **appraises your shelf**: each item adds its value, then sets
   (3+ of a platform, console + game + accessory), grails and perks add Mult.
-  Miss the target and you're out of business.
+  Miss the target and you get shrink-wrapped, graded and sealed in a glass case.
 - **Short vs long term:** flip now for cash, or hold collectibles that gain value
   each stop (fads lose it). Hot/cold trends and rumors move prices. Grading is a
   one-stop gamble worth up to x3.

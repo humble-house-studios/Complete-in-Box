@@ -25,6 +25,8 @@ var _focus := 0.3
 var _zoom := 1.0
 ## Your Wall finds, shown on the living room's second shelf.
 var wall_items: Array = []
+## The lose ending (scene "cursed"): grade, condition and labels for your case.
+var case_info: Dictionary = {}
 var _shelf_view: Array = []
 var _home_view: Array = []
 ## Landscape centre-strip layout: look down onto the table like phones do.
@@ -82,7 +84,7 @@ func _ready() -> void:
 
 ## Rebuilds the room only when the scene or its items changed.
 func show_scene(id: String, items: Array = []) -> void:
-	var bits: Array = [id, wall_items.size()]
+	var bits: Array = [id, wall_items.size(), case_info.hash() if id == "cursed" else 0]
 	for it in items:
 		bits.append("%s/%s" % [it.get("id", ""), it.get("cond", "")])
 	var key := "|".join(bits)
@@ -915,6 +917,7 @@ func _build(id: String, items: Array) -> void:
 		"coinshop": _pawn(items)
 		"coinauction": _heritage(items)
 		"beach": _beach(items)
+		"cursed": _cursed(items)
 		_: _garage(items)
 
 
@@ -1621,3 +1624,170 @@ func _decor_stock_at(parent: Node3D, w: float, tops: Array, seed_value: int, per
 	world = parent
 	_decor_stock(Vector3(0, 0, 0.05), w, tops, seed_value, per_level)
 	world = holder
+
+
+# ================================================================ the curse
+
+## Who "you" are in 3D (the lose ending puts this model in a case).
+const PLAYER := "male_adult_05"
+const CASE_W := 0.86
+const CASE_D := 0.66
+const CASE_H := 1.92
+const PLINTH_H := 0.32
+
+
+## The lose ending: you, plastic-wrapped and bound with twine, standing in a
+## graded glass case in the Buyer's dark vault, between the others who came
+## up short. case_info = {grade, cond, lot, name, ante}.
+func _cursed(_items: Array) -> void:
+	_setup(Color(0.012, 0.01, 0.02), Color(0.22, 0.24, 0.34), 0.35, 3.5, 11.0)
+	Psx.snap = 900.0
+	_ground("concrete047a", Color(0.32, 0.3, 0.34), Vector2(16, 16), Vector3(0, 0, -2), 0.6)
+	var info := case_info
+	_grade_case(Vector3.ZERO, PLAYER, info, true)
+	# The others who came up short, fading into the dark on both sides.
+	var who := ["male_adult_11", "female_adult_08", "male_adult_17", "female_adult_03", "male_adult_01", "female_adult_14"]
+	var grades := ["3.0", "6.5", "1.5", "8.0", "4.0", "2.5"]
+	var conds := ["LOOSE", "CIB", "DAMAGED", "MINT", "LOOSE", "DAMAGED"]
+	var spots := [Vector3(-1.45, 0, -0.9), Vector3(1.45, 0, -0.9), Vector3(-2.9, 0, -1.8), Vector3(2.9, 0, -1.8), Vector3(-1.45, 0, -3.4), Vector3(1.45, 0, -3.4)]
+	var n := 2 if Lite.perf else spots.size()
+	for k in n:
+		var pos: Vector3 = spots[k]
+		var lot := "#%04d" % ((int(info.get("lot_n", 451)) * 7 + k * 613) % 9973)
+		_grade_case(pos, String(who[k]), {"grade": grades[k], "cond": conds[k], "lot": lot, "name": "PREVIOUS OWNER", "ante": ""}, false)
+	# Cold light straight down on your case, a sick red glow from below.
+	_spot(Vector3(0, 3.6, 0.5), Vector3(0, 1.0, 0), Color(0.75, 0.88, 1.0), 5.5, 22.0, 6.0)
+	var top := _light(Vector3(0, 2.5, 0.35), Color(0.7, 0.85, 1.0), 1.6, 2.6, 0.22)
+	top.shadow_enabled = false
+	_light(Vector3(0, 0.15, 1.1), Color(0.85, 0.08, 0.12), 1.6, 2.2, 0.1)
+	_beam(Vector3(0, 3.6, 0.2), 0.12, 0.75, 3.4, Color(0.6, 0.75, 1.0, 0.06))
+	_view(Vector3(0, 1.25, 3.7), Vector3(0, 1.0, 0), 40.0)
+
+
+func _glass() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.65, 0.82, 0.95, 0.13)
+	m.metallic_specular = 1.0
+	m.roughness = 0.04
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.rim_enabled = true
+	m.rim = 0.6
+	return m
+
+
+func _shrink_wrap() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(0.88, 0.92, 1.0, 0.3)
+	m.metallic_specular = 1.0
+	m.roughness = 0.08
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.rim_enabled = true
+	m.rim = 1.0
+	m.rim_tint = 0.0
+	return m
+
+
+## One graded display case at `pos`: plinth, glass, a wrapped and bound
+## collector inside, a grading slab label on the front.
+func _grade_case(pos: Vector3, who: String, info: Dictionary, hero: bool) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	world.add_child(root)
+	var dark := Psx.mat(Color(0.1, 0.09, 0.11), Psx.tex("metal032"))
+	var brass := Psx.mat(Color(0.75, 0.6, 0.3), null, Vector2.ONE, 0.15)
+	# Plinth.
+	Psx.box(Vector3(CASE_W + 0.14, PLINTH_H, CASE_D + 0.14), Psx.mat(Color(0.16, 0.05, 0.08), Psx.tex("fabric061"), Vector2(2, 1)), Vector3(0, PLINTH_H * 0.5, 0), root)
+	Psx.box(Vector3(CASE_W + 0.18, 0.03, CASE_D + 0.18), brass, Vector3(0, PLINTH_H, 0), root)
+	# The collector, arms at their sides, head bowed.
+	var p := Psx.person(who)
+	p.scale = Vector3.ONE * 0.86
+	p.position = Vector3(0, PLINTH_H + 0.02, 0.0)
+	root.add_child(p)
+	if hero:
+		Psx.outline(p, 1.0)
+		# Still breathing in there.
+		_breathe.append([p, p.scale.y, 0.3])
+	else:
+		Psx.tint_all(p, Color(0.55, 0.6, 0.75))
+	var w := _rig(p)
+	_pose(w, 0.0, 0.0, "", 0.0)
+	_rot(w, "Head", Quaternion(Vector3.BACK, deg_to_rad(22.0)))
+	_rot(w, "L UpperArm", Quaternion(Vector3.UP, deg_to_rad(ARM_DOWN + 8.0)) * Quaternion(Vector3.BACK, deg_to_rad(ARM_IN)))
+	_rot(w, "R UpperArm", Quaternion(Vector3.UP, deg_to_rad(-ARM_DOWN - 8.0)) * Quaternion(Vector3.BACK, deg_to_rad(ARM_IN)))
+	# Shrink wrap: a glossy bag over the whole body, twisted shut above the head.
+	var body_h := 1.56
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.27
+	cap.height = body_h + 0.12
+	cap.radial_segments = 14
+	cap.rings = 6
+	var bag := Psx.mesh(cap, _shrink_wrap(), Vector3(0, PLINTH_H + 0.02 + body_h * 0.5, 0.0), root)
+	bag.scale = Vector3(1.0, 1.0, 0.72)
+	bag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var knot := CylinderMesh.new()
+	knot.top_radius = 0.07
+	knot.bottom_radius = 0.01
+	knot.height = 0.18
+	knot.radial_segments = 8
+	Psx.mesh(knot, _shrink_wrap(), Vector3(0, PLINTH_H + body_h + 0.17, 0), root)
+	# Bound up: twine wrapped round chest, waist, knees and ankles.
+	var twine := Psx.mat(Color(0.55, 0.38, 0.2), Psx.tex("fabric028"), Vector2(6, 1))
+	for band in [[1.24, 0.25], [0.98, 0.24], [0.52, 0.15], [0.16, 0.11]]:
+		var t := TorusMesh.new()
+		t.inner_radius = float(band[1])
+		t.outer_radius = float(band[1]) + 0.025
+		t.rings = 14
+		t.ring_segments = 5
+		var ring := Psx.mesh(t, twine, Vector3(0, PLINTH_H + 0.02 + float(band[0]), 0.0), root)
+		ring.scale = Vector3(1.08, 1.0, 0.82)
+	# Glass case with a dark metal frame.
+	var g := _glass()
+	var gy := PLINTH_H + CASE_H * 0.5
+	for side in [[Vector3(CASE_W, CASE_H, 0.01), Vector3(0, gy, CASE_D * 0.5)], [Vector3(CASE_W, CASE_H, 0.01), Vector3(0, gy, -CASE_D * 0.5)],
+			[Vector3(0.01, CASE_H, CASE_D), Vector3(-CASE_W * 0.5, gy, 0)], [Vector3(0.01, CASE_H, CASE_D), Vector3(CASE_W * 0.5, gy, 0)],
+			[Vector3(CASE_W, 0.01, CASE_D), Vector3(0, PLINTH_H + CASE_H, 0)]]:
+		var pane := Psx.box(side[0], g, side[1], root)
+		pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for x in [-CASE_W * 0.5, CASE_W * 0.5]:
+		for z in [-CASE_D * 0.5, CASE_D * 0.5]:
+			Psx.box(Vector3(0.035, CASE_H, 0.035), dark, Vector3(x, gy, z), root)
+	Psx.box(Vector3(CASE_W + 0.04, 0.05, CASE_D + 0.04), dark, Vector3(0, PLINTH_H + CASE_H, 0), root)
+	Psx.box(Vector3(CASE_W + 0.08, 0.06, CASE_D + 0.08), brass, Vector3(0, PLINTH_H + CASE_H + 0.05, 0), root)
+	# The grading slab label: red banner, grade box, condition, lot number.
+	var lab := Node3D.new()
+	lab.position = Vector3(0, PLINTH_H * 0.5, CASE_D * 0.5 + 0.075)
+	root.add_child(lab)
+	Psx.box(Vector3(CASE_W * 0.92, PLINTH_H * 0.82, 0.012), Psx.mat(Color(0.92, 0.9, 0.84)), Vector3.ZERO, lab)
+	Psx.box(Vector3(CASE_W * 0.92, PLINTH_H * 0.22, 0.014), Psx.mat(Color(0.7, 0.07, 0.1), null, Vector2.ONE, 0.2), Vector3(0, PLINTH_H * 0.3, 0.002), lab)
+	Psx.box(Vector3(0.2, PLINTH_H * 0.5, 0.016), Psx.mat(Color(0.08, 0.06, 0.08)), Vector3(CASE_W * 0.33, -PLINTH_H * 0.08, 0.002), lab)
+	_case_text(lab, "COLLECTOR'S CURSE GRADING", Vector3(0, PLINTH_H * 0.3, 0.012), 22, Color(1.0, 0.92, 0.85))
+	_case_text(lab, String(info.get("grade", "?")), Vector3(CASE_W * 0.33, -PLINTH_H * 0.06, 0.012), 60, Color(1.0, 0.82, 0.3))
+	var lines := "%s\nCOND: %s\nLOT %s  %s" % [String(info.get("name", "YOU")), String(info.get("cond", "LOOSE")), String(info.get("lot", "#0451")), String(info.get("ante", ""))]
+	var body := _case_text(lab, lines, Vector3(-CASE_W * 0.1, -PLINTH_H * 0.1, 0.012), 17, Color(0.1, 0.07, 0.08))
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	body.position.x = -CASE_W * 0.42
+	if hero:
+		# A price-gun sticker slapped on the glass.
+		var st := Node3D.new()
+		st.position = Vector3(CASE_W * 0.22, PLINTH_H + 0.42, CASE_D * 0.5 + 0.012)
+		st.rotation_degrees.z = -14.0
+		root.add_child(st)
+		Psx.box(Vector3(0.3, 0.12, 0.006), Psx.mat(Color(1.0, 0.54, 0.24), null, Vector2.ONE, 0.25), Vector3.ZERO, st)
+		_case_text(st, "AS-IS  NO RETURNS", Vector3(0, 0, 0.006), 18, Color(0.12, 0.05, 0.03))
+
+
+func _case_text(parent: Node3D, text: String, pos: Vector3, size: int, col: Color) -> Label3D:
+	var l := Label3D.new()
+	l.text = text
+	l.font = FONT
+	l.font_size = size
+	l.pixel_size = 0.0024
+	l.modulate = col
+	l.outline_size = 0
+	l.shaded = false
+	l.line_spacing = -4.0
+	l.position = pos
+	parent.add_child(l)
+	return l

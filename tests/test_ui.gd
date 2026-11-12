@@ -38,13 +38,18 @@ func test_new_run_shows_guide_first() -> void:
 	game._on_new_run()
 	await wait_frames(2)
 	assert_true(game.sheet_open())
-	assert_true(_has_text(game, "HEY, COLLECTOR"))
+	assert_true(_has_text(game, "THE INHERITANCE"))
 	assert_eq(game.screen, "title")
 	for k in game.GUIDE.size():
 		game._guide_step(1)
 		await wait_frames(1)
-	assert_false(game.sheet_open())
 	assert_eq(game.screen, "home")
+	# The Buyer's first letter waits on the home computer.
+	await wait_frames(2)
+	assert_true(game.sheet_open())
+	assert_true(_has_text(game, "re: the Vance estate"))
+	assert_eq(game.run.letters_read, 1)
+	game._close_sheet()
 
 
 func test_collection_tracks_and_wall() -> void:
@@ -113,6 +118,8 @@ func test_pad_a_presses_focused_button() -> void:
 func test_pad_y_does_main_action_and_x_switches() -> void:
 	game.start_new_run(21)
 	await wait_frames(4)
+	game._close_sheet()  # the Buyer's first letter
+	await wait_frames(2)
 	_pad_press(JOY_BUTTON_DPAD_DOWN)
 	await wait_frames(8)
 	var before: String = game._home_tab
@@ -212,7 +219,9 @@ func test_losing_shows_game_over() -> void:
 	game._after_appraisal()
 	await wait_frames(2)
 	assert_eq(game.screen, "over")
-	assert_true(_has_text(game, "OUT OF BUSINESS"))
+	assert_true(_has_text(game, "GRADED & SEALED"))
+	var cg: Dictionary = game.run.curse_grade()
+	assert_eq(String(cg["cond"]), "DAMAGED")
 
 
 func test_landscape_layout_builds() -> void:

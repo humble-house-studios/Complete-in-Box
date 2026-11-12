@@ -1,4 +1,4 @@
-# Complete In Box — read before every change
+# Collector's Curse (repo: Complete In Box) — read before every change
 
 A roguelike about collecting and flipping retro games: Balatro/CloverPit
 structure where your **shelf is the hand**. Each ante has three stops (The Hunt,
@@ -6,6 +6,21 @@ The Shop, Online); at each one you buy, haggle, dig, sell, list and grade, then
 your shelf is appraised (items = chips, sets and perks = Mult) against a rising
 target. More venues and rarer collectibles unlock as the run goes on.
 Godot 4.3, GDScript only. Parody names on purpose (no real brands).
+
+## The curse (story)
+Title is **Collector's Curse** (repo and URL keep the old name). CloverPit-style:
+bright, funny surface, dread underneath. You inherit great-uncle Arlo's shelf and
+his debt to the Buyer, `c0mplete_set`, whose appraiser scores every stop. Lore lives
+in `Flavor.LETTERS` (one letter per ante, shown on the HOME PC when you get home at
+stop 0: `_maybe_letter` / `_open_letter`, read count `Run.letters_read`; reread from
+the route tab), `Flavor.EPILOGUE` (after winning), the how-to guide (THE INHERITANCE,
+PAY THE APPRAISER, CHECK YOUR MAIL), appraiser PASS/FAIL lines, item histories and
+`LOADING_TIPS`. Twist (letter 8): the Buyer is Arlo, graded 9.8, still in the plastic.
+Losing = GRADED & SEALED: Stage scene `"cursed"` (`Stage._cursed`, `_grade_case`):
+you (`Stage.PLAYER`) shrink-wrapped and tied with twine in a glass case on a plinth,
+with a grading slab label (`Stage.case_info`), in a dark vault of other cased
+collectors. Grade and condition come from `Run.curse_grade()` (how close you came).
+Boss twists are shown as THE BUYER'S TERMS. Shots: `tools/curse_shots.gd`.
 
 Samuel builds from his phone: Claude writes and pushes the code, GitHub builds a
 web version, and he playtests it in Safari. Keep replies short and in plain words,
@@ -102,7 +117,7 @@ The web build in Safari is the test for every platform.
   light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets.
 - Menus share one look: `_menu_card(icon, title, sub, col, cb, h, main, chip)` (a card
   with the thick coloured edge, a glossy icon from `Subjects.MENU`, title + line, arrow or
-  chip) and `_menu_tile` (icon over label). Title = `_title_logo` (COMPLETE / IN BOX + CIB!
+  chip) and `_menu_tile` (icon over label). Title = `_title_logo` (COLLECTOR'S / CURSE + AS-IS
   sticker + tagline pill), MAIN MENU panel (`_title_menu`: run card, collection card with
   WALL chip, tiles for how to play / sound / GFX / credits) and `_records_card`; landscape =
   logo + records left, vault middle, menu right. The sound gate and the pause menu

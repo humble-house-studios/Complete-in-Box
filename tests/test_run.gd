@@ -434,3 +434,20 @@ func test_ripping_a_pack() -> void:
 	for it in r.shelf:
 		assert_eq(String(it["plat"]), "CRIT")
 		assert_eq(String(it["kind"]), "card")
+
+
+func test_curse_grade_follows_how_close_you_came() -> void:
+	var r := Run.new()
+	r.start(5)
+	var tgt := r.target()
+	r.last_appraisal = {"total": 0}
+	assert_eq(String(r.curse_grade()["cond"]), "DAMAGED")
+	assert_eq(String(r.curse_grade()["grade"]), "1.0")
+	r.last_appraisal = {"total": int(tgt * 0.5)}
+	assert_eq(String(r.curse_grade()["cond"]), "LOOSE")
+	r.last_appraisal = {"total": int(tgt * 0.8)}
+	assert_eq(String(r.curse_grade()["cond"]), "COMPLETE IN BOX")
+	r.last_appraisal = {"total": int(ceil(tgt * 0.97))}
+	assert_eq(String(r.curse_grade()["cond"]), "MINT")
+	assert_eq(String(r.curse_grade()["grade"]), "9.8")
+	assert_eq(Flavor.LETTERS.size(), Balance.ANTES_TO_WIN)

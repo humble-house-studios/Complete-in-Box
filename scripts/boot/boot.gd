@@ -125,7 +125,7 @@ func _build_ui() -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(v)
 	var t := Label.new()
-	t.text = "COMPLETE IN BOX"
+	t.text = "COLLECTOR'S CURSE"
 	t.add_theme_font_override("font", load("res://assets/fonts/Jersey10-Regular.ttf"))
 	t.add_theme_font_size_override("font_size", 72)
 	t.add_theme_color_override("font_color", Color("ffcc33"))

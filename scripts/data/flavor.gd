@@ -79,15 +79,35 @@ const PASS := [
 	"\"Now THAT's a shelf.\" The appraiser signs off.",
 	"A nod, a stamp, a check. You're still in business.",
 	"\"Respectable. Very respectable.\"",
+	"\"He'll be pleased.\" The appraiser smiles too long.",
+	"A nod. A stamp. \"Same time next stop.\"",
 ]
 
 const FAIL := [
-	"The appraiser shakes their head. \"Not enough.\"",
-	"\"I've seen better shelves at a yard sale.\"",
-	"The stamp comes down. It says NO.",
+	"The appraiser shakes his head. \"Not enough. He'll be so disappointed.\"",
+	"\"Short again.\" He's already measuring you for a box.",
+	"The stamp comes down. It says NO. Then it says your name.",
+	"\"I've seen better shelves at a yard sale. Hold still, please.\"",
+	"He peels a fresh grading label off the roll. It has your name on it.",
 ]
 
-const LOT := ["Taped shut. Heavy. Smells like a basement.", "Something rattles inside.", "Marked GAMES?? in marker.", "The tape says FRAGILE. Twice."]
+## Collector's Curse: the Buyer's letters, one waiting on the home computer
+## at the start of each ante. [subject, body]. The last one is the twist.
+const SENDER := "c0mplete_set"
+const LETTERS := [
+	["re: the Vance estate", "Sorry for your loss. Your great-uncle Arlo and I had an arrangement. He collected for me for forty-one years. Now you will.\n\nMy appraiser will visit after every stop. Keep the shelf worth his time. You do not want to come up short."],
+	["a note on condition", "You'll notice my appraiser grades everything. Carts. Boxes. Manuals.\n\nPeople too, eventually. Arlo was Mint when he started. Keep the plastic on."],
+	["unit 66", "Arlo's storage unit is paid through the year. Don't open it until you're ready.\n\nThat's where he kept the ones who came up short. Sealed. Graded. They hold their value better than you'd think."],
+	["why I collect", "Every game is a little piece of somebody's childhood.\n\nEvery collector is the rest of it. Played, loved, put on a shelf. I'm so close to the complete set now."],
+	["the wall", "You've started feeling watched in the living room. That's normal.\n\nThe Wall remembers everyone who ever hung something on it. Say hello. They can't say it back."],
+	["feedback", "GREAT BUYER! FAST PAYMENT! A+++ WOULD COLLECT AGAIN!\n\nThat's what I'll write about you when you finish. I wrote different things about the others."],
+	["one empty slot", "There's a case in my vault with one empty slot. Velvet. A little gold plaque. It's been empty since Arlo stopped answering my messages.\n\nDo you know what goes in it?"],
+	["the final appraisal", "Clear this ante and the debt is paid. I promise. Arlo promised too, back when he had my job.\n\nYou see, I never died. I just got graded. 9.8, still in the plastic. And every set needs someone to keep it complete.\n\n- your uncle"],
+]
+## After the last ante: the debt is "paid".
+const EPILOGUE := ["welcome to the hobby", "Debt cleared. Congratulations.\n\nI've forwarded you the mailing list. Somebody out there just inherited a shelf. Write to them soon. Be kind. At first."]
+
+const LOT := ["Taped shut. Heavy. Smells like a basement.", "Air holes punched in the lid. Why?", "Something rattles inside.", "Marked GAMES?? in marker.", "The tape says FRAGILE. Twice."]
 
 
 static func pick(list: Array, key: Variant) -> String:
@@ -182,8 +202,8 @@ const ORIGIN_T := [
 ]
 
 const PAST_PLACE := ["a church rummage sale", "a storage unit auction", "a closed-down rental store", "an attic box marked XMAS", "a flooded basement", "a bedroom closet", "a house move", "a flea market blanket", "a pawn shop back room", "a thrift store bin", "a school fundraiser", "an estate sale", "a dusty arcade office", "a car boot sale", "a toy drive leftover pile", "a garage sale 'everything $1' box", "a dorm room clean-out", "a radio station prize closet", "a warehouse returns pallet", "a grandparent's TV cabinet"]
-const PAST_WHO := ["a kid named Kevin (name on the label in marker)", "a dad who kept it 'for the kids'", "a speedrunner with a ridiculous save file", "a collector who died with 3,000 games", "a rental store that wrote its code on the back", "two brothers who fought over it", "a game tester who kept a copy", "a teenager who sold it for gas money", "a shopkeeper who never put it out", "a family that moved overseas", "a tournament winner", "a babysitter who forgot to take it home", "a magazine writer's review pile", "someone who wrote their high score inside the manual"]
-const PAST_MARK := ["Faint price sticker from a shop long gone.", "Smells faintly of a smoker's living room.", "A tiny tear on the corner of the box.", "Initials scratched into the back.", "A coffee ring on the manual.", "Still has the receipt folded inside.", "The original warranty card was never sent.", "A pencilled price inside the flap.", "Light sun fade on one side only.", "A sticker from a long-gone rental chain.", "No marks at all. Suspiciously clean.", "Somebody's school photo was tucked inside.", "A handwritten cheat list in the case.", "The plastic still squeaks."]
+const PAST_WHO := ["a kid named Kevin (name on the label in marker)", "a dad who kept it 'for the kids'", "a speedrunner with a ridiculous save file", "a collector who died with 3,000 games", "a rental store that wrote its code on the back", "two brothers who fought over it", "a game tester who kept a copy", "a teenager who sold it for gas money", "a shopkeeper who never put it out", "a family that moved overseas", "a tournament winner", "a babysitter who forgot to take it home", "a magazine writer's review pile", "someone who wrote their high score inside the manual", "a collector named Arlo Vance (A.V. inked inside the flap)", "a collector who came up short (the receipt is signed c0mplete_set)"]
+const PAST_MARK := ["Faint price sticker from a shop long gone.", "Smells faintly of a smoker's living room.", "A tiny tear on the corner of the box.", "Initials scratched into the back.", "A coffee ring on the manual.", "Still has the receipt folded inside.", "The original warranty card was never sent.", "A pencilled price inside the flap.", "Light sun fade on one side only.", "A sticker from a long-gone rental chain.", "No marks at all. Suspiciously clean.", "Somebody's school photo was tucked inside.", "A handwritten cheat list in the case.", "The plastic still squeaks.", "Faint scratch marks on the inside of the case.", "Someone wrote HELP in tiny letters under the label."]
 
 const TIP_LINE := {
 	"game": ["Check the label for sun fade before you pay.", "Matching codes on box and manual add value.", "Blow in it? Collectors say no. Everyone did anyway.", "Look for the factory seal seam, not a reseal.", "The manual is often worth a third of the price.", "Hold the label to the light: reprints are glossier."],

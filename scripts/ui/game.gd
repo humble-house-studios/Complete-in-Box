@@ -1,5 +1,5 @@
 extends Control
-## Complete In Box: the whole UI, built from Control nodes in code.
+## Collector's Curse (repo: Complete In Box): the whole UI, built from Control nodes in code.
 ## The rules live in scripts/engine/run.gd; this file only draws the run's
 ## state and turns taps into Run actions. Screens are rebuilt from scratch
 ## after every action (cheap at this size, and impossible to get out of sync).
@@ -32,6 +32,9 @@ const DARK_TXT := Color("17131f")
 const GOOD := Color("5ee08a")
 const BAD := Color("ff6b6b")
 const GOLD := Color("ffcc33")
+const CURSE_C := Color("e8434f")
+const CRT_C := Color("7dff9a")
+const CRT_DIM := Color("4fbf6e")
 const STICKER := Color("ff8a3d")
 const HOT_C := Color("ff7043")
 const COLD_C := Color("64b5f6")
@@ -263,9 +266,10 @@ func _sync_stage() -> void:
 			_stage.show_scene(String(run.venue["id"]), items)
 			_sfx.music(String(run.venue["slot"]), String(run.venue["id"]))
 		"over":
-			var it := _hero_item()
-			it["cond"] = "Damaged"
-			_stage.show_scene("title", [it])
+			var cg := run.curse_grade()
+			_stage.case_info = {"grade": cg["grade"], "cond": cg["cond"], "name": "SPECIMEN: YOU",
+				"lot": "#%04d" % (run.seed_value % 9973), "lot_n": run.seed_value % 9973, "ante": "ANTE %d" % run.ante}
+			_stage.show_scene("cursed", [])
 			_sfx.music("ending")
 		"won":
 			_stage.show_scene("title", [_hero_item()])
@@ -2616,7 +2620,7 @@ func _intro_logo(vs: Vector2) -> void:
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(glow)
 	# Logo words slam in one after another.
-	var words := [["COMPLETE", INK, -60.0], ["IN BOX", GOLD, 40.0]]
+	var words := [["COLLECTOR'S", INK, -60.0], ["CURSE", CURSE_C, 40.0]]
 	var delay := 0.6
 	for w in words:
 		var l := _title_label(String(w[0]), 104 if not is_landscape() else 80, w[1])
@@ -2638,7 +2642,7 @@ func _intro_logo(vs: Vector2) -> void:
 	for ch in _intro.get_children():
 		if ch is Button:
 			_intro.move_child(ch, -1)
-	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 24, Color("ffe7b0"))
+	var tag := _label("Every collection is complete. Eventually.", 24, Color("ffe7b0"))
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.size = Vector2(vs.x, 40)
 	tag.position = Vector2(0, ctr.y + 110)
@@ -2752,28 +2756,28 @@ func _build_title() -> void:
 	_root_box.add_child(_records_card())
 
 
-## The logo: COMPLETE / IN BOX, a tilted price-gun sticker and the tagline sign.
+## The logo: COLLECTOR'S / CURSE, a tilted price-gun sticker and the tagline sign.
 func _title_logo(fs: int) -> Control:
 	var v := _vbox(-int(fs * 0.18))
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	var l1 := _title_label("COMPLETE", fs, INK)
+	var l1 := _title_label("COLLECTOR'S", int(fs * 0.86), INK)
 	l1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l1.add_theme_constant_override("outline_size", int(fs * 0.16))
 	l1.add_theme_color_override("font_outline_color", Color(0.06, 0.03, 0.1))
 	v.add_child(l1)
 	var row := _hbox(10)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	var l2 := _title_label("IN BOX", fs, GOLD)
+	var l2 := _title_label("CURSE", fs, CURSE_C)
 	l2.add_theme_constant_override("outline_size", int(fs * 0.16))
-	l2.add_theme_color_override("font_outline_color", Color(0.25, 0.1, 0.02))
+	l2.add_theme_color_override("font_outline_color", Color(0.22, 0.02, 0.04))
 	row.add_child(l2)
-	var st := _sticker("CIB!", STICKER, int(fs * 0.3))
+	var st := _sticker("AS-IS", STICKER, int(fs * 0.3))
 	st.rotation_degrees = -12.0
 	st.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(st)
 	v.add_child(row)
 	var cc := CenterContainer.new()
-	var tag := _pill("DIG  •  HAGGLE  •  FLIP  •  HOARD  •  GET APPRAISED", Color(0.06, 0.04, 0.09, 0.85), 16, Color("ffd98a"))
+	var tag := _pill("DIG  •  FLIP  •  HOARD  •  NEVER COME UP SHORT", Color(0.06, 0.04, 0.09, 0.85), 16, Color("ffd98a"))
 	cc.add_child(tag)
 	v.add_child(cc)
 	return v
@@ -3159,16 +3163,18 @@ func _on_new_run() -> void:
 
 ## The how-to-play guide: a deck of big, simple cards. Swipe or tap NEXT.
 const GUIDE := [
-	{"title": "HEY, COLLECTOR!", "color": GOLD, "art": "welcome",
-		"lines": ["You flip retro games for a living.", "Your garage is full. Your wallet is not. Let's fix that."]},
+	{"title": "THE INHERITANCE", "color": CURSE_C, "art": "welcome",
+		"lines": ["Great-uncle Arlo left you his house, his shelf and three loose carts.", "He also left a debt. Someone called c0mplete_set is collecting."]},
 	{"title": "3 STOPS A ROUND", "color": STICKER, "art": "stops",
 		"lines": ["Each round you visit three places to buy and sell stuff."]},
 	{"title": "YOUR SHELF IS YOUR HAND", "color": Color("5fb3d9"), "art": "formula",
 		"lines": ["Everything you buy goes on your shelf.", "Items give CHIPS. Sets and perks give MULT. Multiply them!"]},
 	{"title": "COLLECT SETS", "color": Color("4fd9a0"), "art": "sets",
 		"lines": ["3+ things for one console = more MULT.", "Console + game + accessory = x1.5!", "Found a GRAIL? +1 MULT and a lifetime of bragging."]},
-	{"title": "BEAT THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
-		"lines": ["Leave a stop and the appraiser scores your shelf.", "Beat the target... or it's back to bagging groceries."]},
+	{"title": "PAY THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
+		"lines": ["Leave a stop and the Buyer's appraiser scores your shelf.", "Beat the target. Come up short and YOU get boxed and graded."]},
+	{"title": "CHECK YOUR MAIL", "color": Color("7dff9a"), "art": "mail",
+		"lines": ["Every new round, a message waits on the computer at home.", "Read them. Find out what happened to Arlo."]},
 	{"title": "YOUR COLLECTION", "color": Color("7fb8ff"), "art": "collection",
 		"lines": ["Every game you spot fills a page in your BINDER. The ? cards are still out there.", "Hang your best finds on THE WALL. They stay forever, run after run."]},
 	{"title": "PRO TIPS", "color": GOLD, "art": "tips", "lines": []},
@@ -3457,6 +3463,15 @@ func _guide_art(kind: String, col: Color) -> Control:
 			binder.add_child(bl)
 			row.add_child(binder)
 			box.add_child(row)
+		"mail":
+			var scr := _crt_panel()
+			scr.custom_minimum_size.x = 540 if not is_landscape() else 520
+			var sv := _vbox(4)
+			scr.add_child(sv)
+			sv.add_child(_title_label("MAIL  •  1 NEW MESSAGE", 30 if not is_landscape() else 24, CRT_C))
+			sv.add_child(_label("FROM: c0mplete_set  (100% positive)", 21 if not is_landscape() else 17, CRT_DIM))
+			sv.add_child(_label("SUBJ: re: the Vance estate", 21 if not is_landscape() else 17, CRT_DIM))
+			box.add_child(scr)
 		"tips":
 			var v5 := _vbox(10 if not is_landscape() else 4)
 			for tip in GUIDE_TIPS:
@@ -3520,7 +3535,7 @@ func _guide_bar(name: String, fill: float, amount: String, col: Color) -> Contro
 # ================================================================ run flow
 
 func start_new_run(seed_value: int = 0) -> void:
-	_transition(_start_new_run.bind(seed_value), "OPENING UP THE GARAGE", "A fresh run. Empty shelf, big dreams.")
+	_transition(_start_new_run.bind(seed_value), "OPENING UP THE GARAGE", "Uncle Arlo's house. His shelf. His debt.")
 
 
 func _start_new_run(seed_value: int) -> void:
@@ -3594,6 +3609,8 @@ func _build_showcase() -> void:
 
 
 func _build_home() -> void:
+	if run.stop == 0 and run.letters_read < mini(run.ante, Flavor.LETTERS.size()):
+		_maybe_letter.call_deferred()
 	if _dest == "" or not run.venue_choices.has(_dest):
 		_dest = String(run.venue_choices[0]) if not run.venue_choices.is_empty() else ""
 	if _showcase:
@@ -3644,11 +3661,13 @@ func _route_tab(col: VBoxContainer) -> void:
 	tv.add_child(tr)
 	var boss := Venues.boss(run.boss_id)
 	if run.is_boss_stop():
-		tv.add_child(_pill("BOSS: " + String(boss["name"]).to_upper(), BAD, 16))
+		tv.add_child(_pill("THE BUYER'S TERMS: " + String(boss["name"]).to_upper(), BAD, 16))
 		tv.add_child(_label(String(boss["desc"]), 18, INK, true))
 	else:
-		tv.add_child(_label("Ante boss later: %s" % boss["name"], 16, MUTED, true))
+		tv.add_child(_label("The Buyer's terms this round: %s" % boss["name"], 16, MUTED, true))
 	col.add_child(top)
+	if run.letters_read > 0:
+		col.add_child(_button("HOME PC  •  %d MESSAGE%s FROM c0mplete_set" % [run.letters_read, "" if run.letters_read == 1 else "S"], _open_letter.bind(run.letters_read - 1), Color("1d3a26"), 18, 72))
 	_pivot_panel(col)
 	_market_panel(col)
 	_section(col, "WHERE TO?")
@@ -3989,6 +4008,10 @@ const LOADING_TIPS := [
 	"Loading cartridges. Please do not blow on them.",
 	"Rewinding the VHS tapes, as a courtesy.",
 	"Haggling with the loading bar. It won't budge.",
+	"Tip: check the computer at home. You have mail.",
+	"Rumor: the appraiser has never once blinked.",
+	"The storage unit door is warm to the touch. Don't think about it.",
+	"Reminder: you are not in the collection. Yet.",
 ]
 
 
@@ -4723,7 +4746,7 @@ func _on_appraisal_input(event: InputEvent) -> void:
 func _after_appraisal() -> void:
 	var t := "HEADING HOME"
 	if run.phase == Run.Phase.OVER:
-		t = "CLOSING UP SHOP"
+		t = "THE APPRAISER\nWANTS A WORD"
 	elif run.phase == Run.Phase.WON:
 		t = "THE FINAL TALLY"
 	_transition(_after_appraisal_now, t, "")
@@ -4803,20 +4826,138 @@ func _close_reveal() -> void:
 		layer.queue_free()
 
 
+# ================================================================ the Buyer's mail
+
+## The home computer: a green CRT panel.
+func _crt_panel() -> PanelContainer:
+	var p := PanelContainer.new()
+	var st := _box(Color(0.02, 0.06, 0.035, 0.98), 10, Color(0.25, 0.25, 0.27), 10)
+	st.content_margin_left = 22
+	st.content_margin_right = 22
+	st.content_margin_top = 16
+	st.content_margin_bottom = 16
+	p.add_theme_stylebox_override("panel", st)
+	return p
+
+
+## New ante at home: the Buyer's letter for it pops up once.
+func _maybe_letter() -> void:
+	if run == null or screen != "home" or sheet_open() or _busy:
+		return
+	var i := mini(run.ante, Flavor.LETTERS.size()) - 1
+	if run.letters_read > i:
+		return
+	run.letters_read = i + 1
+	# Wait for the loading screen to lift so the mail lands on screen.
+	if not fast:
+		while _veil != null and is_instance_valid(_veil):
+			await get_tree().process_frame
+		await get_tree().create_timer(0.4).timeout
+	if is_inside_tree() and screen == "home" and not sheet_open():
+		_open_letter(i)
+
+
+## Shows letter i on the home computer (-1 = the ending message), typed out.
+## OLDER / NEWER flip through the ones you've had so far.
+func _open_letter(i: int) -> void:
+	_close_sheet()
+	if _pad:
+		_pad_focus.call_deferred(0)
+	var letter: Array = Flavor.EPILOGUE if i < 0 else Flavor.LETTERS[clampi(i, 0, Flavor.LETTERS.size() - 1)]
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.01, 0.0, 0.84)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.add_child(dim)
+	_sheet = dim
+	if _sfx != null and not fast:
+		_sfx.play("open")
+	var cc := CenterContainer.new()
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(cc)
+	var land := is_landscape()
+	var scr := _crt_panel()
+	scr.custom_minimum_size = Vector2(minf(660.0, get_viewport_rect().size.x - _margins.x - _margins.z - 24.0), 0)
+	cc.add_child(scr)
+	var v := _vbox(8 if not land else 4)
+	scr.add_child(v)
+	var hdr := _hbox(8)
+	hdr.add_child(_title_label("HOME PC  •  MAIL", 30 if not land else 26, CRT_C))
+	hdr.add_child(_spacer(false))
+	var n := run.letters_read if run != null else 0
+	if i >= 0:
+		hdr.add_child(_label("%d of %d" % [i + 1, Flavor.LETTERS.size()], 18, CRT_DIM))
+	v.add_child(hdr)
+	v.add_child(_label("FROM: %s  (100%% positive feedback)" % Flavor.SENDER, 18, CRT_DIM, true))
+	v.add_child(_label("SUBJ: " + String(letter[0]), 20, CRT_C, true))
+	var rule := ColorRect.new()
+	rule.color = Color(CRT_DIM, 0.5)
+	rule.custom_minimum_size = Vector2(0, 2)
+	v.add_child(rule)
+	var body := _label(String(letter[1]), 22 if not land else 19, CRT_C, true)
+	v.add_child(body)
+	if not fast:
+		# Typed out like an old terminal; tap the screen to finish it.
+		body.visible_ratio = 0.0
+		var tw := body.create_tween()
+		tw.tween_property(body, "visible_ratio", 1.0, clampf(String(letter[1]).length() * 0.018, 0.8, 4.5))
+		dim.gui_input.connect(func(e: InputEvent) -> void:
+			if (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed):
+				if tw.is_valid():
+					tw.kill()
+				body.visible_ratio = 1.0)
+	var nav := _hbox(10)
+	if i > 0:
+		var older := _button("< OLDER", _open_letter.bind(i - 1), Color("1d3a26"), 20, 80)
+		older.custom_minimum_size.x = 150
+		nav.add_child(older)
+	if i >= 0 and i < n - 1:
+		var newer := _button("NEWER >", _open_letter.bind(i + 1), Color("1d3a26"), 20, 80)
+		newer.custom_minimum_size.x = 150
+		nav.add_child(newer)
+	var off := _mark_main(_button("LOG OFF", _close_sheet_sfx, Color("2e6b40"), 24, 88))
+	off.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav.add_child(off)
+	v.add_child(nav)
+
+
 # ================================================================ end screens
 
 func _build_over() -> void:
-	_root_box.add_child(_spacer())
-	var t := _title_label("OUT OF BUSINESS", 64, BAD)
+	var cg := run.curse_grade()
+	var land := is_landscape()
+	# Landscape: the case on the left, the verdict and stats on the right.
+	var col: VBoxContainer = _root_box
+	if land:
+		var row := _hbox(16)
+		row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_root_box.add_child(row)
+		var g := _stage_gap(160)
+		g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(g)
+		col = _vbox(10)
+		col.custom_minimum_size.x = 500
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_child(col)
+	var t := _title_label("GRADED & SEALED", 64 if not land else 50, CURSE_C)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_root_box.add_child(t)
-	var gap := _stage_gap(160)
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_root_box.add_child(gap)
-	_end_stats()
-	_wall_pick_button()
-	_root_box.add_child(_mark_main(_button("NEW RUN", start_new_run, STICKER, 32, 104)))
-	_root_box.add_child(_button("TITLE", show_title, PANEL_HI, 24, 88))
+	col.add_child(t)
+	var sub := _label("You came up short. The Buyer adds you to the collection.", 20, FLAVOR_C, true)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(sub)
+	if not land:
+		var gap := _stage_gap(160)
+		gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		col.add_child(gap)
+	var gr := _hbox(10)
+	gr.alignment = BoxContainer.ALIGNMENT_CENTER
+	gr.add_child(_pill("GRADE  " + String(cg["grade"]), GOLD, 26))
+	gr.add_child(_pill(String(cg["cond"]), CURSE_C, 26, INK))
+	col.add_child(gr)
+	_end_stats(col)
+	_wall_pick_button(col)
+	col.add_child(_mark_main(_button("NEW RUN", start_new_run, STICKER, 32, 104 if not land else 88)))
+	col.add_child(_button("TITLE", show_title, PANEL_HI, 24, 88 if not land else 72))
 
 
 func _build_won() -> void:
@@ -4824,13 +4965,14 @@ func _build_won() -> void:
 	var t := _title_label("CERTIFIED LEGEND", 64, GOLD)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(t)
-	var sub := _label("You beat all %d antes. The collection is museum grade." % Balance.ANTES_TO_WIN, 22, INK, true)
+	var sub := _label("You beat all %d antes. The debt is paid. A new message is waiting on the computer..." % Balance.ANTES_TO_WIN, 22, INK, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(sub)
 	var gap := _stage_gap(160)
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_root_box.add_child(gap)
 	_end_stats()
+	_root_box.add_child(_button("READ THE NEW MESSAGE", _open_letter.bind(-1), Color("1d3a26"), 22, 88))
 	_wall_pick_button()
 	_root_box.add_child(_button("KEEP GOING (ENDLESS)", _go_endless, STICKER, 28, 100))
 	_root_box.add_child(_button("NEW RUN", start_new_run, PANEL_HI, 24, 88))
@@ -4842,7 +4984,7 @@ func _go_endless() -> void:
 	request_refresh()
 
 
-func _end_stats() -> void:
+func _end_stats(parent: Container = null) -> void:
 	var p := _panel(PANEL)
 	var v := _vbox(6)
 	p.add_child(v)
@@ -4866,7 +5008,7 @@ func _end_stats() -> void:
 		val.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(val)
 		v.add_child(h)
-	_root_box.add_child(p)
+	(parent if parent != null else _root_box).add_child(p)
 
 
 # ================================================================ sheet + toast
@@ -5605,10 +5747,10 @@ func _hang_from_shelf(uid: int) -> void:
 	request_refresh()
 
 
-func _wall_pick_button() -> void:
+func _wall_pick_button(parent: Container = null) -> void:
 	if _wall_picked or run == null or run.shelf.is_empty():
 		return
-	_root_box.add_child(_button("HANG A FIND ON YOUR WALL", _wall_pick_sheet, GOLD, 26, 96))
+	(parent if parent != null else _root_box).add_child(_button("HANG A FIND ON YOUR WALL", _wall_pick_sheet, GOLD, 26, 96))
 
 
 func _wall_pick_sheet() -> void:

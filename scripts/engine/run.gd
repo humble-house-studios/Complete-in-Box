@@ -60,6 +60,8 @@ var lots: Array = []  # {items, price, peek, bought}
 var auctions: Array = []  # {item, bid, rival, my_max, won}
 
 var last_appraisal: Dictionary = {}
+## Collector's Curse: how many of the Buyer's letters you've opened (one per ante).
+var letters_read: int = 0
 var last_rewards: Dictionary = {}
 var stats := {"bought": 0, "sold": 0, "best_flip": 0, "best_flip_name": "", "best_appraisal": 0, "profit": 0}
 
@@ -1223,6 +1225,26 @@ func appraise() -> Dictionary:
 func _perk_add(bonuses: Array, id: String, amount: float, label: String) -> void:
 	if has_perk(id) and amount > 0.0:
 		bonuses.append({"label": label, "add": snappedf(amount, 0.01), "times": 1.0})
+
+
+# ================================================================ the curse
+
+## When you come up short you get boxed and graded: the closer you came to
+## the target, the better your condition. Returns {"grade", "cond", "ratio"}.
+func curse_grade() -> Dictionary:
+	var total := int(last_appraisal.get("total", 0))
+	var ratio := clampf(float(total) / maxf(1.0, float(target())), 0.0, 1.0)
+	var g := clampf(snappedf(1.0 + ratio * ratio * 8.8, 0.5), 1.0, 9.8)
+	if ratio >= 0.95:
+		g = 9.8
+	var cond := "DAMAGED"
+	if ratio >= 0.9:
+		cond = "MINT"
+	elif ratio >= 0.7:
+		cond = "COMPLETE IN BOX"
+	elif ratio >= 0.4:
+		cond = "LOOSE"
+	return {"grade": ("%.1f" % g), "cond": cond, "ratio": ratio}
 
 
 # ================================================================ helpers
