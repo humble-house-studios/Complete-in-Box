@@ -102,6 +102,7 @@ func show_scene(id: String, items: Array = []) -> void:
 	_build(id, items)
 	if Lite.perf:
 		_trim_lights(4)
+		mark_dirty(8)
 
 
 ## Weak devices: keep only the strongest few lamps (each one costs every draw).
@@ -139,6 +140,7 @@ func shake(amount: float = 1.0) -> void:
 
 ## Bounce one of the scene's items (appraisal counting).
 func pulse(i: int) -> void:
+	mark_dirty(12)
 	if i < 0 or i >= _items.size():
 		return
 	var n: Node3D = _items[i]
@@ -160,8 +162,43 @@ func item_count() -> int:
 	return _items.size()
 
 
+## Weak devices (Lite.perf): the room is "pre-rendered". It only redraws for
+## a few frames after something changes (new room, camera aim, shake), a
+## couple of times a second to pick up finished box art, and every frame
+## while the intro camera flies. Spinning/flickering decor holds still.
+var _dirty := 8
+var _redraw_t := 0.0
+var _last_focus := Vector2(-1, -1)
+
+
+func mark_dirty(frames: int = 6) -> void:
+	_dirty = maxi(_dirty, frames)
+
+
+func _perf_update(delta: float) -> void:
+	var f := Vector2(_focus, _zoom)
+	if f != _last_focus or _shake > 0.0:
+		_last_focus = f
+		mark_dirty(4)
+	_redraw_t += delta
+	if _redraw_t > 0.5:
+		_redraw_t = 0.0
+		mark_dirty(1)
+	if cine_on or _dirty > 0:
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		_dirty -= 1
+	else:
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	if Lite.perf and vp != null:
+		_perf_update(delta)
+		if not cine_on:
+			_shake = maxf(0.0, _shake - delta * 3.0)
+			_apply_cam()
+			return
 	for f in _flicker:
 		var node: Object = f[0]
 		if not is_instance_valid(node):
@@ -200,7 +237,8 @@ func _apply_cam() -> void:
 		return
 	var aspect := sz.x / sz.y
 	var portrait := aspect < 1.0
-	var sway := Vector3(sin(_t * 0.31) * 0.03, sin(_t * 0.47) * 0.015, 0)
+	# Camera holds still: idle sway made every vertex snap back and forth.
+	var sway := Vector3.ZERO
 	# Phones see a narrow band: look down a bit more so back rows show.
 	var raise := Vector3(0, 0.28, -0.1) if portrait else (Vector3(0, 0.42, -0.25) if look_down else Vector3.ZERO)
 	var fov := minf((_fov + (14.0 if portrait else 0.0)) * _zoom, 100.0)
@@ -232,7 +270,7 @@ func _setup(fog: Color, ambient: Color, ambient_energy: float = 1.0, near: float
 	Psx.fog_color = fog
 	Psx.fog_near = near
 	Psx.fog_far = far
-	Psx.snap = 220.0
+	Psx.snap = 700.0
 
 
 func _view(pos: Vector3, look: Vector3, fov: float = 50.0) -> void:

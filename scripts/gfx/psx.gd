@@ -10,7 +10,7 @@ const SHADER := preload("res://assets/shaders/psx.gdshader")
 static var fog_color := Color(0.04, 0.03, 0.05)
 static var fog_near := 4.0
 static var fog_far := 14.0
-static var snap := 120.0
+static var snap := 700.0
 
 static var _scenes: Dictionary = {}
 static var _tex: Dictionary = {}

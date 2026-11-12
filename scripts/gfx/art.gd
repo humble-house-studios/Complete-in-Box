@@ -20,6 +20,21 @@ static var _order: Array = []
 static var _done: Dictionary = {}
 ## While a cinematic plays, render fewer per batch so frames stay smooth.
 static var throttle := false
+## Apps (not the web build) keep every painted cover / render on disk, so the
+## next launch shows them at once instead of painting them again.
+static var _cache_dir := ""
+
+
+static func _cache_path(k: String) -> String:
+	if OS.has_feature("web") or DisplayServer.get_name() == "headless":
+		return ""
+	if _cache_dir == "":
+		var f := FileAccess.open("res://build_id.txt", FileAccess.READ)
+		var build := f.get_as_text().strip_edges() if f != null else "0"
+		_cache_dir = "user://art_cache/%s" % build
+		if not DirAccess.dir_exists_absolute(_cache_dir):
+			DirAccess.make_dir_recursive_absolute(_cache_dir)
+	return "%s/%s.png" % [_cache_dir, k.md5_text()]
 
 var _queue: Array = []
 var _busy := false
@@ -80,6 +95,16 @@ static func _request(k: String, size: Vector2i, item: Dictionary, kind: String, 
 		return _tex[k]
 	var img := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0) if kind.begins_with("icon") else Color(0.15, 0.13, 0.18))
+	var cp := _cache_path(k)
+	if cp != "" and not k.begins_with("V|") and FileAccess.file_exists(cp):
+		var cached := Image.load_from_file(cp)
+		if cached != null and not cached.is_empty():
+			cached.convert(Image.FORMAT_RGBA8)
+			var ct := ImageTexture.create_from_image(cached)
+			_tex[k] = ct
+			_order.append(k)
+			_done[k] = true
+			return ct
 	var t := ImageTexture.create_from_image(img)
 	_tex[k] = t
 	_order.append(k)
@@ -175,6 +200,9 @@ func _run_batch() -> void:
 			if img.get_size() != sz:
 				img.resize(sz.x, sz.y, Image.INTERPOLATE_NEAREST)
 			t.update(img)
+			var cp := _cache_path(String(batch[i]["key"]))
+			if cp != "" and String(batch[i]["kind"]) != "venue":
+				img.save_png(cp)
 		_done[batch[i]["key"]] = true
 		vp.queue_free()
 	_queue.append_array(later)

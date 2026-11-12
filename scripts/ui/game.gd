@@ -597,7 +597,8 @@ func _confirm_boot() -> void:
 ## Android back button / TV remote BACK.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		_pad_back()
+		if not _pad_back() and screen == "title" and not sheet_open() and not OS.has_feature("web"):
+			get_tree().quit()
 
 
 func _pad_button(btn: int) -> bool:
@@ -626,6 +627,9 @@ func _pad_button(btn: int) -> bool:
 		JOY_BUTTON_START:
 			if _intro != null and is_instance_valid(_intro):
 				_skip_intro()
+				return true
+			if screen in ["home", "venue"] and not sheet_open():
+				_open_menu()
 				return true
 			if screen == "title" and not sheet_open():
 				_on_new_run()
@@ -820,6 +824,9 @@ func _pad_back() -> bool:
 		return true
 	if screen == "collection":
 		show_title()
+		return true
+	if screen in ["home", "venue"]:
+		_open_menu()
 		return true
 	return false
 
@@ -1522,6 +1529,10 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 
 func _header() -> void:
 	var h := _hbox(12)
+	var menu := _button("II", _open_menu, Color(0.16, 0.14, 0.2), 22, 72)
+	menu.custom_minimum_size.x = 72
+	menu.tooltip_text = "Menu"
+	h.add_child(menu)
 	var left := _vbox(0)
 	var ante_txt := "ANTE %d/%d" % [run.ante, Balance.ANTES_TO_WIN]
 	if run.endless:
@@ -1928,7 +1939,11 @@ func _build_title() -> void:
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	gap.size_flags_stretch_ratio = 4.0
 	_root_box.add_child(gap)
-	_root_box.add_child(_mark_main(_button("NEW RUN", _on_new_run, STICKER, 34 if not land else 28, 110 if not land else 84)))
+	if _run_live():
+		_root_box.add_child(_mark_main(_button("CONTINUE RUN  (Ante %d)" % run.ante, _continue_run, STICKER, 32 if not land else 26, 104 if not land else 80)))
+		_root_box.add_child(_button("NEW RUN", _on_new_run, PANEL_HI, 24, 80 if not land else 64))
+	else:
+		_root_box.add_child(_mark_main(_button("NEW RUN", _on_new_run, STICKER, 34 if not land else 28, 110 if not land else 84)))
 	_root_box.add_child(_button("COLLECTION   %d / %d found   |   WALL %d" % [_coll_seen.size(), Catalog.ITEMS.size(), _coll_wall.size()], _open_collection, Color("2f5d7a"), 22, 88 if not land else 64))
 	var row := _hbox(10)
 	var bh := 80.0 if not land else 64.0
@@ -2010,6 +2025,44 @@ func _cycle_gfx() -> void:
 	request_refresh()
 
 
+# ================================================================ pause menu
+
+## A run you can go back to from the title.
+func _run_live() -> bool:
+	return run != null and not _view_run and run.phase != Run.Phase.OVER and run.phase != Run.Phase.WON and _paused_screen != ""
+
+
+var _paused_screen := ""
+
+
+func _open_menu() -> void:
+	var acts: Array = [
+		["Resume", func(): pass, STICKER],
+		["How to play", _show_how_to, PANEL_HI],
+		["Sound: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI],
+		["Graphics: %s" % ["FULL", "FAST", "LITE"][Lite.level()], _cycle_gfx, PANEL_HI],
+		["Quit to title (run is kept)", _quit_to_title, Color("2f5d7a")],
+	]
+	if not OS.has_feature("web"):
+		acts.append(["Close the game", func(): get_tree().quit(), Color("5a3a3a")])
+	_open_sheet("Paused", [["Ante %d, stop %d of 3. Cash %s." % [run.ante, run.stop + 1, _money(run.cash)], MUTED]], acts)
+
+
+func _quit_to_title() -> void:
+	_paused_screen = screen
+	_transition(func():
+		screen = "title"
+		request_refresh())
+
+
+func _continue_run() -> void:
+	var back := _paused_screen
+	_paused_screen = ""
+	_transition(func():
+		screen = back if back != "" else "home"
+		request_refresh())
+
+
 func _toggle_sound() -> void:
 	var on := not _sfx.enabled
 	_save["sound"] = 1 if on else 0
@@ -2062,6 +2115,8 @@ const GUIDE := [
 		"lines": ["3+ things for one console = more MULT.", "Console + game + accessory = x1.5!", "Found a GRAIL? +1 MULT and a lifetime of bragging."]},
 	{"title": "BEAT THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
 		"lines": ["Leave a stop and the appraiser scores your shelf.", "Beat the target... or it's back to bagging groceries."]},
+	{"title": "YOUR COLLECTION", "color": Color("7fb8ff"), "art": "collection",
+		"lines": ["Every game you spot fills a page in your BINDER. The ? cards are still out there.", "Hang your best finds on THE WALL. They stay forever, run after run."]},
 	{"title": "PRO TIPS", "color": GOLD, "art": "tips", "lines": []},
 ]
 const GUIDE_STOPS := [
@@ -2315,6 +2370,38 @@ func _guide_art(kind: String, col: Color) -> Control:
 			ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			v4.add_child(ok)
 			box.add_child(v4)
+		"collection":
+			var row := _hbox(10)
+			row.alignment = BoxContainer.ALIGNMENT_CENTER
+			var wall := _vbox(4)
+			var wf := _panel(Color(0.12, 0.09, 0.05, 0.95), GOLD, 3)
+			wf.add_child(_icon(_guide_item("fes_wcup", "Sealed"), big * 0.7))
+			wall.add_child(wf)
+			var wl := _pill("THE WALL", GOLD, 20)
+			wl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			wall.add_child(wl)
+			row.add_child(wall)
+			var binder := _vbox(4)
+			var bg := GridContainer.new()
+			bg.columns = 3
+			bg.add_theme_constant_override("h_separation", 4)
+			bg.add_theme_constant_override("v_separation", 4)
+			for k in 6:
+				var cell := _panel(Color(0.05, 0.045, 0.07, 0.95), Color(0.4, 0.38, 0.5), 2)
+				cell.custom_minimum_size = Vector2(big * 0.26, big * 0.32)
+				if k == 1 or k == 4:
+					cell.add_child(_icon(_guide_item(["fes_plumber", "fes_zeldo"][k / 4], "CIB"), big * 0.24))
+				else:
+					var q := _title_label("?", 30, Color(0.5, 0.48, 0.6))
+					q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+					cell.add_child(q)
+				bg.add_child(cell)
+			binder.add_child(bg)
+			var bl := _pill("THE BINDER", Color("7fb8ff"), 20)
+			bl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			binder.add_child(bl)
+			row.add_child(binder)
+			box.add_child(row)
 		"tips":
 			var v5 := _vbox(10 if not is_landscape() else 4)
 			for tip in GUIDE_TIPS:
@@ -2389,6 +2476,7 @@ func _start_new_run(seed_value: int) -> void:
 	run.start(seed_value)
 	_wall_picked = false
 	_view_run = false
+	_paused_screen = ""
 	_save["runs"] = int(_save["runs"]) + 1
 	_write_save()
 	screen = "home"
@@ -3537,10 +3625,11 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	card.add_theme_stylebox_override("panel", st)
 	var mx := _margins
 	if is_landscape():
-		card.anchor_left = 0.5
-		card.anchor_right = 0.5
-		card.offset_left = -300
-		card.offset_right = 300
+		# Wide 16:9 card: the item big on the left, everything else on the right.
+		card.anchor_left = 0.0
+		card.anchor_right = 1.0
+		card.offset_left = mx.x + 24
+		card.offset_right = -mx.z - 24
 	else:
 		card.anchor_left = 0.0
 		card.anchor_right = 1.0
@@ -3553,7 +3642,20 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.add_child(card)
 	var v := _vbox(8)
-	card.add_child(v)
+	var left: VBoxContainer = v
+	var right: VBoxContainer = v
+	if is_landscape():
+		var hb := _hbox(18)
+		card.add_child(hb)
+		left = _vbox(8)
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		left.size_flags_stretch_ratio = 1.15
+		hb.add_child(left)
+		right = _vbox(8)
+		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hb.add_child(right)
+	else:
+		card.add_child(v)
 	# Header band: platform + tier.
 	var band := PanelContainer.new()
 	var bs := StyleBoxFlat.new()
@@ -3572,15 +3674,15 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	bh.add_child(_spacer(false))
 	bh.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier].lightened(0.2) if tier > 0 else Color(1, 1, 1, 0.85), 16))
 	band.add_child(bh)
-	v.add_child(band)
+	left.add_child(band)
 	# Turntable + box covers (tap a cover to turn the model to it).
-	v.add_child(_turntable(item, pcol))
+	left.add_child(_turntable(item, pcol))
 	if String(item["kind"]) != "misc":
 		var covers := _hbox(10)
 		covers.alignment = BoxContainer.ALIGNMENT_CENTER
 		for side in [["FRONT", Art.front(item), 0.0], ["BACK", Art.back(item), PI]]:
 			var cb := Button.new()
-			cb.custom_minimum_size = Vector2(96, 120) if not is_landscape() else Vector2(64, 80)
+			cb.custom_minimum_size = Vector2(96, 120) if not is_landscape() else Vector2(80, 100)
 			cb.icon = side[1]
 			cb.expand_icon = true
 			cb.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -3604,22 +3706,22 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 		vd.add_child(_title_label(Catalog.variant_label(item).to_upper(), 24, vcol.lightened(0.25) if vcol.get_luminance() < 0.3 else vcol))
 		vd.add_child(_label(String(Catalog.VARIANTS[vname]["desc"]), 16, Color("ddd5ea"), true))
 		covers.add_child(vd)
-		v.add_child(covers)
+		left.add_child(covers)
 	# Name + pills.
 	var nm := _title_label(title, 40, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(nm)
+	right.add_child(nm)
 	var tags := _tag_row(item, 17)
 	tags.alignment = FlowContainer.ALIGNMENT_CENTER
-	v.add_child(tags)
+	right.add_child(tags)
 	# Info: stats + lines, scrolls if the screen is short.
 	var sc := ScrollContainer.new()
 	sc.follow_focus = true
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.custom_minimum_size = Vector2(0, 150 if is_landscape() else 290)
-	sc.size_flags_vertical = Control.SIZE_SHRINK_END
-	v.add_child(sc)
+	sc.custom_minimum_size = Vector2(0, 120 if is_landscape() else 290)
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL if is_landscape() else Control.SIZE_SHRINK_END
+	right.add_child(sc)
 	var info := _vbox(8)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(info)
@@ -3643,8 +3745,8 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		acts.add_child(btn)
-	v.add_child(acts)
-	v.add_child(_button("Close", _close_sheet_sfx, Color("3a3548"), 20, 64))
+	right.add_child(acts)
+	right.add_child(_button("Close", _close_sheet_sfx, Color("3a3548"), 20, 64))
 	if not fast:
 		card.pivot_offset = get_viewport_rect().size * 0.5
 		card.scale = Vector2(0.92, 0.92)
@@ -3664,7 +3766,7 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 	fs.border_color = Color(1, 1, 1, 0.12)
 	frame.add_theme_stylebox_override("panel", fs)
 	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	frame.custom_minimum_size = Vector2(0, 200)
+	frame.custom_minimum_size = Vector2(0, 260)
 	var svc := SubViewportContainer.new()
 	svc.stretch = true
 	svc.stretch_shrink = 2
@@ -3696,7 +3798,7 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 	vp.add_child(we)
 	Psx.fog_near = 100.0
 	Psx.fog_far = 200.0
-	Psx.snap = 260.0
+	Psx.snap = 700.0
 	# Backdrop glow + turntable.
 	var glow := Psx.mat(col.darkened(0.45), null, Vector2.ONE, 0.45)
 	var root3 := Node3D.new()
@@ -3724,9 +3826,10 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 	rim.omni_range = 3.0
 	root3.add_child(rim)
 	var cam := Camera3D.new()
-	cam.fov = 32.0
+	cam.fov = 30.0
 	root3.add_child(cam)
-	cam.look_at_from_position(Vector3(0, 0.75, 2.6), Vector3(0, 0.42, 0))
+	# Close in so the item fills the window.
+	cam.look_at_from_position(Vector3(0, 0.7, 2.15), Vector3(0, 0.44, 0))
 	cam.current = true
 	return frame
 

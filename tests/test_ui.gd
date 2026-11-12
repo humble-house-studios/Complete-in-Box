@@ -126,6 +126,22 @@ func test_pad_y_does_main_action_and_x_switches() -> void:
 	assert_eq(game.screen, "venue", "Y heads to the venue")
 
 
+func test_pause_menu_quit_to_title_and_continue() -> void:
+	game.start_new_run(8)
+	await wait_frames(2)
+	game._open_menu()
+	await wait_frames(2)
+	assert_true(game.sheet_open())
+	game._close_sheet()
+	game._quit_to_title()
+	await wait_frames(2)
+	assert_eq(game.screen, "title")
+	assert_true(_has_text(game, "CONTINUE RUN"))
+	game._continue_run()
+	await wait_frames(2)
+	assert_eq(game.screen, "home")
+
+
 func test_home_then_venue_then_appraisal() -> void:
 	game.start_new_run(77)
 	await wait_frames(2)

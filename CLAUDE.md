@@ -86,7 +86,8 @@ The web build in Safari is the test for every platform.
   the CPU cost of room builds, UI rebuilds and cover painting.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
-  flavor and the actions. `_open_sheet(..., item)` routes there.
+  flavor and the actions. Landscape = a wide 16:9 card (item left, info and
+  actions right). `_open_sheet(..., item)` routes there.
 - Opening sequence (`_start_intro` in game.gd, once per launch): a sound gate
   first (PLAY WITH SOUND / PLAY MUTED; browsers need a tap before audio), a
   SKIP button during the show, tap at the logo to continue. Then:
@@ -156,6 +157,15 @@ The web build in Safari is the test for every platform.
   `_confirm_boot`, the next launch deletes it. Other platforms skip straight to
   `main.tscn`. New `class_name` scripts may need a fresh tv.apk install.
 - GFX button on the title: FULL / FAST / LITE (`Lite.set_level`, saved as `gfx`).
+- Perf mode "pre-renders" the room: the Stage viewport only redraws for a few
+  frames after a change (`mark_dirty`), twice a second for new box art, and
+  every frame during the intro flight. Apps also cache painted covers/renders in
+  `user://art_cache/<build>/` so later launches skip painting them.
+- The camera holds still (no idle sway) and vertex snap is fine (700) so
+  polygons don't shimmer; only intended motion moves.
+- Pause menu: the `II` button in the header (or Start / B on a pad): resume,
+  how to play, sound, graphics, quit to title (run is kept; the title shows
+  CONTINUE RUN), close the game (apps only; BACK on the title also closes).
 - Debug HUD (TV app, or `?debug=1`): FPS, last input event, pads connected,
   pad mode and focused button, along the bottom edge.
 - CI also publishes `tv-basic.apk` (quick export, no internet = no self-update);
