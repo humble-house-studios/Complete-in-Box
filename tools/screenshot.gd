@@ -54,6 +54,13 @@ func _go() -> void:
 	game._set_home_tab("route")
 	game.go_to_venue("garage")
 	await _snap("venue_garage")
+	var pv := InputEventJoypadButton.new()
+	pv.button_index = JOY_BUTTON_DPAD_DOWN
+	pv.pressed = true
+	game._input(pv)
+	await _snap("pad_venue")
+	game._pad = false
+	game.request_refresh()
 	for pair in [["fes_zeldo", 12], ["fes_robo2", 60], ["fes_console", 30]]:
 		var it: Dictionary = game.run.make_item(Catalog.get_def(pair[0]), "CIB")
 		it["paid"] = pair[1]

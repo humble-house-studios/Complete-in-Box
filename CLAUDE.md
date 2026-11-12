@@ -79,6 +79,11 @@ The web build in Safari is the test for every platform.
   subtle Xbox glyphs (`_glyph`: Y on main buttons, LB/RB on tab bars) and a
   hint strip at the bottom; touch or mouse turns it all off. Focus is restored
   by button identity after each rebuild and kept inside the top layer.
+- Landscape shows compact tiles (`_offer_tile`, small `_shelf_tile`) so a whole
+  table fits; highlighting a tile (pad focus, or mouse hover on desktop) pops a
+  mini card (`_show_preview`) over the middle strip; A / click opens the full card.
+  Right stick turns the item card's model by hand (Y tilts); auto spin resumes
+  after 3 s.
 - Landscape = three columns (`_land_cols`): tall panels left and right, the 3D
   room in the middle strip (camera `look_down`), the main action button under it.
 - Screen changes go through `_transition` (a quick dip to black) so rebuilds

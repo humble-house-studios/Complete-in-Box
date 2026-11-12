@@ -189,6 +189,7 @@ func _do_refresh() -> void:
 	_refresh_queued = false
 	if _root_box == null:
 		return
+	_hide_preview()
 	var focus_idx := _focus_index()
 	if screen != _last_screen:
 		# New screen: start on its main button, not "the same slot" as before.
@@ -590,12 +591,13 @@ func _pad_focus(idx: int = 0) -> void:
 				pick = b
 				break
 	if pick == null and idx <= 0:
-		# Fresh screen or sheet: start on its main button (NEXT, HEAD TO...),
-		# else the first real one (not SKIP or the pause button).
-		for b in list:
-			if (b as Control).has_meta("pad_main"):
-				pick = b
-				break
+		# Sheets and overlays start on their main button (NEXT, Buy...);
+		# screens on their first real one (not SKIP or the pause button).
+		if _pad_layer() != _root_box:
+			for b in list:
+				if (b as Control).has_meta("pad_main"):
+					pick = b
+					break
 		if pick == null:
 			for b in list:
 				if not (b as Control).has_meta("pad_skip"):
@@ -1384,6 +1386,139 @@ func _lot_card(i: int, w: float) -> Button:
 	return b
 
 
+## Small for-sale tile (landscape): everything on the table fits at once;
+## the details show in the preview card while it's highlighted.
+func _offer_tile(i: int, w: float) -> Button:
+	var o: Dictionary = run.stock[i]
+	var item: Dictionary = o["item"]
+	var plat := Catalog.platform(String(item["plat"]))
+	var pcol: Color = plat["color"]
+	var tier := int(item.get("tier", 0))
+	var b := _card_shell(w, 196, pcol, func(): _open_offer(i))
+	_preview_on(b, item, "offer", i)
+	var v := _card_inner(b)
+	v.add_theme_constant_override("separation", 3)
+	var case := PanelContainer.new()
+	var cs := _box(pcol.darkened(0.55), 6, Color(Catalog.TIER_COLORS[tier], 0.7) if tier >= 2 else Color(pcol, 0.35), 2)
+	cs.shadow_size = 0
+	case.add_theme_stylebox_override("panel", cs)
+	case.custom_minimum_size = Vector2(0, 84)
+	var ic := _icon(item, 76)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	case.add_child(ic)
+	var badges := VBoxContainer.new()
+	badges.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var top := _hbox(3)
+	top.add_child(_pill(String(plat["short"]), pcol.lightened(0.2), 12))
+	top.add_child(_spacer(false))
+	if bool(o["bargain"]):
+		top.add_child(_pill("DEAL", GOOD, 12))
+	badges.add_child(top)
+	case.add_child(badges)
+	v.add_child(case)
+	var nm := _title_label(String(item["name"]), 17, INK)
+	nm.max_lines_visible = 1
+	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(nm)
+	var bottom := _hbox(3)
+	bottom.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 12))
+	bottom.add_child(_spacer(false))
+	bottom.add_child(_sticker(_money(int(o["price"])), STICKER, 20))
+	v.add_child(bottom)
+	_ignore_mouse(b)
+	return b
+
+
+# ---- preview card: a mini card that pops up while a tile is highlighted ----
+
+var _preview: Control
+
+
+func _preview_on(b: Button, item: Dictionary, kind: String, i: int = -1) -> void:
+	b.focus_entered.connect(_show_preview.bind(item, kind, i))
+	b.focus_exited.connect(_hide_preview)
+	b.mouse_entered.connect(func():
+		if not _pad and not OS.has_feature("mobile") and not OS.has_feature("web_ios") and not OS.has_feature("web_android"):
+			_show_preview(item, kind, i))
+	b.mouse_exited.connect(_hide_preview)
+
+
+func _hide_preview() -> void:
+	if _preview != null and is_instance_valid(_preview):
+		_preview.queue_free()
+	_preview = null
+
+
+func _show_preview(item: Dictionary, kind: String, i: int) -> void:
+	_hide_preview()
+	if sheet_open() or run == null or not is_inside_tree():
+		return
+	var plat := Catalog.platform(String(item["plat"]))
+	var pcol: Color = plat["color"]
+	var tier := int(item.get("tier", 0))
+	var p := PanelContainer.new()
+	var st := _box(Color(0.07, 0.06, 0.09, 0.96).lerp(pcol.darkened(0.7), 0.25), 8, pcol if tier < 2 else Catalog.TIER_COLORS[tier], 3)
+	for side in ["left", "right", "top", "bottom"]:
+		st.set("content_margin_" + side, 10)
+	p.add_theme_stylebox_override("panel", st)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vs := get_viewport_rect().size
+	var pw := minf(420.0, vs.x - 40.0)
+	if is_landscape():
+		# Over the 3D strip in the middle, near the top.
+		p.position = Vector2((vs.x - pw) * 0.5, _margins.y + 96)
+	else:
+		p.position = Vector2((vs.x - pw) * 0.5, _margins.y + 110)
+	p.custom_minimum_size = Vector2(pw, 0)
+	var v := _vbox(6)
+	p.add_child(v)
+	var band := _hbox(6)
+	band.add_child(_pill(String(plat["name"]).to_upper(), pcol.lightened(0.2), 14))
+	band.add_child(_spacer(false))
+	band.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier].lightened(0.2) if tier > 0 else Color(1, 1, 1, 0.85), 14))
+	v.add_child(band)
+	var row := _hbox(10)
+	row.add_child(_icon(item, 110))
+	var info := _vbox(4)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var nm := _title_label(String(item["name"]), 22, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(nm)
+	info.add_child(_tag_row(item, 14))
+	var fl := _label(Flavor.cond_line(item), 15, FLAVOR_C, true)
+	fl.max_lines_visible = 2
+	info.add_child(fl)
+	var money := _hbox(6)
+	if kind == "offer" and i >= 0 and i < run.stock.size():
+		var o: Dictionary = run.stock[i]
+		if run.shows_exact():
+			money.add_child(_label("WORTH %s" % _money(run.market_value(item)), 17, GOLD))
+		else:
+			var est: Array = o["est"]
+			money.add_child(_label("GUESS %s-%s" % [_money(int(est[0])), _money(int(est[1]))], 17, Color("e8dcc0")))
+		money.add_child(_spacer(false))
+		money.add_child(_sticker(_money(int(o["price"])), STICKER, 20))
+	elif kind == "shelf":
+		var g := run.gain(item)
+		money.add_child(_pill(("UP " if g > 0 else "DOWN " if g < 0 else "EVEN ") + _signed(g), _gain_color(g), 14))
+		if run.sell_rate() > 0.0:
+			money.add_child(_label("sell " + _signed(run.flip_now(item)), 15, _gain_color(run.flip_now(item))))
+		money.add_child(_spacer(false))
+		money.add_child(_sticker(_money(run.market_value(item)), GOLD, 20))
+	info.add_child(money)
+	row.add_child(info)
+	v.add_child(row)
+	var hint := _hbox(4)
+	hint.alignment = BoxContainer.ALIGNMENT_CENTER
+	if _pad:
+		hint.add_child(_glyph("A", 22.0))
+	hint.add_child(_label("open the full card", 14, MUTED))
+	v.add_child(hint)
+	_overlay.add_child(p)
+	_preview = p
+
+
 func _auction_card(i: int, w: float) -> Button:
 	var a: Dictionary = run.auctions[i]
 	var item: Dictionary = a["item"]
@@ -1422,9 +1557,11 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	var pcol: Color = plat["color"]
 	var tier := int(item.get("tier", 0))
 	var bg := PANEL if state == "" else PANEL.darkened(0.3)
-	var b := _card_shell(w, 262 if state == "" else 236, pcol, func(): _open_shelf_item(int(item["uid"]), state), bg)
+	var small := is_landscape()
+	var b := _card_shell(w, (262 if state == "" else 236) - (64 if small else 0), pcol, func(): _open_shelf_item(int(item["uid"]), state), bg)
+	_preview_on(b, item, "shelf" if state == "" else state)
 	var v := _card_inner(b)
-	v.add_theme_constant_override("separation", 5)
+	v.add_theme_constant_override("separation", 5 if not small else 3)
 	# Display case: platform-tinted window with the item, rarity glow, variant ribbon.
 	var case := PanelContainer.new()
 	var cs := _box(pcol.darkened(0.55), 6, Color(Catalog.TIER_COLORS[tier], 0.7) if tier >= 2 else Color(pcol, 0.35), 2)
@@ -1434,12 +1571,12 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	cs.content_margin_top = 4
 	cs.content_margin_bottom = 2
 	case.add_theme_stylebox_override("panel", cs)
-	case.custom_minimum_size = Vector2(0, 108)
+	case.custom_minimum_size = Vector2(0, 108 if not small else 80)
 	var light := ColorRect.new()
 	light.color = Color(1, 1, 1, 0.06)
 	light.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	case.add_child(light)
-	var ic := _icon(item, 96)
+	var ic := _icon(item, 96 if not small else 74)
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if state != "":
 		ic.modulate = Color(0.6, 0.6, 0.7)
@@ -1467,11 +1604,15 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	nm.max_lines_visible = 2
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(nm)
-	var info := _hbox(4)
-	info.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 13))
-	if int(item.get("held", 0)) > 0:
-		info.add_child(_label("held %d" % int(item["held"]), 14, MUTED))
-	v.add_child(info)
+	if small:
+		nm.max_lines_visible = 1
+		nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	else:
+		var info := _hbox(4)
+		info.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 13))
+		if int(item.get("held", 0)) > 0:
+			info.add_child(_label("held %d" % int(item["held"]), 14, MUTED))
+		v.add_child(info)
 	if state != "":
 		var sp := _pill(state, COLD_C, 14)
 		sp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -2958,9 +3099,9 @@ func _build_venue() -> void:
 		if hint0 != "":
 			side.add_child(_label(hint0, 17, MUTED, true))
 		var done0 := _button("APPRAISE & LEAVE   %s / %s" % [_money(total), _money(tgt)], _confirm_done, STICKER if total >= tgt else Color("8a4a3a"), 26, 96)
-		_root_box.add_child(done0)
+		_main_action(done0)
 		return
-	var gc: Array = _grid(_main_w(), 300, 10)
+	var gc: Array = _grid(_main_w(), 150 if is_landscape() else 300, 8)
 	var g: GridContainer = gc[0]
 	var w: float = gc[1]
 	var label := "FOR SALE"
@@ -2969,7 +3110,7 @@ func _build_venue() -> void:
 	if not run.stock.is_empty():
 		_section(main, label)
 		for i in run.stock.size():
-			g.add_child(_offer_card(i, w))
+			g.add_child(_offer_tile(i, w) if is_landscape() else _offer_card(i, w))
 		main.add_child(g)
 	elif int(run.venue["stock"]) > 0:
 		main.add_child(_label("Picked clean.", 20, MUTED))
@@ -3538,6 +3679,7 @@ func _end_stats() -> void:
 # ================================================================ sheet + toast
 
 func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary = {}) -> void:
+	_hide_preview()
 	if _pad:
 		_pad_focus.call_deferred(0)
 	if not item.is_empty():
@@ -3624,6 +3766,7 @@ var _spin_vel := 0.0
 ## Full-screen trading card for one item: a turntable with its spinning 3D
 ## model (drag to turn it), name, pills, flavor, stat bars and the actions.
 func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary) -> void:
+	_hide_preview()
 	if _pad:
 		_pad_focus.call_deferred(0)
 	_close_sheet()
@@ -3870,6 +4013,7 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 
 
 var _spin_hold := 0.0
+var _manual_t := 0.0
 var _spin_goal := 0.0
 
 
@@ -3892,7 +4036,7 @@ func _on_spin_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if _pad:
+	if _pad and not (_spin_model != null and is_instance_valid(_spin_model) and sheet_open()):
 		_pad_scroll(delta)
 	if _spin_model == null or not is_instance_valid(_spin_model):
 		return
@@ -3904,11 +4048,23 @@ func _process(delta: float) -> void:
 		_spin_model.rotation.y += _spin_vel * delta
 		_spin_vel = lerpf(_spin_vel, 0.0, 0.3)
 	else:
+		# Right stick turns it by hand, as fast as you push; the slow auto
+		# spin waits a few seconds after you let go.
 		var rx := Input.get_joy_axis(0, JOY_AXIS_RIGHT_X) if _pad else 0.0
-		if absf(rx) > 0.2:
-			_spin_vel = rx * 6.0
-		_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
-		_spin_model.rotation.y += (0.8 + _spin_vel) * delta
+		var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y) if _pad else 0.0
+		if absf(rx) > 0.15:
+			_manual_t = 3.0
+			_spin_vel = 0.0
+			_spin_model.rotation.y += rx * absf(rx) * 4.5 * delta
+		if absf(ry) > 0.25:
+			_manual_t = 3.0
+			_spin_model.rotation.x = clampf(_spin_model.rotation.x + ry * 2.0 * delta, -0.6, 0.6)
+		if _manual_t > 0.0:
+			_manual_t -= delta
+		else:
+			_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
+			_spin_model.rotation.y += (0.8 + _spin_vel) * delta
+			_spin_model.rotation.x = lerpf(_spin_model.rotation.x, 0.0, delta * 2.0)
 
 
 ## Stat rows: value, condition and rarity bars, held/paid, set progress.
