@@ -45,6 +45,8 @@ func _go() -> void:
 	await _wait(3.0)
 	phase = "to_venue"
 	game.go_to_venue(String(game.run.venue_choices[0]))
+	await _wait(0.6)
+	root.get_texture().get_image().save_png("user://loading.png")
 	await _wait(3.0)
 	phase = "appraise"
 	game.finish_stop()

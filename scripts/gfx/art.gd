@@ -20,6 +20,19 @@ static var _order: Array = []
 static var _done: Dictionary = {}
 ## While a cinematic plays, render fewer per batch so frames stay smooth.
 static var throttle := false
+## A loading screen is up: nothing is on show, so paint flat out.
+static var loading := false
+
+
+## Covers / renders still waiting to be painted (postcards don't count).
+static func pending() -> int:
+	if _host == null or not is_instance_valid(_host):
+		return 0
+	var n := 0
+	for j in _host._queue:
+		if String(j["kind"]) != "venue":
+			n += 1
+	return n
 ## Apps (not the web build) keep every painted cover / render on disk, so the
 ## next launch shows them at once instead of painting them again.
 static var _cache_dir := ""
@@ -162,7 +175,8 @@ func _run_batch() -> void:
 			ready = _done.has("F|" + _key(j["item"]))
 		elif j["kind"] == "front" and hw:
 			ready = _done.has(_icon_key(j["item"], false))
-		if batch.size() < ((1 if throttle else 2) if Lite.perf else (2 if throttle else PER_FRAME)) and ready:
+		var cap := PER_FRAME if loading else ((1 if throttle else 2) if Lite.perf else (2 if throttle else PER_FRAME))
+		if batch.size() < cap and ready:
 			batch.append(j)
 		else:
 			rest.append(j)

@@ -2665,7 +2665,7 @@ func _guide_bar(name: String, fill: float, amount: String, col: Color) -> Contro
 # ================================================================ run flow
 
 func start_new_run(seed_value: int = 0) -> void:
-	_transition(_start_new_run.bind(seed_value))
+	_transition(_start_new_run.bind(seed_value), "OPENING UP THE GARAGE", "A fresh run. Empty shelf, big dreams.")
 
 
 func _start_new_run(seed_value: int) -> void:
@@ -3028,7 +3028,9 @@ func _open_upgrade() -> void:
 
 ## Screen changes rebuild the whole UI and the 3D room, which stutters on
 ## slow devices: dip to black for a moment so the swap happens unseen.
-func _transition(cb: Callable) -> void:
+## With a `title` it's a loading screen: the next room is built and every box
+## cover in it painted behind it, so the stop arrives finished and smooth.
+func _transition(cb: Callable, title: String = "", sub: String = "", col: Color = GOLD) -> void:
 	if fast or not is_inside_tree() or (_veil != null and is_instance_valid(_veil)):
 		cb.call()
 		return
@@ -3037,13 +3039,41 @@ func _transition(cb: Callable) -> void:
 	_veil.mouse_filter = Control.MOUSE_FILTER_STOP
 	_veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_veil)
-	var tw := _veil.create_tween()
+	var bar: ColorRect = null
+	var card: Control = null
+	if title != "":
+		card = _loading_card(title, sub, col)
+		card.modulate.a = 0.0
+		_veil.add_child(card)
+		bar = card.get_meta("bar")
+	var tw := _veil.create_tween().set_parallel(true)
 	tw.tween_property(_veil, "color:a", 1.0, 0.14)
+	if card != null:
+		tw.tween_property(card, "modulate:a", 1.0, 0.2)
 	await tw.finished
 	cb.call()
 	# Let the rebuild and the room build land before revealing.
 	for f in 3:
 		await get_tree().process_frame
+	if title != "":
+		# Paint the covers now, while nothing is on show.
+		Art.loading = true
+		var start := maxi(Art.pending(), 1)
+		var t0 := Time.get_ticks_msec()
+		var min_ms := 700 if Lite.perf else 350
+		while is_inside_tree():
+			var left := Art.pending()
+			if bar != null and is_instance_valid(bar):
+				bar.anchor_right = clampf(1.0 - float(left) / start, 0.05, 1.0)
+			var el := Time.get_ticks_msec() - t0
+			if (left == 0 and el >= min_ms) or el > 8000:
+				break
+			await get_tree().process_frame
+		Art.loading = false
+		if _stage != null:
+			_stage.mark_dirty(10)
+		for f in 4:
+			await get_tree().process_frame
 	if _veil == null or not is_instance_valid(_veil):
 		return
 	var v := _veil
@@ -3056,8 +3086,58 @@ func _transition(cb: Callable) -> void:
 var _veil: ColorRect
 
 
+func _loading_card(title: String, sub: String, col: Color) -> Control:
+	var c := CenterContainer.new()
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var v := _vbox(14)
+	v.custom_minimum_size = Vector2(minf(560.0, get_viewport_rect().size.x - 60.0), 0)
+	c.add_child(v)
+	var t := _title_label(title, 46 if not is_landscape() else 40, col)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(t)
+	if sub != "":
+		var s := _label(sub, 20, FLAVOR_C, true)
+		s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(s)
+	var track := PanelContainer.new()
+	track.add_theme_stylebox_override("panel", _box(Color(1, 1, 1, 0.08), 6, Color(col, 0.5), 2))
+	track.custom_minimum_size = Vector2(0, 22)
+	var fill := ColorRect.new()
+	fill.color = col
+	fill.anchor_right = 0.05
+	fill.anchor_bottom = 1.0
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(0, 14)
+	holder.add_child(fill)
+	track.add_child(holder)
+	v.add_child(track)
+	var tip := _label(Flavor.pick(LOADING_TIPS, randi()), 17, MUTED, true)
+	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(tip)
+	c.set_meta("bar", fill)
+	return c
+
+
+const LOADING_TIPS := [
+	"Tip: a full set (console + game + accessory) is x1.5 Mult.",
+	"Tip: yard sale prices are guesses. Haggle them down.",
+	"Tip: collectibles gain value the longer you hold them.",
+	"Tip: hang your best find on the Wall. It stays forever.",
+	"Tip: grading can triple an item's value.",
+	"Tip: check HOT and COLD before you sell.",
+	"Tip: spare cash earns interest between stops.",
+	"Loading cartridges. Please do not blow on them.",
+	"Rewinding the VHS tapes, as a courtesy.",
+	"Haggling with the loading bar. It won't budge.",
+]
+
+
 func go_to_venue(id: String) -> void:
-	_transition(_go_to_venue.bind(id))
+	var d := Venues.get_def(id)
+	_transition(_go_to_venue.bind(id), "DRIVING TO\n%s" % String(d["name"]).to_upper(), Flavor.mood(id), d.get("color", GOLD))
 
 
 func _go_to_venue(id: String) -> void:
@@ -3553,7 +3633,12 @@ func _on_appraisal_input(event: InputEvent) -> void:
 
 
 func _after_appraisal() -> void:
-	_transition(_after_appraisal_now)
+	var t := "HEADING HOME"
+	if run.phase == Run.Phase.OVER:
+		t = "CLOSING UP SHOP"
+	elif run.phase == Run.Phase.WON:
+		t = "THE FINAL TALLY"
+	_transition(_after_appraisal_now, t, "")
 
 
 func _after_appraisal_now() -> void:
