@@ -53,7 +53,7 @@ var _last_inset := Vector4(-1, -1, -1, -1)
 var _refresh_queued := false
 var _busy := false
 var _skip := false
-var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1, "guide_off": 0}
+var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1, "guide_off": 0, "gfx": -1}
 var _stage: Stage
 var _gap: Control
 var _crt: ColorRect
@@ -77,6 +77,9 @@ var _drag_moved := false
 
 func _ready() -> void:
 	Lite.init()
+	_load_save()
+	if int(_save.get("gfx", -1)) >= 0:
+		Lite.set_level(int(_save["gfx"]))
 	_confirm_boot.call_deferred()
 	if Lite.perf:
 		Engine.max_fps = 30
@@ -111,6 +114,8 @@ func _ready() -> void:
 	_crt.visible = not Lite.nocrt
 	_sfx = Sfx.new()
 	add_child(_sfx)
+	if Lite.debug:
+		_build_debug_hud()
 	_load_save()
 	_sfx.enabled = int(_save["sound"]) == 1
 	_sfx.music_enabled = _sfx.enabled
@@ -428,6 +433,8 @@ func _btn_box(color: Color, edge: int) -> StyleBoxFlat:
 
 ## A drag that scrolls a list shouldn't also tap the card under the finger.
 func _input(event: InputEvent) -> void:
+	if _dbg != null:
+		_dbg_note(event)
 	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.5):
 		_drag_moved = false
 		if not _pad:
@@ -1618,7 +1625,7 @@ func _build_title() -> void:
 	_root_box.add_child(_button("COLLECTION   %d / %d found   |   WALL %d" % [_coll_seen.size(), Catalog.ITEMS.size(), _coll_wall.size()], _open_collection, Color("2f5d7a"), 22, 88 if not land else 64))
 	var row := _hbox(10)
 	var bh := 80.0 if not land else 64.0
-	for bt in [_button("HOW TO PLAY", _show_how_to, PANEL_HI, 22, bh), _button("SOUND: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI, 22, bh), _button("CREDITS", _show_credits, PANEL_HI, 22, bh)]:
+	for bt in [_button("HOW TO PLAY", _show_how_to, PANEL_HI, 22, bh), _button("SOUND: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI, 22, bh), _button("GFX: %s" % ["FULL", "FAST", "LITE"][Lite.level()], _cycle_gfx, PANEL_HI, 22, bh), _button("CREDITS", _show_credits, PANEL_HI, 22, bh)]:
 		bt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(bt)
 	_root_box.add_child(row)
@@ -1628,6 +1635,72 @@ func _build_title() -> void:
 	var bl := _label(best, 19, MUTED)
 	bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(bl)
+
+
+# ================================================================ debug HUD
+## Small readout for testing on TVs: frame rate, the last input the game got
+## and what has controller focus.
+
+var _dbg: Label
+var _dbg_last := "no input yet"
+
+
+func _build_debug_hud() -> void:
+	_dbg = Label.new()
+	_dbg.add_theme_font_size_override("font_size", 18)
+	_dbg.add_theme_color_override("font_color", Color(0.6, 1.0, 0.7))
+	_dbg.add_theme_color_override("font_outline_color", Color.BLACK)
+	_dbg.add_theme_constant_override("outline_size", 4)
+	_dbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dbg.anchor_top = 1.0
+	_dbg.anchor_bottom = 1.0
+	_dbg.offset_top = -30
+	_dbg.offset_left = 8
+	add_child(_dbg)
+	var t := Timer.new()
+	t.wait_time = 0.5
+	t.autostart = true
+	t.timeout.connect(_dbg_update)
+	add_child(t)
+
+
+func _dbg_note(e: InputEvent) -> void:
+	if e is InputEventJoypadButton:
+		var b := e as InputEventJoypadButton
+		_dbg_last = "PAD button %d %s (device %d)" % [b.button_index, "down" if b.pressed else "up", b.device]
+	elif e is InputEventJoypadMotion:
+		var m := e as InputEventJoypadMotion
+		if absf(m.axis_value) > 0.4:
+			_dbg_last = "PAD axis %d = %.1f" % [m.axis, m.axis_value]
+	elif e is InputEventKey and (e as InputEventKey).pressed:
+		_dbg_last = "KEY %s" % OS.get_keycode_string((e as InputEventKey).keycode)
+	elif e is InputEventScreenTouch or e is InputEventMouseButton:
+		_dbg_last = "TOUCH / CLICK"
+	_dbg_update()
+
+
+func _dbg_update() -> void:
+	if _dbg == null or not is_inside_tree():
+		return
+	var fo := get_viewport().gui_get_focus_owner()
+	var ftxt := "none"
+	if fo is Button:
+		ftxt = (fo as Button).text.substr(0, 24) if (fo as Button).text != "" else "card"
+	_dbg.text = "FPS %d  |  %s  |  pads %d  |  pad mode %s  |  focus: %s" % [Engine.get_frames_per_second(), _dbg_last, Input.get_connected_joypads().size(), "on" if _pad else "off", ftxt]
+
+
+## FULL = everything; FAST = lower-res 3D, no shadows / CRT, 30 fps;
+## LITE = no 3D rooms or rendered art. Takes full effect on the next launch.
+func _cycle_gfx() -> void:
+	var lv := (Lite.level() + 1) % 3
+	Lite.set_level(lv)
+	_save["gfx"] = lv
+	_write_save()
+	Engine.max_fps = 30 if Lite.perf else 0
+	_stage.visible = not Lite.no3d
+	_crt.visible = not Lite.nocrt
+	_toast_msg("Graphics: %s. Restart the game for the full change." % ["FULL", "FAST", "LITE"][lv], INK)
+	request_refresh()
 
 
 func _toggle_sound() -> void:

@@ -144,6 +144,11 @@ The web build in Safari is the test for every platform.
   loads it over the built-in data. If the new data never reaches the game's
   `_confirm_boot`, the next launch deletes it. Other platforms skip straight to
   `main.tscn`. New `class_name` scripts may need a fresh tv.apk install.
+- GFX button on the title: FULL / FAST / LITE (`Lite.set_level`, saved as `gfx`).
+- Debug HUD (TV app, or `?debug=1`): FPS, last input event, pads connected,
+  pad mode and focused button, along the bottom edge.
+- CI also publishes `tv-basic.apk` (quick export, no internet = no self-update);
+  the Gradle `tv.apk` didn't install on Samuel's TV at 165 MB, now compressed libs.
 
 ## Testing pipeline
 - Use Godot 4.3 (as CI does). If the container's `godot` is newer, grab the
