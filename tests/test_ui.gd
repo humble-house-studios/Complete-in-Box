@@ -1,0 +1,115 @@
+extends GutTest
+## The UI builds every screen and drives a run end to end without errors.
+
+var game: Control
+
+
+func before_each() -> void:
+	game = load("res://scenes/main.tscn").instantiate()
+	add_child_autofree(game)
+	game.fast = true
+	await wait_frames(2)
+
+
+func _buttons(n: Node, out: Array = []) -> Array:
+	for c in n.get_children():
+		if c is Button:
+			out.append(c)
+		_buttons(c, out)
+	return out
+
+
+func _has_text(n: Node, text: String) -> bool:
+	for c in n.get_children():
+		if (c is Label and (c as Label).text.contains(text)) or (c is Button and (c as Button).text.contains(text)):
+			return true
+		if _has_text(c, text):
+			return true
+	return false
+
+
+func test_title_screen() -> void:
+	assert_eq(game.screen, "title")
+	assert_true(_has_text(game, "NEW RUN"))
+
+
+func test_home_then_venue_then_appraisal() -> void:
+	game.start_new_run(77)
+	await wait_frames(2)
+	assert_eq(game.screen, "home")
+	assert_true(_has_text(game, "PERK SHOP"))
+	assert_true(_has_text(game, "Garage Sale"))
+	game.go_to_venue("garage")
+	await wait_frames(2)
+	assert_eq(game.screen, "venue")
+	assert_true(_has_text(game, "FOR SALE"))
+	# Open an offer's sheet and buy from it.
+	game.run.cash = 500
+	game._open_offer(0)
+	assert_true(game.sheet_open())
+	game._close_sheet()
+	game._do_buy(0)
+	await wait_frames(2)
+	# Lots reveal.
+	game._do_lot(0)
+	await wait_frames(2)
+	game._close_reveal()
+	# Shelf item sheet.
+	game._open_shelf_item(int(game.run.shelf[0]["uid"]), "")
+	assert_true(game.sheet_open())
+	game._close_sheet()
+	# Make sure we pass, then appraise.
+	game.run.shelf.append(game.run.make_item(Catalog.get_def("fes_stadium"), "CIB"))
+	await game.finish_stop()
+	await wait_frames(2)
+	assert_eq(game.screen, "appraisal")
+	assert_true(_has_text(game, "CONTINUE"))
+	game._after_appraisal()
+	await wait_frames(2)
+	assert_eq(game.screen, "home")
+	assert_eq(game.run.stop, 1)
+
+
+func test_every_venue_screen_builds() -> void:
+	game.start_new_run(5)
+	await wait_frames(2)
+	for v in Venues.LIST:
+		var r: Run = game.run
+		r.ante = 8
+		r.stop = Venues.SLOTS.find(v["slot"])
+		r._prepare_home()
+		r.venue_choices = [v["id"]]
+		game.go_to_venue(v["id"])
+		await wait_frames(2)
+		assert_eq(game.screen, "venue", v["id"])
+		assert_true(_has_text(game, String(v["name"])), "header shows " + v["name"])
+		for i in r.auctions.size():
+			game._open_auction(i)
+			game._close_sheet()
+		for i in r.lots.size():
+			game._open_lot(i)
+			game._close_sheet()
+		r.phase = Run.Phase.HOME
+		game.screen = "home"
+
+
+func test_losing_shows_game_over() -> void:
+	game.start_new_run(3)
+	await wait_frames(2)
+	game.go_to_venue("garage")
+	await wait_frames(1)
+	game.run.shelf.clear()
+	await game.finish_stop()
+	game._after_appraisal()
+	await wait_frames(2)
+	assert_eq(game.screen, "over")
+	assert_true(_has_text(game, "OUT OF BUSINESS"))
+
+
+func test_landscape_layout_builds() -> void:
+	game.start_new_run(9)
+	get_window().content_scale_size = Vector2i(1280, 720)
+	game.request_refresh()
+	await wait_frames(2)
+	assert_eq(game.screen, "home")
+	get_window().content_scale_size = Vector2i(720, 1280)
