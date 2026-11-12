@@ -15,6 +15,11 @@ uniform bool use_label = false;
 uniform vec4 label_rect = vec4(0.0, 0.0, 1.0, 1.0);
 uniform vec4 body_tint : source_color = vec4(1.0);
 uniform bool circle = false;
+// Label art fitted into its sticker without stretching: uv = (l - xy) / zw,
+// outside shows label_bg (letterbox). tex_fit crops the main texture (cover).
+uniform vec4 label_fit = vec4(0.0, 0.0, 1.0, 1.0);
+uniform vec4 label_bg : source_color = vec4(0.06, 0.06, 0.07, 1.0);
+uniform vec4 tex_fit = vec4(0.0, 0.0, 1.0, 1.0);
 uniform vec4 fog_color : source_color = vec4(0.04, 0.03, 0.05, 1.0);
 uniform float fog_near = 4.0;
 uniform float fog_far = 14.0;
@@ -39,12 +44,17 @@ void fragment() {
 	}
 	vec4 c = albedo;
 	if (use_tex) {
-		c *= texture(tex, UV);
+		c *= texture(tex, UV * tex_fit.zw + tex_fit.xy);
 	}
 	if (use_label) {
 		vec2 l = (UV - label_rect.xy) / label_rect.zw;
 		if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0) {
-			c = texture(label_tex, l);
+			vec2 f = (l - label_fit.xy) / label_fit.zw;
+			if (f.x >= 0.0 && f.x <= 1.0 && f.y >= 0.0 && f.y <= 1.0) {
+				c = texture(label_tex, f);
+			} else {
+				c = label_bg;
+			}
 		} else {
 			c.rgb *= body_tint.rgb;
 		}

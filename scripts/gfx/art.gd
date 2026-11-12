@@ -67,17 +67,32 @@ static func _key(item: Dictionary) -> String:
 	return "%s|%s" % [item.get("id", "?"), item.get("variant", "Standard")]
 
 
+## Box art size for an item: always BoxArt.H tall, as wide as the real box
+## front (an SFES box is landscape, a DVD case tall) so nothing gets stretched.
+static func cover_size(item: Dictionary) -> Vector2i:
+	var a := 0.8
+	match String(item.get("kind", "game")):
+		"game":
+			var b: Vector3 = ItemModels.GAME_BOX.get(String(item.get("plat", "")), Vector3(0.72, 1.0, 0.17))
+			a = b.x / b.y
+		"console":
+			a = 1.5
+		"acc":
+			a = 1.2
+	return Vector2i(clampi(int(round(BoxArt.H * a)), 80, 240), BoxArt.H)
+
+
 ## Box front (also used for cart stickers and disc labels).
 static func front(item: Dictionary) -> Texture2D:
 	var k := "F|" + _key(item)
 	if not _tex.has(k) and String(item.get("kind", "game")) != "game":
 		# Hardware boxes use a render of the product itself: make that first.
 		icon(item, false)
-	return _request(k, Vector2i(BoxArt.W, BoxArt.H), item, "front")
+	return _request(k, cover_size(item), item, "front")
 
 
 static func back(item: Dictionary) -> Texture2D:
-	return _request("B|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "back")
+	return _request("B|" + _key(item), cover_size(item), item, "back")
 
 
 static func _icon_key(item: Dictionary, boxed: bool) -> String:
@@ -90,7 +105,7 @@ static func icon(item: Dictionary, boxed: bool) -> Texture2D:
 	# Cards on screen jump the queue (ahead of background decor).
 	var hw := String(item.get("kind", "game")) != "game"
 	if boxed or not hw:
-		_request("F|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "front", true)
+		_request("F|" + _key(item), cover_size(item), item, "front", true)
 		if boxed and hw:
 			_request(_icon_key(item, false), ICON, item, "icon_loose", true)
 	return _request(k, ICON, item, "icon_box" if boxed else "icon_loose", true)
@@ -111,7 +126,7 @@ static func _request(k: String, size: Vector2i, item: Dictionary, kind: String, 
 	var cp := _cache_path(k)
 	if cp != "" and not k.begins_with("V|") and FileAccess.file_exists(cp):
 		var cached := Image.load_from_file(cp)
-		if cached != null and not cached.is_empty():
+		if cached != null and not cached.is_empty() and cached.get_size() == size:
 			cached.convert(Image.FORMAT_RGBA8)
 			var ct := ImageTexture.create_from_image(cached)
 			_tex[k] = ct
@@ -252,10 +267,12 @@ func _make_viewport(j: Dictionary) -> SubViewport:
 		c.size = Vector2(vp.size)
 		c.clip_contents = true
 		vp.add_child(c)
+		BoxArt.W = vp.size.x
 		if kind == "front":
 			BoxArt.paint_front(c, item)
 		else:
 			BoxArt.paint_back(c, item)
+		BoxArt.W = 120
 		return vp
 	vp.transparent_bg = true
 	vp.own_world_3d = true

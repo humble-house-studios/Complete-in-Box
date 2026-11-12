@@ -2018,29 +2018,9 @@ func _start_intro() -> void:
 	if _intro_skip:
 		Art.loading = false
 		return
-	# Still painting? Finish behind a loading card so the flight runs smooth.
-	if Art.pending() > 0 or Lite.perf:
-		var card := _loading_card("LOADING THE VAULT", "Dusting off every box on the shelves...", GOLD)
-		_intro.add_child(card)
-		var bar: ColorRect = card.get_meta("bar")
-		var start := maxi(Art.pending(), 1)
-		var t0 := Time.get_ticks_msec()
-		while is_inside_tree() and not _intro_skip:
-			var left := Art.pending()
-			bar.anchor_right = clampf(1.0 - float(left) / start, 0.05, 1.0)
-			var el := Time.get_ticks_msec() - t0
-			if (left == 0 and el > 600) or el > 12000:
-				break
-			await get_tree().process_frame
-		var ft := card.create_tween()
-		ft.tween_property(card, "modulate:a", 0.0, 0.3)
-		await ft.finished
-		card.queue_free()
-		if _stage != null:
-			_stage.mark_dirty(10)
-	Art.loading = false
-	if _intro_skip:
-		return
+	# Painting carries on (full speed) through the studio card, so the flight
+	# starts on finished box art; the LOADING THE VAULT card is now the way
+	# into the COLLECTION instead.
 	# Skip button (top corner) for the rest of the show.
 	var skip := _button("SKIP  >", _skip_intro, Color(0.15, 0.13, 0.2, 0.85), 20, 72)
 	skip.anchor_left = 1.0
@@ -2108,6 +2088,9 @@ func _start_intro() -> void:
 	tw.tween_interval(2.2)
 	tw.tween_property(studio, "modulate:a", 0.0, 1.4).set_trans(Tween.TRANS_SINE)
 	await tw.finished
+	Art.loading = false
+	if _stage != null:
+		_stage.mark_dirty(10)
 	if _intro_skip:
 		return
 	# 2. The long glide (black lifts slowly as it starts).
@@ -2266,6 +2249,7 @@ func _gate_pick(sound: bool) -> void:
 
 func _skip_intro() -> void:
 	_intro_skip = true
+	Art.loading = false
 	_finish_intro()
 
 
@@ -3604,8 +3588,9 @@ func _open_shelf_item(uid: int, state: String) -> void:
 			actions.append(["Repair for %s" % _money(run.repair_cost(item)), func(): _act(run.repair(uid), "haggle"), PANEL_HI])
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
 			actions.append(["Send to grading for %s" % _money(run.grade_cost(item)), func(): _act(run.send_to_grading(uid), "tick"), GOLD])
-	actions.append(["Hang on your Wall (keeps it forever, leaves this run)", func(): _hang_from_shelf(uid), Color("2f5d7a")])
 	actions.append(["Dump it for %s" % _money(Balance.DUMP_VALUE), func(): _act(run.dump(uid), "buzz"), Color("5a3a3a")])
+	# A quiet extra next to Close: hanging is an end-game move (it leaves the run).
+	actions.append(["Hang on Wall", func(): _hang_from_shelf(uid), Color("2a2836"), true])
 	_open_sheet(String(item["name"]), lines, actions, item)
 
 
@@ -4052,14 +4037,33 @@ func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary =
 		else:
 			v.add_child(_label(txt, 20, ln[1], true))
 	for a in actions:
+		if a.size() > 3 and a[3]:
+			continue
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 24, 88)
 		v.add_child(btn)
-	v.add_child(_button("Close", _close_sheet_sfx, Color("3a3548"), 22, 72))
+	v.add_child(_close_row(actions, 22, 72))
 	if not fast:
 		panel.modulate.a = 0.0
 		var tw := panel.create_tween()
 		tw.tween_property(panel, "modulate:a", 1.0, 0.12)
+
+
+## Close, plus any minor actions (4th entry true) as small muted buttons beside it.
+func _close_row(actions: Array, fs: int, h: int) -> Control:
+	var minor := actions.filter(func(a): return a.size() > 3 and a[3])
+	var close := _button("Close", _close_sheet_sfx, Color("3a3548"), fs, h)
+	if minor.is_empty():
+		return close
+	var row := _hbox(8)
+	close.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(close)
+	for a in minor:
+		var b := _button(String(a[0]), _sheet_action.bind(a[1]), a[2], fs - 5, h)
+		b.add_theme_color_override("font_color", MUTED)
+		b.custom_minimum_size.x = 170
+		row.add_child(b)
+	return row
 
 
 # ================================================================ inspect card
@@ -4221,6 +4225,8 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	acts.add_theme_constant_override("v_separation", 8)
 	var first := true
 	for a in actions:
+		if a.size() > 3 and a[3]:
+			continue
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 20, 80)
 		if first:
@@ -4230,7 +4236,7 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		acts.add_child(btn)
 	right.add_child(acts)
-	right.add_child(_button("Close", _close_sheet_sfx, Color("3a3548"), 20, 64))
+	right.add_child(_close_row(actions, 20, 64))
 	if not fast:
 		card.pivot_offset = get_viewport_rect().size * 0.5
 		card.scale = Vector2(0.92, 0.92)
@@ -4684,9 +4690,10 @@ func _wall_pick_sheet() -> void:
 
 func _open_collection() -> void:
 	_close_sheet()
-	_track_collection()
-	screen = "collection"
-	request_refresh()
+	_transition(func():
+		_track_collection()
+		screen = "collection"
+		request_refresh(), "LOADING THE VAULT", "Dusting off every box on the shelves...", GOLD)
 
 
 func _set_coll_tab(t: String) -> void:

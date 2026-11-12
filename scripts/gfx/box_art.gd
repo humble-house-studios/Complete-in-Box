@@ -7,7 +7,8 @@ extends RefCounted
 ## banner, rental sticker, misprint, signature, test-cart label...).
 ## The back gets screenshots, a blurb, a rating box, publisher and barcode.
 
-const W := 120
+## Width of the art being painted (Art.cover_size: the real box front shape).
+static var W := 120
 const H := 150
 
 static var _title_font: FontFile
@@ -367,7 +368,7 @@ static func _variant_overlay(c: Control, item: Dictionary, variant: String) -> v
 			# Ghost title printed off-register in magenta, and a wrong-colour band.
 			var t := text(c, String(item["name"]).to_upper(), Vector2(8, 40), Vector2(W - 8, 60), 20, Color(1, 0.2, 0.7, 0.75))
 			t.rotation_degrees = 180.0
-			t.position = Vector2(W - 4, 100)
+			t.position = Vector2(W - 4, H * 0.67)
 			rect(c, Rect2(0, 0, 6, H), Color(0.2, 0.9, 0.9))
 		"Store Display", "Prototype", "Launch Edition", "Boxed Bundle", "Refurbished", "Limited Color":
 			var col2: Color = Catalog.VARIANTS[variant]["color"]
@@ -393,13 +394,20 @@ static func paint_back(c: Control, item: Dictionary) -> void:
 	rect(c, Rect2(0, 0, W, 14), pc.darkened(0.2))
 	text(c, String(pd["name"]).to_upper(), Vector2(3, -2), Vector2(W, 16), 14, Color(1, 1, 1, 0.9))
 	# Three "screenshots".
+	var wide := W >= 150
+	var sw := (W - 16) / 3.0 if wide else (W - 12) / 2.0
 	for k in 3:
-		var sr := Rect2(4 + (k % 2) * 58, 18 + (k / 2) * 40, 54, 36)
-		if k == 2:
-			sr = Rect2(4, 58, 54, 36)
+		var sr := Rect2(4 + (k % 2) * (sw + 4), 18 + (k / 2) * 40, sw, 36)
+		if wide:
+			sr = Rect2(4 + k * (sw + 4), 18, sw, 36)
+		elif k == 2:
+			sr = Rect2(4, 58, sw, 36)
 		rect(c, sr.grow(1), Color(0.9, 0.9, 0.9))
 		scene(c, sr, genre, key + "s%d" % k, pc)
-	text(c, String(item.get("blurb", "")), Vector2(62, 56), Vector2(W - 64, 44), 11, Color(0.92, 0.92, 0.9), false)
+	if wide:
+		text(c, String(item.get("blurb", "")), Vector2(4, 56), Vector2(W - 8, 40), 11, Color(0.92, 0.92, 0.9), false)
+	else:
+		text(c, String(item.get("blurb", "")), Vector2(sw + 8, 56), Vector2(W - sw - 10, 44), 11, Color(0.92, 0.92, 0.9), false)
 	text(c, String(item["name"]), Vector2(4, 96), Vector2(W - 8, 14), 12, Color(1, 0.9, 0.5), true, HORIZONTAL_ALIGNMENT_LEFT, Color(0, 0, 0, 0), false)
 	text(c, "%d %s. %s" % [int(item.get("year", 1990)), String(item.get("pub", "")), String(item.get("genre", ""))], Vector2(4, 108), Vector2(W - 8, 12), 10, Color(0.8, 0.8, 0.85), false, HORIZONTAL_ALIGNMENT_LEFT, Color(0, 0, 0, 0), false)
 	# Rating box, barcode.

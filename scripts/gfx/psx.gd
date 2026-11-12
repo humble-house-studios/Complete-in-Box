@@ -39,13 +39,36 @@ static func mat(color: Color, texture: Texture2D = null, uv := Vector2.ONE, emit
 	return m
 
 
-static func label_mat(base: Texture2D, label: Texture2D, rect: Rect2, tint: Color) -> ShaderMaterial:
+## `aspect` = the sticker's real width / height: the art is fitted inside it
+## (never stretched), with `bg` filling any spare edge.
+static func label_mat(base: Texture2D, label: Texture2D, rect: Rect2, tint: Color, aspect: float = 0.0, bg := Color(0.06, 0.06, 0.07)) -> ShaderMaterial:
 	var m := mat(Color.WHITE, base)
 	m.set_shader_parameter("use_label", label != null)
 	m.set_shader_parameter("label_tex", label)
 	m.set_shader_parameter("label_rect", Vector4(rect.position.x, rect.position.y, rect.size.x, rect.size.y))
 	m.set_shader_parameter("body_tint", tint)
+	m.set_shader_parameter("label_bg", bg)
+	if label != null and aspect > 0.0:
+		m.set_shader_parameter("label_fit", fit(float(label.get_width()) / maxf(1.0, label.get_height()), aspect, false))
 	return m
+
+
+## UV transform that puts a picture of aspect `pic` on a surface of aspect
+## `surf` without stretching. contain (cover=false): whole picture, bands
+## around it (for label_fit: uv = (l - xy) / zw). cover=true: crop to fill
+## (for tex_fit: uv = UV * zw + xy).
+static func fit(pic: float, surf: float, cover: bool) -> Vector4:
+	if cover:
+		if pic > surf:
+			var sx := surf / pic
+			return Vector4((1.0 - sx) * 0.5, 0.0, sx, 1.0)
+		var sy := pic / surf
+		return Vector4(0.0, (1.0 - sy) * 0.5, 1.0, sy)
+	if pic > surf:
+		var h := surf / pic
+		return Vector4(0.0, (1.0 - h) * 0.5, 1.0, h)
+	var w := pic / surf
+	return Vector4((1.0 - w) * 0.5, 0.0, w, 1.0)
 
 
 static func mesh(m: Mesh, material: Material, pos := Vector3.ZERO, parent: Node3D = null) -> MeshInstance3D:

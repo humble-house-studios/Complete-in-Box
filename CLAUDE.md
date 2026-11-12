@@ -43,6 +43,12 @@ The web build in Safari is the test for every platform.
 - `perk_art.gd` = perk/upgrade card art: a themed background per perk (`THEMES`:
   sunrise, basement bricks, ocean, price list, synthwave...) + its 3D picture (`Subjects.PERKS`).
   `subjects.gd` and `perk_art.gd` have no class_name (TV self-update): preload them.
+- Box art is painted at each box's real front shape (`Art.cover_size`: H 150, width
+  from `ItemModels.GAME_BOX`; consoles 1.5, accessories 1.2; `BoxArt.W` varies).
+  Pictures never stretch: cart stickers letterbox (`Psx.label_mat(..., aspect)`),
+  discs/posters/quads crop (`Psx.fit`, `tex_fit`). Sizes are real (`REAL_*`): a loose
+  CD is 12 cm, a mini disc 8 cm, a DS card 3.5 cm.
+- Minor sheet actions (4th entry `true`, e.g. Hang on Wall) sit small beside Close.
 - Discs show their data side with a diffraction rainbow (`assets/shaders/disc_back.gdshader`,
   black on PST/PST2). F64 carts use a real N64-shell model (`n64Cartridge.glb`, from a
   Printables STL via `tools/stl_to_glb.py`; Printables' GraphQL API downloads STLs).
@@ -121,7 +127,8 @@ The web build in Safari is the test for every platform.
   SKIP button during the show, tap at the logo to continue. Then:
   studio card, Stage cinematic camera (`cine_on`/`cine_pos`) flying a spline
   through the title vault, grail box drop, logo slam over light rays, then the
-  title UI fades in. Frames: `xvfb-run ... -s res://tools/intro_shots.gd -- OUT_DIR`.
+  title UI fades in (box art paints behind the gate and studio card; no loading card
+  here: LOADING THE VAULT is the transition into COLLECTION). Frames: `xvfb-run ... -s res://tools/intro_shots.gd -- OUT_DIR`.
 - Music is ambient dream pop / synthwave throughout (title, home, hunt, shop,
   online, ending), normalised mono ogg with fades so loops are soft.
 - The UI leaves a see-through gap under the header (`_stage_gap`) and aims the
@@ -203,7 +210,7 @@ The web build in Safari is the test for every platform.
   pad mode, focused button and the version, bottom right.
 - Version = `v0.1.<CI run number>` (`build_run.txt`, written by CI; the title
   screen shows it too). The intro paints the vault's box art behind the sound
-  gate and, if still busy, shows LOADING THE VAULT before the flight starts.
+  gate and the studio card (no loading card in the intro).
 - CI also publishes `tv-basic.apk` (quick export, no internet = no self-update);
   the Gradle `tv.apk` didn't install on Samuel's TV at 165 MB, now compressed libs.
 

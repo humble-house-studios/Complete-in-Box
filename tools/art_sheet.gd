@@ -27,14 +27,14 @@ func _go() -> void:
 		texs.append([Art.front(d), Art.back(d), Art.icon(d, true), Art.icon(d, false)])
 	for i in 60:
 		await process_frame
-	var cw := 120 + 120 + 96 + 96 + 8
+	var cw := 240 + 240 + 96 + 96 + 8
 	var sheet := Image.create(cw * 3, 150 * 10, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color(0.2, 0.2, 0.24))
 	for i in picks.size():
 		var x := (i % 3) * cw
 		var y := (i / 3) * 150
 		var t: Array = texs[i]
-		var xs := [0, 120, 240, 336]
+		var xs := [0, 240, 480, 576]
 		for k in 4:
 			var img: Image = (t[k] as Texture2D).get_image()
 			if img != null:

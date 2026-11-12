@@ -21,6 +21,11 @@ const F64_LABEL := Rect2(0.205, 0.09, 0.59, 0.64)
 ## Where the sticker sits on each cart texture (UV).
 const BIG_LABEL := Rect2(0.22, 0.05, 0.205, 0.42)
 const SMALL_LABEL := Rect2(0.078, 0.312, 0.344, 0.297)
+## Sticker width / height on the unscaled models (measured from their UVs),
+## so box art goes on without stretching (Psx.label_mat letterboxes it).
+const BIG_LABEL_ASPECT := 0.488
+const SMALL_LABEL_ASPECT := 1.158
+const F64_LABEL_ASPECT := 1.40
 
 ## Loose cart look per platform: [model, scale (thickness, height, width), body tint].
 const CART := {
@@ -76,9 +81,10 @@ const NAME_COLORS := [
 const SIZE := {"game": 0.17, "game_box": 0.21, "console": 0.34, "console_box": 0.42, "acc": 0.15, "acc_box": 0.22, "misc": 0.24}
 ## Real-life largest dimension in metres, per platform, so a handheld cart sits
 ## tiny next to a big-box PC-style game and a console dwarfs both.
-const REAL_CART := {"FES": 0.135, "SFES": 0.135, "F64": 0.116, "PBOY": 0.065, "PBA": 0.057, "GEN": 0.14, "A26": 0.085, "NEO": 0.19, "DUO": 0.085, "ODD": 0.13}
-const REAL_DISC := {"PST": 0.142, "PST2": 0.19, "SAT": 0.142, "DC": 0.142, "FCUBE": 0.19, "XBX": 0.19, "PSPK": 0.17}
-const REAL_BOX := {"FES": 0.19, "SFES": 0.19, "F64": 0.22, "PBOY": 0.13, "PBA": 0.14, "GEN": 0.20, "A26": 0.21, "NEO": 0.30, "PST": 0.142, "PST2": 0.19, "SAT": 0.24, "DC": 0.142, "FCUBE": 0.19, "XBX": 0.19, "PSPK": 0.17, "DUO": 0.142, "ODD": 0.19}
+## Loose discs are the bare disc: 12 cm CD/DVD/GD-ROM, 8 cm mini disc, a 6.5 cm UMD shell.
+const REAL_CART := {"FES": 0.133, "SFES": 0.135, "F64": 0.116, "PBOY": 0.065, "PBA": 0.057, "GEN": 0.125, "A26": 0.10, "NEO": 0.19, "DUO": 0.035, "ODD": 0.13}
+const REAL_DISC := {"PST": 0.12, "PST2": 0.12, "SAT": 0.12, "DC": 0.12, "FCUBE": 0.08, "XBX": 0.12, "PSPK": 0.065}
+const REAL_BOX := {"FES": 0.178, "SFES": 0.184, "F64": 0.178, "PBOY": 0.128, "PBA": 0.128, "GEN": 0.19, "A26": 0.185, "NEO": 0.30, "PST": 0.142, "PST2": 0.19, "SAT": 0.24, "DC": 0.142, "FCUBE": 0.19, "XBX": 0.19, "PSPK": 0.17, "DUO": 0.137, "ODD": 0.19}
 const REAL_CONSOLE := {"FES": 0.26, "SFES": 0.24, "F64": 0.26, "FCUBE": 0.16, "PBOY": 0.148, "PBA": 0.145, "PSPK": 0.17, "GEN": 0.28, "SAT": 0.26, "DC": 0.19, "PST": 0.27, "PST2": 0.30, "XBX": 0.32, "NEO": 0.32, "A26": 0.34, "DUO": 0.14, "ODD": 0.30}
 
 
@@ -192,7 +198,7 @@ static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
 		if not _carts.has(CART_F64):
 			_carts[CART_F64] = load(CART_F64)
 		var n64: Node3D = (_carts[CART_F64] as PackedScene).instantiate()
-		_apply(n64, Psx.label_mat(_white(), label, F64_LABEL, Color(0.36, 0.36, 0.39)))
+		_apply(n64, Psx.label_mat(_white(), label, F64_LABEL, Color(0.36, 0.36, 0.39), F64_LABEL_ASPECT))
 		model.add_child(n64)
 		return
 	var spec: Array = CART.get(plat, CART["FES"])
@@ -203,7 +209,9 @@ static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
 	var ps: PackedScene = _carts[path]
 	var inner: Node3D = ps.instantiate()
 	var base: Texture2D = load(CART_SMALL_TEX if small else CART_BIG_TEX)
-	var m := Psx.label_mat(base, label, SMALL_LABEL if small else BIG_LABEL, spec[2])
+	var sc: Vector3 = spec[1]
+	var aspect := (SMALL_LABEL_ASPECT if small else BIG_LABEL_ASPECT) * sc.z / sc.y
+	var m := Psx.label_mat(base, label, SMALL_LABEL if small else BIG_LABEL, spec[2], aspect)
 	_apply(inner, m)
 	inner.scale = spec[1]
 	inner.rotation_degrees.y = -90.0
@@ -211,6 +219,14 @@ static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
 
 
 static var _white_tex: Texture2D
+
+
+## A picture material that fills a `surf`-shaped quad by cropping, never stretching.
+static func _pic_mat(t: Texture2D, surf: float, emit := 0.0) -> ShaderMaterial:
+	var m := Psx.mat(Color.WHITE, t, Vector2.ONE, emit)
+	if t != null:
+		m.set_shader_parameter("tex_fit", Psx.fit(float(t.get_width()) / maxf(1.0, t.get_height()), surf, true))
+	return m
 
 
 static func _white() -> Texture2D:
@@ -241,6 +257,9 @@ static func _disc(model: Node3D, label: Texture2D, plat: String = "") -> void:
 	d.rotation_degrees.x = 90.0
 	var lm := Psx.mat(Color.WHITE, label)
 	lm.set_shader_parameter("circle", true)
+	if label != null:
+		# Round label: crop the box art to a square instead of squashing it.
+		lm.set_shader_parameter("tex_fit", Psx.fit(float(label.get_width()) / maxf(1.0, label.get_height()), 1.0, true))
 	Psx.quad(Vector2(r * 1.88, r * 1.88), lm, Vector3(0, r, 0.042), model)
 	# The data side: mirror silver with the diffraction rainbow (black on PS1/PS2 discs).
 	var back := Psx.quad(Vector2(r * 2.0, r * 2.0), disc_back_mat(plat), Vector3(0, r, 0.018), model)
@@ -275,11 +294,12 @@ static func _retail_box(model: Node3D, size: Vector3, label: Texture2D, col: Col
 	else:
 		body = Psx.mat(col.lerp(Color(0.75, 0.6, 0.4), 0.45), Psx.tex("cardboard002"))
 	Psx.box(size, body, Vector3(0, size.y / 2.0, 0), model)
-	var front := Psx.mat(Color.WHITE, label)
 	var inset := 0.04 if (game and CASE_COLOR.has(plat)) else 0.0
+	var surf := (size.x - inset * 2.0) / (size.y - inset * 2.0)
+	var front := _pic_mat(label, surf)
 	Psx.quad(Vector2(size.x - inset * 2.0, size.y - inset * 2.0), front, Vector3(0, size.y / 2.0, size.z / 2.0 + 0.002), model)
 	if not item.is_empty():
-		var bq := Psx.quad(Vector2(size.x - inset * 2.0, size.y - inset * 2.0), Psx.mat(Color.WHITE, Art.back(item)), Vector3(0, size.y / 2.0, -size.z / 2.0 - 0.002), model)
+		var bq := Psx.quad(Vector2(size.x - inset * 2.0, size.y - inset * 2.0), _pic_mat(Art.back(item), surf), Vector3(0, size.y / 2.0, -size.z / 2.0 - 0.002), model)
 		bq.rotation_degrees.y = 180.0
 	# Side spine in the platform colour.
 	var spine := Psx.mat(col.darkened(0.2))
@@ -859,24 +879,24 @@ static func _misc(model: Node3D, id: String, label: Texture2D, col: Color) -> vo
 		"misc_pogs":
 			Psx.cyl(0.18, 0.9, Psx.mat(Color(0.95, 0.85, 0.3), null, Vector2.ONE, 0.1), Vector3(0, 0.45, 0), model, 12)
 			Psx.cyl(0.19, 0.08, Psx.mat(Color(0.85, 0.2, 0.3)), Vector3(0, 0.92, 0), model, 12)
-			Psx.quad(Vector2(0.3, 0.5), Psx.mat(Color.WHITE, label), Vector3(0, 0.45, 0.185), model)
+			Psx.quad(Vector2(0.3, 0.5), _pic_mat(label, 0.6), Vector3(0, 0.45, 0.185), model)
 		"misc_kiosk":
 			var shell := Psx.mat(Color(0.75, 0.75, 0.78))
 			Psx.box(Vector3(0.8, 1.7, 0.55), shell, Vector3(0, 0.85, 0), model)
 			Psx.box(Vector3(0.84, 0.3, 0.6), Psx.mat(Color(0.8, 0.15, 0.15), null, Vector2.ONE, 0.4), Vector3(0, 1.6, 0), model)
-			Psx.quad(Vector2(0.6, 0.48), Psx.mat(Color.WHITE, label, Vector2.ONE, 0.6), Vector3(0, 1.15, 0.28), model)
+			Psx.quad(Vector2(0.6, 0.48), _pic_mat(label, 1.25, 0.6), Vector3(0, 1.15, 0.28), model)
 			Psx.box(Vector3(0.5, 0.06, 0.2), Psx.mat(Color(0.2, 0.2, 0.22)), Vector3(0, 0.78, 0.35), model)
 		"misc_proto":
 			var g := Psx.mat(Color(0.78, 0.78, 0.8))
 			Psx.box(Vector3(1.25, 0.32, 1.0), g, Vector3(0, 0.16, 0), model)
 			Psx.cyl(0.33, 0.04, Psx.mat(Color(0.66, 0.66, 0.7)), Vector3(0.2, 0.34, -0.05), model, 16)
 			Psx.box(Vector3(0.36, 0.03, 0.08), Psx.mat(Color(0.1, 0.1, 0.1)), Vector3(-0.35, 0.33, 0.1), model)
-			var tag := Psx.quad(Vector2(0.4, 0.4), Psx.mat(Color.WHITE, label), Vector3(-0.3, 0.335, 0.3), model)
+			var tag := Psx.quad(Vector2(0.4, 0.4), _pic_mat(label, 1.0), Vector3(-0.3, 0.335, 0.3), model)
 			tag.rotation_degrees.x = -90.0
 		_:
 			# Strategy guide / magazine: a book standing up with its cover out.
 			var d := 0.05 if id == "misc_mag1" else 0.1
 			Psx.box(Vector3(0.75, 1.0, d), Psx.mat(Color(0.9, 0.88, 0.82)), Vector3(0, 0.5, 0), model)
-			Psx.quad(Vector2(0.75, 1.0), Psx.mat(Color.WHITE, label), Vector3(0, 0.5, d / 2.0 + 0.002), model)
+			Psx.quad(Vector2(0.75, 1.0), _pic_mat(label, 0.75), Vector3(0, 0.5, d / 2.0 + 0.002), model)
 			var _r4 := Psx.quad(Vector2(d, 1.0), Psx.mat(col.darkened(0.3)), Vector3(-0.376, 0.5, 0), model)
 			_r4.rotation_degrees.y = -90.0
