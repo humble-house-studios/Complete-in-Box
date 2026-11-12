@@ -28,3 +28,14 @@ assets/audio/music/hunt.ogg (The Cynic Project - Synthwave 421k) | https://openg
 assets/audio/music/shop.ogg (Dreamstate) | https://opengameart.org/content/dreamstate-synthwave | 2026-11-12
 assets/audio/music/online.ogg (Lights at Night) | https://opengameart.org/content/lights-at-night | 2026-11-12
 assets/audio/music/ending.ogg (Kim Lightyear - And Then We Left) | https://opengameart.org/content/and-then-we-left | 2026-11-12
+assets/sprites/cover (Kenney Toon Characters 1) | https://opengameart.org/content/toon-characters-1 | 2026-11-12
+assets/sprites/cover (Kenney Platformer Art Deluxe) | https://opengameart.org/content/platformer-art-deluxe | 2026-11-12
+assets/sprites/cover (Kenney Space Shooter Redux) | https://opengameart.org/content/space-shooter-redux | 2026-11-12
+assets/sprites/cover (Kenney Racing Pack) | https://opengameart.org/content/racing-pack | 2026-11-12
+assets/sprites/cover (Kenney Animal Pack Redux) | https://opengameart.org/content/animal-pack-redux | 2026-11-12
+assets/sprites/cover (Kenney Background Elements Redux) | https://opengameart.org/content/background-elements-redux | 2026-11-12
+assets/sprites/cover (Fish pack) | https://opengameart.org/content/fish-pack | 2026-11-12
+assets/sprites/cover (Kenney Alien UFO pack) | https://opengameart.org/content/alien-ufo-pack | 2026-11-12
+assets/sprites/cover (Kenney Jumper Pack) | https://opengameart.org/content/jumper-pack | 2026-11-12
+assets/sprites/cover (Kenney Abstract Platformer) | https://opengameart.org/content/abstract-platformer | 2026-11-12
+assets/fonts/cover (Bungee, Bangers, Luckiest Guy, Cinzel Decorative, Creepster, Orbitron, Russo One, Monoton, Righteous, Press Start 2P, Black Ops One, Pacifico, Permanent Marker, Audiowide, Rubik Mono One) | https://fonts.google.com | 2026-11-12

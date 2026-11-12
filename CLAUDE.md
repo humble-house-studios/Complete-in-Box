@@ -23,7 +23,8 @@ The web build in Safari is the test for every platform.
   `OS.has_feature(...)` with a fallback). Touch and mouse both work; touch
   targets at least 88 px tall at 720 wide. Respect the safe area
   (`scripts/ui/safe_area.gd` + `cibSafeInsets` in `export_presets.cfg`).
-- Stay light: web build under ~30 MB, no threads.
+- Stay light: web build under ~30 MB (soft target for phone load time and
+  iOS memory; up to ~50 MB is OK if it buys real quality), no threads.
 
 ## Code structure
 - `scripts/data/` — `catalog.gd` (every item, platform, condition),
@@ -85,8 +86,12 @@ The web build in Safari is the test for every platform.
   Prototype...), multiplying value. Hunt sellers price as if Standard.
   Each run deals in `Balance.ACTIVE_PLATFORMS` random platforms (+ wildcards).
 - Item art is made at runtime by `scripts/gfx/art.gd` (`Art.front/back/icon`),
-  painted by `box_art.gd` (platform box templates, genre scenes, variant
-  overlays, back with screenshots/blurb/rating/barcode). Check it with
+  painted by `box_art.gd` (platform box templates, variant overlays, back with
+  screenshots/blurb/rating/barcode) with illustrations from `cover_comp.gd`:
+  CC0 Kenney sprites (`assets/sprites/cover/`, manifest `cover_sprites.gd`,
+  built by `python3 tools/gen_cover_sprites.py SRC`), seeded palettes, ~16
+  layouts per genre, genre title fonts (`assets/fonts/cover/`, OFL), a logo
+  badge + stripe per publisher. Hardware boxes show a render of the product. Check it with
   `xvfb-run ... -s res://tools/art_sheet.gd -- OUT.png [seed]`.
 - Check rooms: `xvfb-run ... -s res://tools/stage_shots.gd -- OUT_DIR [landscape]`.
 - Headless runs skip building the 3D stage (no renderer), so tests stay fast.

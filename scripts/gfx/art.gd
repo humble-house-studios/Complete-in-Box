@@ -41,18 +41,30 @@ static func _key(item: Dictionary) -> String:
 
 ## Box front (also used for cart stickers and disc labels).
 static func front(item: Dictionary) -> Texture2D:
-	return _request("F|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "front")
+	var k := "F|" + _key(item)
+	if not _tex.has(k) and String(item.get("kind", "game")) != "game":
+		# Hardware boxes use a render of the product itself: make that first.
+		icon(item, false)
+	return _request(k, Vector2i(BoxArt.W, BoxArt.H), item, "front")
 
 
 static func back(item: Dictionary) -> Texture2D:
 	return _request("B|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "back")
 
 
+static func _icon_key(item: Dictionary, boxed: bool) -> String:
+	return "I|%s|%d|%s" % [_key(item), 1 if boxed else 0, item.get("cond", "") if item.get("cond", "") == "Sealed" else ""]
+
+
 ## 3D render for cards. Boxed copies show the retail box, loose ones the cart/disc.
 static func icon(item: Dictionary, boxed: bool) -> Texture2D:
-	var k := "I|%s|%d|%s" % [_key(item), 1 if boxed else 0, item.get("cond", "") if item.get("cond", "") == "Sealed" else ""]
+	var k := _icon_key(item, boxed)
 	# Cards on screen jump the queue (ahead of background decor).
-	_request("F|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "front", true)
+	var hw := String(item.get("kind", "game")) != "game"
+	if boxed or not hw:
+		_request("F|" + _key(item), Vector2i(BoxArt.W, BoxArt.H), item, "front", true)
+		if boxed and hw:
+			_request(_icon_key(item, false), ICON, item, "icon_loose", true)
 	return _request(k, ICON, item, "icon_box" if boxed else "icon_loose", true)
 
 
@@ -120,8 +132,11 @@ func _run_batch() -> void:
 	var rest: Array = []
 	for j in _queue:
 		var ready := true
-		if String(j["kind"]).begins_with("icon"):
+		var hw := String(j["item"].get("kind", "game")) != "game"
+		if j["kind"] == "icon_box" or (j["kind"] == "icon_loose" and not hw):
 			ready = _done.has("F|" + _key(j["item"]))
+		elif j["kind"] == "front" and hw:
+			ready = _done.has(_icon_key(j["item"], false))
 		if batch.size() < (2 if throttle else PER_FRAME) and ready:
 			batch.append(j)
 		else:

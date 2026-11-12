@@ -80,6 +80,12 @@ static func text(c: Control, t: String, pos: Vector2, size: Vector2, fs: int, co
 
 ## A little genre scene filling r. Seeded so the same item always matches.
 static func scene(c: Control, r: Rect2, genre: String, seed_key: String, accent: Color) -> void:
+	if genre != "Hardware":
+		CoverComp.compose(c, r, genre, seed_key, accent)
+		return
+	if _product != null:
+		CoverComp.product(c, r, seed_key, accent, _product)
+		return
 	var g := RandomNumberGenerator.new()
 	g.seed = hash(seed_key)
 	var hue := fmod(accent.h + g.randf_range(-0.15, 0.15) + 1.0, 1.0)
@@ -211,7 +217,12 @@ static func scene(c: Control, r: Rect2, genre: String, seed_key: String, accent:
 
 # ---------------------------------------------------------------- front
 
+## The product render for the hardware box being painted (set by paint_*).
+static var _product: Texture2D
+
+
 static func paint_front(c: Control, item: Dictionary) -> void:
+	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	var plat := String(item["plat"])
 	var pd: Dictionary = Catalog.platform(plat)
 	var pc: Color = pd["color"]
@@ -234,7 +245,7 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 			art = Rect2(10, 34, W - 20, 78)
 			scene(c, art, genre, key, pc)
 			text(c, "FES", Vector2(4, 0), Vector2(60, 20), 20, Color(0.85, 0.15, 0.15))
-			text(c, title, Vector2(4, 112), Vector2(W - 8, 38), 18, Color(0.95, 0.95, 0.95))
+			CoverComp.title(c, title, Vector2(4, 112), Vector2(W - 8, 38), 18, Color(0.95, 0.95, 0.95), item)
 			title_at = "done"
 		"SFES":
 			scene(c, Rect2(0, 0, W, 116), genre, key, pc)
@@ -242,7 +253,7 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 			for k in 4:
 				circle(c, Vector2(W - 30 + k * 7, 124), 3, [Color(0.9, 0.2, 0.2), Color(0.95, 0.8, 0.2), Color(0.2, 0.6, 0.3), Color(0.2, 0.3, 0.8)][k], 8)
 			text(c, "SUPER FES", Vector2(4, 116), Vector2(80, 16), 14, Color(0.35, 0.3, 0.5))
-			text(c, title, Vector2(4, 128), Vector2(W - 8, 22), 13, Color(0.15, 0.12, 0.2))
+			CoverComp.title(c, title, Vector2(4, 128), Vector2(W - 8, 22), 14, Color(0.15, 0.12, 0.2), item, HORIZONTAL_ALIGNMENT_LEFT)
 			title_at = "done"
 		"F64":
 			scene(c, Rect2(14, 0, W - 14, H), genre, key, pc)
@@ -276,7 +287,7 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 			art = Rect2(6, 24, W - 12, 86)
 			scene(c, art, genre, key, pc)
 			rect(c, Rect2(0, 110, W, 2), Color(0.95, 0.75, 0.2))
-			text(c, title, Vector2(4, 112), Vector2(W - 8, 38), 18, Color(0.95, 0.95, 0.95))
+			CoverComp.title(c, title, Vector2(4, 112), Vector2(W - 8, 38), 18, Color(0.95, 0.95, 0.95), item)
 			title_at = "done"
 		"A26":
 			rect(c, Rect2(0, 0, W, H), Color(0.07, 0.05, 0.04))
@@ -284,15 +295,22 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 			scene(c, art, genre, key, pc)
 			for k in 3:
 				rect(c, Rect2(0, 110 + k * 3, W, 2), [Color(0.9, 0.5, 0.1), Color(0.9, 0.2, 0.1), Color(0.95, 0.8, 0.2)][k])
-			text(c, title, Vector2(4, 118), Vector2(W - 8, 32), 16, Color(0.95, 0.95, 0.95))
+			CoverComp.title(c, title, Vector2(4, 118), Vector2(W - 8, 32), 16, Color(0.95, 0.95, 0.95), item)
 			title_at = "done"
 		_:
 			scene(c, Rect2(0, 0, W, H), genre, key, pc)
 			rect(c, Rect2(0, 0, W, 18), Color(0.75, 0.15, 0.15) if plat == "MISC" else pc.darkened(0.4))
 			text(c, "COLLECTOR" if plat == "MISC" else String(pd["short"]), Vector2(4, -2), Vector2(W, 20), 18, Color(1, 0.92, 0.6))
 	if title_at == "bottom":
-		rect(c, Rect2(art.position.x, H - 44, art.size.x, 44), Color(0.03, 0.02, 0.05, 0.6))
-		text(c, title, Vector2(art.position.x + 3, H - 44), Vector2(art.size.x - 6, 44), 17, Color(1, 0.97, 0.88), true, HORIZONTAL_ALIGNMENT_CENTER, Color(0.05, 0.03, 0.06))
+		# Title placement varies per game: top or bottom, with or without a band.
+		var tg := RandomNumberGenerator.new()
+		tg.seed = hash(key + "title")
+		var top: bool = tg.randf() < 0.4 and item["kind"] == "game"
+		var ty: float = (art.position.y + 2) if top else float(H - 46)
+		if tg.randf() < 0.6:
+			rect(c, Rect2(art.position.x, ty - 2, art.size.x, 46), Color(0.03, 0.02, 0.05, 0.55))
+		CoverComp.title(c, title, Vector2(art.position.x + 3, ty), Vector2(art.size.x - 6, 44), 20, Color(1, 0.97, 0.88), item)
+	CoverComp.publisher_mark(c, item, W, H)
 	_variant_overlay(c, item, variant)
 	# Tier frame.
 	var tier := int(item.get("tier", 0))
@@ -361,6 +379,7 @@ static func _variant_overlay(c: Control, item: Dictionary, variant: String) -> v
 # ---------------------------------------------------------------- back
 
 static func paint_back(c: Control, item: Dictionary) -> void:
+	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	var plat := String(item["plat"])
 	var pd: Dictionary = Catalog.platform(plat)
 	var pc: Color = pd["color"]
