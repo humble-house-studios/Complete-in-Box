@@ -2000,8 +2000,34 @@ func _start_intro() -> void:
 	gate.add_child(_button("PLAY MUTED", _gate_pick.bind(false), Color(0.2, 0.17, 0.26), 24, 88))
 	if _pad:
 		_pad_focus.call_deferred(0)
+	# The title vault's box art paints behind the gate while you choose.
+	Art.loading = true
 	await intro_gate_done
 	gm.queue_free()
+	if _intro_skip:
+		Art.loading = false
+		return
+	# Still painting? Finish behind a loading card so the flight runs smooth.
+	if Art.pending() > 0 or Lite.perf:
+		var card := _loading_card("LOADING THE VAULT", "Dusting off every box on the shelves...", GOLD)
+		_intro.add_child(card)
+		var bar: ColorRect = card.get_meta("bar")
+		var start := maxi(Art.pending(), 1)
+		var t0 := Time.get_ticks_msec()
+		while is_inside_tree() and not _intro_skip:
+			var left := Art.pending()
+			bar.anchor_right = clampf(1.0 - float(left) / start, 0.05, 1.0)
+			var el := Time.get_ticks_msec() - t0
+			if (left == 0 and el > 600) or el > 12000:
+				break
+			await get_tree().process_frame
+		var ft := card.create_tween()
+		ft.tween_property(card, "modulate:a", 0.0, 0.3)
+		await ft.finished
+		card.queue_free()
+		if _stage != null:
+			_stage.mark_dirty(10)
+	Art.loading = false
 	if _intro_skip:
 		return
 	# Skip button (top corner) for the rest of the show.
@@ -2294,7 +2320,7 @@ func _build_title() -> void:
 	var best := "No runs yet."
 	if int(_save["runs"]) > 0:
 		best = "Best: Ante %d  |  Best shelf %s  |  Wins %d" % [_save["best_ante"], _money(int(_save["best_appraisal"])), _save["wins"]]
-	var bl := _label(best, 19, MUTED)
+	var bl := _label(best + "    |    " + _build_label().get_slice("  (", 0), 19, MUTED)
 	bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(bl)
 
@@ -2330,18 +2356,17 @@ func _build_debug_hud() -> void:
 	add_child(t)
 
 
-## Build number (CI run) and time, e.g. "#41 11-12 10:20".
+## Version from the CI run number: v0.1.<run>, plus the build time.
 func _build_label() -> String:
 	if _build_txt == "":
 		var f := FileAccess.open("res://build_id.txt", FileAccess.READ)
 		var stamp := f.get_as_text().strip_edges().to_int() if f != null else 0
 		var rf := FileAccess.open("res://build_run.txt", FileAccess.READ)
 		var vn := rf.get_as_text().strip_edges() if rf != null else ""
+		_build_txt = ("v0.1.%s" % vn) if vn != "" and vn != "dev" else "v0.1-dev"
 		if stamp > 0:
 			var d := Time.get_datetime_dict_from_unix_time(stamp)
-			_build_txt = "%s%02d-%02d %02d:%02d UTC" % [("#" + vn + " ") if vn != "" else "", d["month"], d["day"], d["hour"], d["minute"]]
-		else:
-			_build_txt = "dev"
+			_build_txt += "  (%02d-%02d %02d:%02d UTC)" % [d["month"], d["day"], d["hour"], d["minute"]]
 	return _build_txt
 
 
@@ -2370,7 +2395,7 @@ func _dbg_update() -> void:
 	var ftxt := "none"
 	if fo is Button:
 		ftxt = (fo as Button).text.substr(0, 24) if (fo as Button).text != "" else "card"
-	_dbg.text = "FPS %d  |  %s  |  pads %d  |  pad mode %s  |  focus: %s  |  build %s" % [Engine.get_frames_per_second(), _dbg_last, Input.get_connected_joypads().size(), "on" if _pad else "off", ftxt, _build_label()]
+	_dbg.text = "FPS %d  |  %s  |  pads %d  |  pad mode %s  |  focus: %s  |  %s" % [Engine.get_frames_per_second(), _dbg_last, Input.get_connected_joypads().size(), "on" if _pad else "off", ftxt, _build_label()]
 
 
 ## FULL = everything; FAST = lower-res 3D, no shadows / CRT, 30 fps;

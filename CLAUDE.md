@@ -182,7 +182,10 @@ The web build in Safari is the test for every platform.
   how to play, sound, graphics, quit to title (run is kept; the title shows
   CONTINUE RUN), close the game (apps only; BACK on the title also closes).
 - Debug HUD (TV app, or `?debug=1`): FPS, last input event, pads connected,
-  pad mode and focused button, along the bottom edge.
+  pad mode, focused button and the version, bottom right.
+- Version = `v0.1.<CI run number>` (`build_run.txt`, written by CI; the title
+  screen shows it too). The intro paints the vault's box art behind the sound
+  gate and, if still busy, shows LOADING THE VAULT before the flight starts.
 - CI also publishes `tv-basic.apk` (quick export, no internet = no self-update);
   the Gradle `tv.apk` didn't install on Samuel's TV at 165 MB, now compressed libs.
 
