@@ -77,6 +77,7 @@ var _drag_moved := false
 
 func _ready() -> void:
 	Lite.init()
+	_confirm_boot.call_deferred()
 	if Lite.perf:
 		Engine.max_fps = 30
 	theme = _make_theme()
@@ -532,6 +533,14 @@ func _pad_focus(idx: int = 0) -> void:
 	for b in list:
 		_focus_style(b)
 	(list[clampi(idx, 0, list.size() - 1)] as Control).grab_focus()
+
+
+## The TV app's self-update (scripts/boot/boot.gd) waits for this to know
+## the new version started fine.
+func _confirm_boot() -> void:
+	await get_tree().create_timer(3.0).timeout
+	if FileAccess.file_exists("user://update_pending"):
+		DirAccess.remove_absolute("user://update_pending")
 
 
 ## Android back button / TV remote BACK.

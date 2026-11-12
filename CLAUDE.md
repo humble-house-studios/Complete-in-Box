@@ -138,6 +138,12 @@ The web build in Safari is the test for every platform.
   The `tv` feature turns on `Lite.perf` (3D at ~360 px tall, no sun shadows,
   fewer art renders per frame, 30 fps cap, no CRT); `?perf=1` does it on web.
   TV remote arrows / OK / BACK drive the same focus as a pad.
+- TV self-update: main scene is `scenes/boot.tscn` (`scripts/boot/boot.gd`). On
+  the `tv` build it checks `tv-version.txt` (CI build time, also in
+  `res://build_id.txt`) and downloads `tv-game.pck` into user:// when newer, then
+  loads it over the built-in data. If the new data never reaches the game's
+  `_confirm_boot`, the next launch deletes it. Other platforms skip straight to
+  `main.tscn`. New `class_name` scripts may need a fresh tv.apk install.
 
 ## Testing pipeline
 - Use Godot 4.3 (as CI does). If the container's `godot` is newer, grab the

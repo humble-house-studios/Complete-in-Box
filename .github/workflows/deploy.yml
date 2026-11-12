@@ -33,6 +33,10 @@ jobs:
           mkdir -v -p ~/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
 
+      # Build time stamp: the TV app compares it to fetch newer game data.
+      - name: Stamp build
+        run: date +%s > build_id.txt
+
       - name: Import project
         run: godot --headless --import || true
 
@@ -102,6 +106,9 @@ jobs:
           godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
           if [ -f build/android/complete-in-box-tv.apk ]; then
             cp build/android/complete-in-box-tv.apk build/web/tv.apk
+            # Game data alone, for the TV app's self-update.
+            godot --headless --export-pack "Android TV" build/web/tv-game.pck 2>&1 | tail -3
+            if [ -f build/web/tv-game.pck ]; then cp build_id.txt build/web/tv-version.txt; fi
             echo "::notice title=Android TV app::tv.apk $(du -h build/android/complete-in-box-tv.apk | cut -f1)"
           else
             { grep -iE "error|fail|missing|invalid|not found|require|configur|keystore|sdk|template" android.log | grep -v savepack || tail -20 android.log; } | head -40 | while IFS= read -r line; do echo "::warning title=Android export::${line}"; done
