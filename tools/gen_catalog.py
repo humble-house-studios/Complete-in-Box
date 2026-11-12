@@ -502,7 +502,8 @@ def main():
         if any(f in title for f in FADS):
             tags.append("fad")
         meta = {
-            "rank": rank, "list": listname, "real_section": section, "year": year, "pub": pub, "genre": genre,
+            # Extra lists number from 1001 so they never clash; rank them on their own.
+            "rank": rank - 1000 if rank > 1000 else rank, "list": "more" if rank > 1000 else listname, "real_section": section, "year": year, "pub": pub, "genre": genre,
             "blurb": BLURBS[genre][h(title + "b", len(BLURBS[genre]))],
             "rating": RATING.get(genre, "E") if kind == "game" else "", "run": print_run(tier, title),
         }

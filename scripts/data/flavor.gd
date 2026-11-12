@@ -219,7 +219,7 @@ static func facts(def: Dictionary) -> Dictionary:
 		if plat in ["PBOY", "PBA", "PSPK", "DUO"]:
 			base *= 0.75
 		f["price"] = _usd(base)
-		f["score"] = clampi(int(round(rng.randf_range(58.0, 88.0) + tier * 2.5 + (8.0 if int(def.get("rank", 999)) < 120 else 0.0))), 41, 98)
+		f["score"] = clampi(int(round(rng.randf_range(58.0, 88.0) + tier * 2.5 + (8.0 if String(def.get("list", "")) == "games" and int(def.get("rank", 999)) < 120 else 0.0))), 41, 98)
 	else:
 		f["team"] = rng.randi_range(12 + int(grow * 40), 60 + int(grow * 400))
 		f["months"] = rng.randi_range(14, 48)

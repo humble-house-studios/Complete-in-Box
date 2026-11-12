@@ -4402,7 +4402,10 @@ func _stat_block(item: Dictionary) -> Control:
 	var def := Catalog.get_def(String(item["id"]))
 	var rank := int(def.get("rank", 0))
 	if rank > 0:
-		var lst := "top 500 games" if String(def.get("list", "")) == "games" else "top 250 hardware"
+		var lst: String = {"games": "top 500 games", "hardware": "top 250 hardware"}.get(String(def.get("list", "")), "")
+		if lst == "":
+			var more := Catalog.ITEMS.filter(func(d): return String(d.get("list", "")) == String(def.get("list", "")) and String(d["plat"]) == String(def["plat"])).size()
+			lst = "%d deep-cut %s games" % [more, Catalog.platform(String(def["plat"]))["short"]]
 		_stat_row(g, "RANK", _label("#%d of the %s" % [rank, lst], 18, GOLD))
 	var who := String(def.get("pub", ""))
 	if who != "":
