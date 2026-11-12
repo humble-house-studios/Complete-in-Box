@@ -12,11 +12,6 @@ assets/audio/sfx (click, tick, error, confirm, drop, glass, scratch) | https://o
 assets/audio/sfx (pass, fail, grail, haggle, win, bargain) | https://opengameart.org/content/85-short-music-jingles | 2026-11-12
 assets/audio/sfx (coins*, rummage, paper, lock) | https://opengameart.org/content/80-cc0-rpg-sfx | 2026-11-12
 assets/audio/sfx (stamp, thud, metal) | https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx | 2026-11-12
-assets/audio/music/title.ogg (Jazzy Vibes #89 melancholic piano) | https://opengameart.org/content/jazzy-vibes-89-melancholic-jazz-piano | 2026-11-12
-assets/audio/music/home.ogg (A Cloudy Morning) | https://opengameart.org/content/a-cloudy-morning-jazz | 2026-11-12
-assets/audio/music/hunt.ogg (Chilled lofi beat) | https://opengameart.org/content/chilled-lofi-beat | 2026-11-12
-assets/audio/music/shop.ogg (Squirrel Village Lounge) | https://opengameart.org/content/squirrel-village-lounge | 2026-11-12
-assets/audio/music/online.ogg (8bit Bossa) | https://opengameart.org/content/bossa-nova | 2026-11-12
 assets/audio/music/amb_crowd.ogg (mall ambience) | https://opengameart.org/content/free-general-ambience-sounds | 2026-11-12
 assets/audio/music/amb_rain.ogg (rain on metal roof) | https://opengameart.org/content/free-general-ambience-sounds | 2026-11-12
 assets/models/props (more Kenney furniture: washer, dryer, TV, lamps, bear, books...) | https://opengameart.org/content/furniture-kit | 2026-11-12
@@ -27,3 +22,9 @@ assets/models/props/urban | https://opengameart.org/content/retro-urban-kit | 20
 assets/models/props/city | https://opengameart.org/content/city-kit-commercial | 2026-11-12
 assets/models/props/nature | https://opengameart.org/content/nature-kit | 2026-11-12
 assets/textures (grass, asphalt, paving, marble, planks; all textures now 256px) | https://ambientcg.com | 2026-11-12
+assets/audio/music/title.ogg (Kim Lightyear - Saw You In My Dreams) | https://opengameart.org/content/saw-you-in-my-dreams | 2026-11-12
+assets/audio/music/home.ogg (The Cynic Project - Synthwave 4k) | https://opengameart.org/content/calm-ambient-1-synthwave-4k | 2026-11-12
+assets/audio/music/hunt.ogg (The Cynic Project - Synthwave 421k) | https://opengameart.org/content/calm-relax-1-synthwave-421k | 2026-11-12
+assets/audio/music/shop.ogg (Dreamstate) | https://opengameart.org/content/dreamstate-synthwave | 2026-11-12
+assets/audio/music/online.ogg (Lights at Night) | https://opengameart.org/content/lights-at-night | 2026-11-12
+assets/audio/music/ending.ogg (Kim Lightyear - And Then We Left) | https://opengameart.org/content/and-then-we-left | 2026-11-12

@@ -32,6 +32,12 @@ var _spin: Array = []
 var _swing: Array = []
 var _t := 0.0
 var _shake := 0.0
+## Cinematic camera (intro): when on, the camera follows these instead.
+var cine_on := false
+var cine_pos := Vector3.ZERO
+var cine_look := Vector3.ZERO
+var cine_fov := 50.0
+var _sweep: Array = []
 
 
 func _ready() -> void:
@@ -78,6 +84,7 @@ func show_scene(id: String, items: Array = []) -> void:
 		vp.remove_child(world)
 		world.queue_free()
 	_items.clear()
+	_sweep.clear()
 	_flicker.clear()
 	_spin.clear()
 	_swing.clear()
@@ -111,6 +118,11 @@ func pulse(i: int) -> void:
 	tw.tween_property(n, "scale", base, 0.14)
 
 
+## The title hero box (first item), for the intro's drop.
+func hero() -> Node3D:
+	return _items[0] if not _items.is_empty() else null
+
+
 func item_count() -> int:
 	return _items.size()
 
@@ -138,6 +150,11 @@ func _process(delta: float) -> void:
 	for s in _swing:
 		if is_instance_valid(s):
 			(s as Node3D).rotation.z = sin(_t * 1.3) * 0.12
+	for k in _sweep.size():
+		var sp: Node3D = _sweep[k]
+		if is_instance_valid(sp):
+			sp.rotation.y = sin(_t * 0.7 + k * 2.1) * 0.6
+			sp.rotation.x = -1.0 + sin(_t * 0.9 + k) * 0.25
 	_shake = maxf(0.0, _shake - delta * 3.0)
 	_apply_cam()
 
@@ -153,10 +170,15 @@ func _apply_cam() -> void:
 	var sway := Vector3(sin(_t * 0.31) * 0.03, sin(_t * 0.47) * 0.015, 0)
 	# Phones see a narrow band: look down a bit more so back rows show.
 	var raise := Vector3(0, 0.28, -0.1) if portrait else Vector3.ZERO
-	cam.position = _cam_pos + sway + raise
-	cam.look_at(_look + sway * 0.5)
-	var near := 0.05
 	var fov := minf((_fov + (14.0 if portrait else 0.0)) * _zoom, 100.0)
+	if cine_on:
+		cam.position = cine_pos
+		cam.look_at(cine_look)
+		fov = cine_fov + (16.0 if portrait else 0.0)
+	else:
+		cam.position = _cam_pos + sway + raise
+		cam.look_at(_look + sway * 0.5)
+	var near := 0.05
 	cam.keep_aspect = Camera3D.KEEP_WIDTH if portrait else Camera3D.KEEP_HEIGHT
 	var s := 2.0 * near * tan(deg_to_rad(fov * 0.5))
 	var h := s / aspect if portrait else s
@@ -553,6 +575,18 @@ func _title(items: Array) -> void:
 	_prop("pottedPlant", Vector3(2.6, 0, -1.8), 0, 1.2)
 	_bulb(Vector3(0, 2.0, 0), Color(1.0, 0.82, 0.55), 4.0, 6.0, 3.4, 0.06)
 	_spot(Vector3(0, 3.3, 1.4), Vector3(0, 0.9, 0), Color(1.0, 0.75, 1.0), 3.0, 24, 8.0)
+	# Searchlights sweeping the vault (the intro flies past them).
+	for k in 3:
+		var pivot := Node3D.new()
+		pivot.position = Vector3(-2.6 + k * 2.6, 3.2, -2.2)
+		world.add_child(pivot)
+		var sl := SpotLight3D.new()
+		sl.light_color = [Color(0.6, 0.4, 1.0), Color(1.0, 0.5, 0.8), Color(0.4, 0.8, 1.0)][k]
+		sl.light_energy = 3.0
+		sl.spot_angle = 18.0
+		sl.spot_range = 7.0
+		pivot.add_child(sl)
+		_sweep.append(pivot)
 	_light(Vector3(0, 2.6, -3.8), Color(1.0, 0.75, 0.55), 2.0, 6.0)
 	_view(Vector3(0, 1.4, 2.3), Vector3(0, 1.0, 0), 44.0)
 

@@ -67,6 +67,9 @@ var _venue_tab := "sale"
 var _dest := ""
 var _scroll_mem: Dictionary = {}
 var _scroll_reg: Dictionary = {}
+var _intro_done := false
+var _intro: Control
+var _intro_skip := false
 var _press_pos := Vector2.ZERO
 var _drag_moved := false
 
@@ -216,10 +219,10 @@ func _sync_stage() -> void:
 			var it := _hero_item()
 			it["cond"] = "Damaged"
 			_stage.show_scene("title", [it])
-			_sfx.music("title")
+			_sfx.music("ending")
 		"won":
 			_stage.show_scene("title", [_hero_item()])
-			_sfx.music("home")
+			_sfx.music("ending")
 
 
 ## Aims the 3D camera so the table shows through the gap under the header.
@@ -1068,6 +1071,230 @@ func _market_panel(parent: Control) -> void:
 func show_title() -> void:
 	screen = "title"
 	request_refresh()
+	if not _intro_done:
+		_intro_done = true
+		_start_intro.call_deferred()
+
+
+# ================================================================ intro
+
+## Opening sequence: studio card, a camera flight through the collector's
+## vault, the grail box dropping onto its pedestal, then the logo slams in
+## and it hands over to the title screen. Tap anywhere to skip.
+func _start_intro() -> void:
+	if fast or DisplayServer.get_name() == "headless":
+		return
+	_intro_skip = false
+	_root_box.modulate.a = 0.0
+	_intro = Control.new()
+	_intro.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_intro.mouse_filter = Control.MOUSE_FILTER_STOP
+	_intro.gui_input.connect(_on_intro_input)
+	_overlay.add_child(_intro)
+	var black := ColorRect.new()
+	black.color = Color(0, 0, 0, 1)
+	black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_intro.add_child(black)
+	var vs := get_viewport_rect().size
+	# 1. Studio card.
+	var studio := _vbox(0)
+	studio.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	studio.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var s1 := _title_label("HUMBLE HOUSE", 64, Color(0.95, 0.92, 0.85))
+	s1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var s2 := _label("S  T  U  D  I  O  S", 22, Color(0.95, 0.75, 0.45))
+	s2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	studio.add_child(s1)
+	studio.add_child(s2)
+	studio.modulate.a = 0.0
+	black.add_child(studio)
+	studio.position = Vector2(vs.x * 0.5, vs.y * 0.5) - Vector2(260, 50)
+	studio.custom_minimum_size = Vector2(520, 100)
+	_sfx.music("title")
+	_stage.cine_on = true
+	_stage.set_focus(0.5, 1.0)
+	var hero := _stage.hero()
+	var hero_y := 0.75
+	if hero != null:
+		hero_y = hero.position.y
+		hero.position.y = 5.0
+	# Camera path: along the shelves, swing round, settle on the pedestal.
+	var path := [
+		[Vector3(-3.0, 1.9, -3.2), Vector3(-2.6, 1.2, -4.9)],
+		[Vector3(-1.0, 1.6, -3.4), Vector3(-0.5, 1.1, -4.9)],
+		[Vector3(1.4, 1.5, -3.3), Vector3(2.4, 1.0, -4.9)],
+		[Vector3(2.6, 2.1, -0.5), Vector3(0.0, 1.0, -1.5)],
+		[Vector3(0.6, 1.6, 2.6), Vector3(0.0, 1.0, 0.0)],
+		[Vector3(0.0, 1.4, 2.3), Vector3(0.0, 1.0, 0.0)],
+	]
+	_cine_at(path, 0.0)
+	var tw := create_tween()
+	tw.tween_property(studio, "modulate:a", 1.0, 0.7)
+	tw.tween_interval(1.3)
+	tw.tween_property(studio, "modulate:a", 0.0, 0.6)
+	await tw.finished
+	if _intro_skip:
+		return
+	_sfx.play("glass", 0.7)
+	# 2. Fly-through.
+	var fly := create_tween().set_parallel(true)
+	fly.tween_property(black, "color:a", 0.0, 1.2)
+	fly.tween_method(func(t: float) -> void: _cine_at(path, t), 0.0, 1.0, 5.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await get_tree().create_timer(4.6).timeout
+	if _intro_skip:
+		return
+	# 3. The box drops.
+	if hero != null and is_instance_valid(hero):
+		var drop := create_tween()
+		drop.tween_property(hero, "position:y", hero_y, 0.55).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	await get_tree().create_timer(0.35).timeout
+	if _intro_skip:
+		return
+	_sfx.play("thud")
+	_sfx.play("stamp")
+	_stage.shake(1.4)
+	_flash(_intro, Color(1, 0.95, 0.85))
+	await get_tree().create_timer(0.9).timeout
+	if _intro_skip:
+		return
+	# 4. Logo over light rays and sparkles.
+	_intro_logo(vs)
+	await get_tree().create_timer(3.2).timeout
+	_finish_intro()
+
+
+func _cine_at(path: Array, t: float) -> void:
+	var n := path.size() - 1
+	var f := clampf(t, 0.0, 1.0) * n
+	var i := mini(int(floor(f)), n - 1)
+	var u := f - i
+	var p0: Array = path[maxi(i - 1, 0)]
+	var p1: Array = path[i]
+	var p2: Array = path[i + 1]
+	var p3: Array = path[mini(i + 2, n)]
+	_stage.cine_pos = (p1[0] as Vector3).cubic_interpolate(p2[0], p0[0], p3[0], u)
+	_stage.cine_look = (p1[1] as Vector3).cubic_interpolate(p2[1], p0[1], p3[1], u)
+	_stage.cine_fov = lerpf(52.0, 44.0, t)
+
+
+func _intro_logo(vs: Vector2) -> void:
+	if _intro == null or not is_instance_valid(_intro):
+		return
+	var layer := Control.new()
+	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_intro.add_child(layer)
+	var ctr := Vector2(vs.x * 0.5, vs.y * (0.24 if not is_landscape() else 0.26))
+	# Rotating light rays.
+	var rays := Node2D.new()
+	rays.position = ctr
+	layer.add_child(rays)
+	for k in 14:
+		var a0 := TAU * k / 14.0
+		var poly := Polygon2D.new()
+		poly.polygon = PackedVector2Array([Vector2.ZERO, Vector2(cos(a0), sin(a0)) * 900.0, Vector2(cos(a0 + 0.12), sin(a0 + 0.12)) * 900.0])
+		poly.color = Color(1.0, 0.8, 0.45, 0.09) if k % 2 == 0 else Color(0.8, 0.5, 1.0, 0.07)
+		rays.add_child(poly)
+	var rt := rays.create_tween().set_loops()
+	rt.tween_property(rays, "rotation", TAU, 24.0).from(0.0)
+	# Soft glow.
+	var g := Gradient.new()
+	g.set_color(0, Color(1.0, 0.8, 0.5, 0.55))
+	g.set_color(1, Color(1.0, 0.8, 0.5, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 128
+	gt.height = 128
+	var glow := TextureRect.new()
+	glow.texture = gt
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.size = Vector2(760, 420)
+	glow.position = ctr - glow.size * 0.5
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(glow)
+	# Logo words slam in one after another.
+	var words := [["COMPLETE", INK, -60.0], ["IN BOX", GOLD, 40.0]]
+	var delay := 0.0
+	for w in words:
+		var l := _title_label(String(w[0]), 104 if not is_landscape() else 80, w[1])
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.size = Vector2(vs.x, 140)
+		l.position = Vector2(0, ctr.y + float(w[2]) - 70)
+		l.pivot_offset = Vector2(vs.x * 0.5, 70)
+		l.scale = Vector2(3.0, 3.0)
+		l.modulate.a = 0.0
+		layer.add_child(l)
+		var t := l.create_tween().set_parallel(true)
+		t.tween_property(l, "scale", Vector2.ONE, 0.28).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(l, "modulate:a", 1.0, 0.12).set_delay(delay)
+		t.tween_callback(func() -> void:
+			_sfx.play("stamp")
+			_stage.shake(0.6)).set_delay(delay + 0.2)
+		delay += 0.45
+	_sfx.play("grail")
+	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 24, Color("ffe7b0"))
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.size = Vector2(vs.x, 40)
+	tag.position = Vector2(0, ctr.y + 110)
+	tag.modulate.a = 0.0
+	layer.add_child(tag)
+	tag.create_tween().tween_property(tag, "modulate:a", 1.0, 0.8).set_delay(1.1)
+	var tap := _title_label("TAP TO START", 34, INK)
+	tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tap.size = Vector2(vs.x, 50)
+	tap.position = Vector2(0, vs.y * 0.86)
+	tap.modulate.a = 0.0
+	layer.add_child(tap)
+	var tp := tap.create_tween().set_loops()
+	tp.tween_property(tap, "modulate:a", 1.0, 0.6).set_delay(0.4)
+	tp.tween_property(tap, "modulate:a", 0.25, 0.6)
+	# Gold sparkles drifting up.
+	var p := CPUParticles2D.new()
+	p.position = Vector2(vs.x * 0.5, ctr.y + 160)
+	p.amount = 40
+	p.lifetime = 3.0
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(vs.x * 0.45, 20)
+	p.direction = Vector2(0, -1)
+	p.spread = 25.0
+	p.gravity = Vector2(0, -20)
+	p.initial_velocity_min = 30.0
+	p.initial_velocity_max = 90.0
+	p.scale_amount_min = 2.0
+	p.scale_amount_max = 5.0
+	p.color = Color(1.0, 0.85, 0.4, 0.85)
+	layer.add_child(p)
+
+
+func _on_intro_input(event: InputEvent) -> void:
+	var pressed := (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+	if pressed:
+		_intro_skip = true
+		_finish_intro()
+
+
+## Hand over to the title screen (also the skip path).
+func _finish_intro() -> void:
+	if _intro == null or not is_instance_valid(_intro):
+		return
+	var layer := _intro
+	_intro = null
+	_intro_skip = true
+	var hero := _stage.hero()
+	if hero != null and is_instance_valid(hero):
+		hero.position.y = 0.75
+	_stage.cine_on = false
+	_update_focus()
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(layer, "modulate:a", 0.0, 0.5)
+	tw.tween_property(_root_box, "modulate:a", 1.0, 0.6)
+	await tw.finished
+	if is_instance_valid(layer):
+		layer.queue_free()
 
 
 func _build_title() -> void:
@@ -1118,7 +1345,7 @@ const CREDITS := [
 	"Cartridge models: Late 1980s Game Cartridges (OpenGameArt, CC-BY 3.0).",
 	"Textures: ambientCG (CC0). Fonts: Jersey 10/15, VT323 (OFL).",
 	"Sounds: Kenney Casino, Interface Sounds and Music Jingles; 80 CC0 RPG SFX; 75 CC0 breaking/falling SFX.",
-	"Music: Jazzy Vibes #89, A Cloudy Morning, Chilled Lofi Beat, Squirrel Village Lounge, 8bit Bossa (OpenGameArt). Ambience: Free General Ambience Sounds.",
+	"Music: Kim Lightyear (Saw You In My Dreams, And Then We Left), The Cynic Project (Synthwave 4k, 421k), Dreamstate, Lights at Night (OpenGameArt). Ambience: Free General Ambience Sounds.",
 	"Full list with links: assets/sources.txt",
 ]
 
