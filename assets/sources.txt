@@ -68,3 +68,5 @@ assets/textures/paper001.png | https://ambientcg.com/view?id=Paper001 | 2026-11-
 assets/textures/metal032.png | https://ambientcg.com/view?id=Metal032 | 2026-11-12
 assets/textures/fabric061.png | https://ambientcg.com/view?id=Fabric061 | 2026-11-12
 assets/sprites/subject (Microsoft Fluent 3D emoji, MIT; curated by tools/gen_subjects.py) | https://github.com/microsoft/fluentui-emoji | 2026-11-12
+assets/models/props/people | https://opengameart.org/content/mini-characters | 2026-11-12
+assets/models/props/arcade | https://opengameart.org/content/mini-arcade | 2026-11-12

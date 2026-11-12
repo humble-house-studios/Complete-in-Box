@@ -69,6 +69,17 @@ The web build in Safari is the test for every platform.
   shoppers, posters of item box art, sun with hard shadows. PSX vertex snap,
   nearest 256 px textures, 1/2-res render with light dither, soft CRT overlay,
   chunky Jersey fonts, juicy counters.
+- House style in 3D (ties rooms to the cards): items sit on a purple felt mat with
+  gold trim and an orange front lip (`Stage._display_mat`, via `_lay_items`), rare and
+  grail items get a pulsing ring in their tier colour (`_tier_glow`), items and people
+  get an ink outline (`Psx.outline`, `assets/shaders/outline.gdshader`), warm dust
+  motes drift in view (`_motes`), and `post.gdshader` grades shadows purple and
+  highlights gold. Outlines and motes are off in `Lite.perf`.
+- People: Kenney Mini Characters (`props/people/character-*`), picked per spot, looping
+  their `idle` (`_person(pos, rot, tint, h, who, anim)`). Arcade machines in `props/arcade/`.
+- The title vault: velvet plinth with gold rings and a GRAIL plaque, museum ropes, a
+  light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets and a
+  COMPLETE IN BOX neon.
 - Props: `assets/models/props/` (Kenney furniture) plus kit folders `car/`,
   `suburb/`, `shop/`, `urban/`, `city/`, `nature/` — load as `Psx.prop("shop/cash-register", h)`.
   Preview a folder: `xvfb-run ... -s res://tools/prop_sheet.gd -- OUT_DIR shop`.

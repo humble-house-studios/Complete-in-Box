@@ -185,8 +185,9 @@ static func _tint(n: Node, t: Color) -> void:
 			mats.append(mi.get_surface_override_material(i))
 		for m in mats:
 			if m is ShaderMaterial:
-				var c: Color = (m as ShaderMaterial).get_shader_parameter("albedo")
-				(m as ShaderMaterial).set_shader_parameter("albedo", c * t)
+				var c = (m as ShaderMaterial).get_shader_parameter("albedo")
+				if c is Color:
+					(m as ShaderMaterial).set_shader_parameter("albedo", (c as Color) * t)
 	for c in n.get_children():
 		_tint(c, t)
 

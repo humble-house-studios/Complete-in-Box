@@ -5,6 +5,8 @@ extends RefCounted
 ## and load the furniture models in assets/models/props with that look.
 
 const SHADER := preload("res://assets/shaders/psx.gdshader")
+const OUTLINE := preload("res://assets/shaders/outline.gdshader")
+static var _outline_mat: ShaderMaterial
 
 ## Fog applied to every material built after it is set (stage sets it per scene).
 static var fog_color := Color(0.04, 0.03, 0.05)
@@ -147,6 +149,33 @@ static func _convert(n: Node, tint: Color, texture: Texture2D) -> void:
 				mi.set_surface_override_material(i, mat(col * tint, t))
 	for c in n.get_children():
 		_convert(c, tint, texture)
+
+
+## Gives every mesh under n an ink outline (the cards' thick border, in 3D).
+## Off on weak devices (it draws each mesh twice).
+static func outline(n: Node, width: float = 1.4) -> void:
+	if Lite.perf:
+		return
+	if _outline_mat == null or absf(float(_outline_mat.get_shader_parameter("width")) - width) > 0.01:
+		_outline_mat = ShaderMaterial.new()
+		_outline_mat.shader = OUTLINE
+		_outline_mat.set_shader_parameter("width", width)
+		_outline_mat.set_shader_parameter("snap", snap)
+	_add_outline(n, _outline_mat)
+
+
+static func _add_outline(n: Node, om: ShaderMaterial) -> void:
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		var mi := n as MeshInstance3D
+		if mi.material_override is ShaderMaterial:
+			(mi.material_override as ShaderMaterial).next_pass = om
+		else:
+			for i in mi.mesh.get_surface_count():
+				var m := mi.get_surface_override_material(i)
+				if m is ShaderMaterial:
+					(m as ShaderMaterial).next_pass = om
+	for c in n.get_children():
+		_add_outline(c, om)
 
 
 ## Bounding box of every mesh under n, in n's parent space.

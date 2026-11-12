@@ -6,6 +6,11 @@ uniform float vignette = 0.22;
 uniform float scan = 0.025;
 uniform float pixel = 3.0;
 uniform vec4 tint : source_color = vec4(1.0);
+// House grade, shared by every room: shadows lean to the menus' deep purple,
+// highlights to their warm gold, so the 3D and the cards feel like one thing.
+uniform vec4 shadow_tone : source_color = vec4(0.16, 0.09, 0.26, 1.0);
+uniform vec4 light_tone : source_color = vec4(1.0, 0.9, 0.72, 1.0);
+uniform float grade = 0.22;
 
 const float bayer[16] = float[](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 
@@ -18,6 +23,8 @@ void fragment() {
 	c.rgb = pow(c.rgb, vec3(0.9)) * 1.06;
 	float luma = dot(c.rgb, vec3(0.299, 0.587, 0.114));
 	c.rgb = mix(vec3(luma), c.rgb, 1.15);
+	vec3 tone = mix(shadow_tone.rgb, light_tone.rgb, smoothstep(0.05, 0.85, luma));
+	c.rgb = mix(c.rgb, c.rgb * tone * 1.25 + shadow_tone.rgb * 0.06, grade);
 	vec2 q = UV - 0.5;
 	c.rgb *= 1.0 - dot(q, q) * vignette * 2.0;
 	c.rgb *= 1.0 - scan * step(0.5, fract(FRAGCOORD.y / pixel * 0.5));

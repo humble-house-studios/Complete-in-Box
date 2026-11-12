@@ -104,9 +104,42 @@ func show_scene(id: String, items: Array = []) -> void:
 	world = Node3D.new()
 	vp.add_child(world)
 	_build(id, items)
+	_motes()
 	if Lite.perf:
 		_trim_lights(4)
 		mark_dirty(8)
+
+
+## Dust in the light: slow warm specks drifting where the camera looks, so
+## every room feels lived in. Skipped on weak devices.
+func _motes() -> void:
+	if Lite.perf or scene_id == "ebay":
+		return
+	var p := CPUParticles3D.new()
+	p.amount = 46
+	p.lifetime = 9.0
+	p.preprocess = 9.0
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(1.8, 0.9, 1.0)
+	p.direction = Vector3(0.2, 1, 0)
+	p.spread = 60.0
+	p.gravity = Vector3(0, -0.01, 0)
+	p.initial_velocity_min = 0.01
+	p.initial_velocity_max = 0.05
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.2
+	var q := QuadMesh.new()
+	q.size = Vector2(0.012, 0.012)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.albedo_color = Color(1.0, 0.85, 0.55, 0.55)
+	q.material = m
+	p.mesh = q
+	p.position = _look + Vector3(0, 0.7, -0.3)
+	world.add_child(p)
 
 
 ## Weak devices: keep only the strongest few lamps (each one costs every draw).
@@ -394,8 +427,35 @@ func _poster_ids(seed_value: int, n: int) -> Array:
 
 
 ## Shopkeeper / shopper (Kenney mini-market character), tinted.
-func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45) -> Node3D:
-	return _prop("shop/character-employee", pos, rot_y, h, tint)
+## Shopkeepers and shoppers: Kenney mini characters (same family as the
+## furniture), picked by spot so a room keeps its cast, idling in a loop and
+## inked like the cards.
+const PEOPLE := ["female-a", "female-b", "female-c", "female-d", "female-e", "female-f",
+	"male-a", "male-b", "male-c", "male-d", "male-e", "male-f", "male-g", "worker"]
+
+
+func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45, who: String = "", anim: String = "idle") -> Node3D:
+	var pick := who
+	if pick == "":
+		pick = String(PEOPLE[absi(hash(Vector2i(int(pos.x * 10.0), int(pos.z * 10.0)))) % PEOPLE.size()])
+	var n := _prop("people/character-" + pick, pos, rot_y, h * 0.9, Color.WHITE.lerp(tint, 0.2))
+	_animate(n, anim, absf(pos.x * 0.37 + pos.z * 0.19))
+	Psx.outline(n)
+	return n
+
+
+## Loops one of a model's own animations, started at `offset` seconds.
+func _animate(n: Node, anim: String, offset: float = 0.0) -> void:
+	var aps := n.find_children("*", "AnimationPlayer", true, false)
+	if aps.is_empty():
+		return
+	var ap := aps[0] as AnimationPlayer
+	if not ap.has_animation(anim):
+		return
+	var a := ap.get_animation(anim)
+	a.loop_mode = Animation.LOOP_LINEAR
+	ap.play(anim)
+	ap.seek(fmod(offset, maxf(a.length, 0.01)), true)
 
 
 ## Fluorescent ceiling panel with its light.
@@ -555,6 +615,8 @@ func _lay_items(items: Array, center: Vector3, width: float, depth: float = 0.35
 		return
 	var rows := int(ceil(float(n) / max_per_row))
 	var per := int(ceil(float(n) / rows))
+	_display_mat(center, width + 0.24, depth * rows + 0.2)
+	center.y += 0.012
 	for i in n:
 		var r := i / per
 		var c := i % per
@@ -573,7 +635,37 @@ func _lay_items(items: Array, center: Vector3, width: float, depth: float = 0.35
 		m.position = Vector3(x, center.y + lift, z)
 		m.rotation_degrees.y = sin(i * 2.7) * 12.0
 		world.add_child(m)
+		Psx.outline(m)
+		_tier_glow(items[i], Vector3(x, center.y + lift, z), m)
 		_items.append(m)
+
+
+## The card look on the table: a dark felt mat with a gold trim and a thick
+## front edge, like the panels and cards in the menus.
+func _display_mat(center: Vector3, w: float, d: float) -> void:
+	var felt := Psx.mat(Color(0.2, 0.14, 0.3), Psx.tex("fabric061"), Vector2(w * 2.0, d * 2.0))
+	Psx.box(Vector3(w, 0.012, d), felt, center + Vector3(0, 0.006, 0), world)
+	var gold := Psx.mat(Color(1.0, 0.78, 0.3), null, Vector2.ONE, 0.35)
+	for sz in [-1.0, 1.0]:
+		Psx.box(Vector3(w, 0.016, 0.022), gold, center + Vector3(0, 0.008, sz * d * 0.5), world)
+		Psx.box(Vector3(0.022, 0.016, d), gold, center + Vector3(sz * w * 0.5, 0.008, 0), world)
+	# Thick front lip, like a card's coloured edge.
+	Psx.box(Vector3(w + 0.03, 0.03, 0.05), Psx.mat(Color(0.95, 0.55, 0.2), null, Vector2.ONE, 0.25), center + Vector3(0, 0.0, d * 0.5 + 0.02), world)
+
+
+## Rare and grail items sit in a glowing ring in their tier colour (the cards'
+## tier frames), gently pulsing.
+func _tier_glow(item: Dictionary, at: Vector3, m: Node3D) -> void:
+	var tier := int(item.get("tier", 0))
+	if tier < 2:
+		return
+	var b := Psx.aabb(m)
+	var r := maxf(b.size.x, b.size.z) * 0.62 + 0.04
+	var col: Color = Catalog.TIER_COLORS[clampi(tier, 0, 3)]
+	var gm := Psx.mat(col, null, Vector2.ONE, 1.6)
+	Psx.cyl(r, 0.006, gm, at + Vector3(0, 0.002, 0), world, 20)
+	Psx.cyl(r * 0.82, 0.007, Psx.mat(Color(0.12, 0.08, 0.18)), at + Vector3(0, 0.003, 0), world, 20)
+	_flicker.append([gm, 1.6, 0.25])
 
 
 ## A plain wooden shelf unit built from boards (so item heights are exact).
@@ -630,16 +722,56 @@ func _title(items: Array) -> void:
 	_setup(Color(0.1, 0.07, 0.12), Color(0.6, 0.5, 0.65), 1.0, 5.0, 16.0)
 	Psx.snap = 900.0  # no vertex wobble here: the intro camera glides through it
 	_room(8, 8, 3.4, "marble012", Color(0.55, 0.5, 0.55), "bricks105", Color(0.6, 0.45, 0.45), 1.0, Rect2(), Color(0.25, 0.2, 0.25))
-	var ped := Psx.mat(Color(0.55, 0.15, 0.18), Psx.tex("fabric086"))
-	Psx.cyl(0.4, 0.7, ped, Vector3(0, 0.35, 0), world, 16)
-	Psx.cyl(0.44, 0.05, Psx.mat(Color(1.0, 0.8, 0.3), null, Vector2.ONE, 0.4), Vector3(0, 0.72, 0), world, 16)
+	# The grail plinth: velvet column with gold rings, like a card's tier frame.
+	var ped := Psx.mat(Color(0.32, 0.12, 0.3), Psx.tex("fabric061"), Vector2(3, 1))
+	var gold := Psx.mat(Color(1.0, 0.8, 0.3), null, Vector2.ONE, 0.5)
+	Psx.cyl(0.52, 0.08, Psx.mat(Color(0.12, 0.08, 0.16)), Vector3(0, 0.04, 0), world, 20)
+	Psx.cyl(0.4, 0.7, ped, Vector3(0, 0.39, 0), world, 16)
+	for y in [0.1, 0.72]:
+		Psx.cyl(0.44, 0.05, gold, Vector3(0, y, 0), world, 16)
+	# Round rug with a gold ring under it all.
+	Psx.cyl(1.6, 0.01, Psx.mat(Color(0.22, 0.12, 0.32), Psx.tex("fabric061"), Vector2(4, 4)), Vector3(0, 0.005, 0), world, 28)
+	Psx.cyl(1.66, 0.008, gold, Vector3(0, 0.003, 0), world, 28)
+	# A brass plaque on the front of the plinth.
+	var pl := Label3D.new()
+	pl.text = "GRAIL"
+	pl.font = FONT
+	pl.font_size = 64
+	pl.pixel_size = 0.0042
+	pl.modulate = Color(0.2, 0.1, 0.05)
+	pl.outline_size = 0
+	pl.shaded = false
+	pl.position = Vector3(0, 0.42, 0.405)
+	Psx.box(Vector3(0.5, 0.17, 0.01), gold, Vector3(0, 0.42, 0.4), world)
+	world.add_child(pl)
+	# Museum ropes round the plinth.
+	for k in 4:
+		var a0 := TAU * k / 4.0 + PI / 4.0
+		var post := Vector3(cos(a0) * 1.15, 0, sin(a0) * 1.15)
+		Psx.cyl(0.03, 0.85, gold, post + Vector3(0, 0.43, 0), world, 8)
+		Psx.cyl(0.07, 0.04, gold, post + Vector3(0, 0.02, 0), world, 10)
+		var a1 := TAU * (k + 1) / 4.0 + PI / 4.0
+		if k == 0:
+			continue  # open towards the camera
+		var post2 := Vector3(cos(a1) * 1.15, 0, sin(a1) * 1.15)
+		for j in 6:
+			var t0 := float(j) / 6.0
+			var t1 := float(j + 1) / 6.0
+			var p0 := post.lerp(post2, t0) + Vector3(0, 0.78 - sin(t0 * PI) * 0.18, 0)
+			var p1 := post.lerp(post2, t1) + Vector3(0, 0.78 - sin(t1 * PI) * 0.18, 0)
+			var seg := Psx.cyl(0.018, p0.distance_to(p1), Psx.mat(Color(0.75, 0.1, 0.18), Psx.tex("fabric061")), (p0 + p1) * 0.5, world, 5)
+			seg.look_at((p0 + p1) * 0.5 + (p1 - p0), Vector3.UP)
+			seg.rotate_object_local(Vector3.RIGHT, PI / 2.0)
 	if not items.is_empty():
 		var hero := ItemModels.build(items[0])
 		hero.scale = Vector3.ONE * 3.6
 		hero.position = Vector3(0, 0.75, 0)
 		world.add_child(hero)
+		Psx.outline(hero, 1.8)
 		_spin.append(hero)
 		_items.append(hero)
+	# A soft beam of light falling on the grail.
+	_beam(Vector3(0, 3.3, 0.2), 0.25, 1.0, 2.6, Color(1.0, 0.85, 0.6, 0.09))
 	# A collector's vault behind it.
 	for i in 3:
 		var x := -2.6 + i * 2.6
@@ -648,11 +780,15 @@ func _title(items: Array) -> void:
 	var ids := _poster_ids(77, 4)
 	for k in 4:
 		_poster(Vector3(-3.95, 1.7, -2.6 + k * 1.3), 90, Vector2(0.7, 0.8), ids[k])
-	_prop("cardboardBoxOpen", Vector3(-1.4, 0, -0.6), 25, 0.5)
-	_prop("cardboardBoxClosed", Vector3(1.5, 0, -0.5), -15, 0.45)
-	_prop("cardboardBoxClosed", Vector3(1.45, 0.45, -0.5), 10, 0.35)
-	_prop("shop/gacha-machine", Vector3(-2.6, 0, -1.6), 20, 1.5)
-	_prop("pottedPlant", Vector3(2.6, 0, -1.8), 0, 1.2)
+	# Stacks of real boxed games waiting to be shelved.
+	_box_stack(Vector3(-1.7, 0, -0.7), 30, 5, 501)
+	_box_stack(Vector3(1.75, 0, -0.6), -20, 4, 502)
+	_box_stack(Vector3(2.3, 0, -1.3), 10, 3, 503)
+	_prop("arcade/arcade-machine", Vector3(-3.2, 0, -1.5), 60, 1.8)
+	_prop("arcade/claw-machine", Vector3(-3.2, 0, -0.2), 75, 1.8)
+	_prop("arcade/pinball", Vector3(3.1, 0, -1.9), -70, 1.2)
+	_prop("pottedPlant", Vector3(3.2, 0, 0.2), 0, 1.2)
+	_neon("COMPLETE IN BOX", Vector3(0, 2.75, -4.85), Color(1.0, 0.75, 0.25), 72)
 	_bulb(Vector3(0, 2.0, 0), Color(1.0, 0.82, 0.55), 4.0, 6.0, 3.4, 0.06)
 	_spot(Vector3(0, 3.3, 1.4), Vector3(0, 0.9, 0), Color(1.0, 0.75, 1.0), 3.0, 24, 8.0)
 	# Searchlights sweeping the vault (the intro flies past them).
@@ -669,6 +805,49 @@ func _title(items: Array) -> void:
 		_sweep.append(pivot)
 	_light(Vector3(0, 2.6, -3.8), Color(1.0, 0.75, 0.55), 2.0, 6.0)
 	_view(Vector3(0, 1.4, 2.3), Vector3(0, 1.0, 0), 44.0)
+
+
+## A pile of boxed games (real catalog items with their box art), slightly askew.
+func _box_stack(pos: Vector3, rot_y: float, n: int, seed_value: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	var y := 0.0
+	for k in n:
+		var d: Dictionary = Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()].duplicate()
+		if String(d["kind"]) != "game":
+			continue
+		d["cond"] = "CIB"
+		var m := ItemModels.build(d, null, 1)
+		m.scale = Vector3.ONE * ITEM_SCALE
+		m.rotation_degrees = Vector3(-90, rot_y + r.randf_range(-12, 12), 0)
+		var b := Psx.aabb(m)
+		m.position = pos + Vector3(r.randf_range(-0.03, 0.03), y - b.position.y, r.randf_range(-0.03, 0.03))
+		world.add_child(m)
+		y += b.size.y
+
+
+## A soft see-through cone of light (additive), for spotlights and beams.
+func _beam(top: Vector3, r_top: float, r_bot: float, h: float, col: Color) -> void:
+	var c := CylinderMesh.new()
+	c.top_radius = r_top
+	c.bottom_radius = r_bot
+	c.height = h
+	c.radial_segments = 16
+	c.cap_top = false
+	c.cap_bottom = false
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = col
+	m.no_depth_test = false
+	c.material = m
+	var mi := MeshInstance3D.new()
+	mi.mesh = c
+	mi.position = top - Vector3(0, h * 0.5, 0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	world.add_child(mi)
 
 
 ## Close-up on the collection shelf ("VIEW SHELF") or back to the room.
@@ -949,7 +1128,8 @@ func _retro(items: Array) -> void:
 	_person(Vector3(1.0, 0, -1.3), -10, Color(0.85, 0.95, 1.0))
 	_crt(Vector3(-1.6, 0.94, -0.1), 0.45, Color(0.5, 0.95, 0.6), 25)
 	_prop("shop/gacha-machine", Vector3(-3.0, 0, 0.4), 60, 1.4)
-	_prop("shop/gacha-machine", Vector3(-3.0, 0, 1.2), 70, 1.4)
+	_prop("arcade/arcade-machine", Vector3(-3.1, 0, 1.4), 75, 1.75)
+	_prop("arcade/claw-machine", Vector3(3.1, 0, 1.2), -80, 1.75)
 	_prop("shop/shopping-basket", Vector3(2.6, 0, 0.6), 0, 0.35)
 	_neon("GAMES", Vector3(1.6, 2.65, -3.9), Color(1.0, 0.3, 0.7), 96)
 	_neon("BUY  SELL  TRADE", Vector3(-1.4, 2.75, -3.9), Color(0.3, 0.8, 1.0), 40)
@@ -1026,6 +1206,11 @@ func _convention(items: Array) -> void:
 	_prop("shop/mannequin", Vector3(-2.6, 0, -1.4), 30, 1.75, Color(0.9, 0.6, 0.9))
 	_prop("shop/mannequin", Vector3(2.7, 0, -1.5), -30, 1.75, Color(0.6, 0.8, 1.0))
 	_prop("shop/gacha-machine", Vector3(3.6, 0, -0.2), -60, 1.4)
+	# Free-play corner: cabinets and a pinball with players.
+	for k in 3:
+		_prop(["arcade/arcade-machine", "arcade/dance-machine", "arcade/pinball"][k], Vector3(-6.0 + k * 1.3, 0, -1.5), 20, 1.8 if k < 2 else 1.2)
+	_person(Vector3(-5.6, 0, -0.7), 200, Color.WHITE, 1.4, "male-c")
+	_prop("arcade/basketball-game", Vector3(6.0, 0, -1.4), -30, 1.9)
 	for x in [-5.0, 5.0]:
 		_prop("shop/column", Vector3(x, 0, -3.0), 0, 5.5)
 	for x in [-4.0, 0.0, 4.0]:
