@@ -1,0 +1,29 @@
+class_name Lite
+extends RefCounted
+## Fallbacks for weak devices (TV browsers, old phones) that crash on the full
+## look. Set from the web page address: ?lite=1 turns everything off,
+## or pick: ?no3d=1 (3D rooms + turntable), ?noart=1 (rendered box art and
+## item renders), ?nocrt=1 (screen overlay shader). The page switches to
+## ?lite=1 by itself if the game crashes on start.
+
+static var no3d := false
+static var noart := false
+static var nocrt := false
+static var _ready := false
+
+
+static func init() -> void:
+	if _ready:
+		return
+	_ready = true
+	if not OS.has_feature("web"):
+		return
+	var q := str(JavaScriptBridge.eval("window.location.search", true))
+	var lite := q.contains("lite=1")
+	no3d = lite or q.contains("no3d=1")
+	noart = lite or q.contains("noart=1")
+	nocrt = lite or q.contains("nocrt=1")
+
+
+static func any() -> bool:
+	return no3d or noart or nocrt

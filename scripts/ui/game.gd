@@ -76,6 +76,7 @@ var _drag_moved := false
 
 
 func _ready() -> void:
+	Lite.init()
 	theme = _make_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
@@ -85,6 +86,7 @@ func _ready() -> void:
 	add_child(bg)
 	_stage = Stage.new()
 	add_child(_stage)
+	_stage.visible = not Lite.no3d
 	_safe = MarginContainer.new()
 	_safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_safe)
@@ -103,6 +105,7 @@ func _ready() -> void:
 	cm.shader = CRT_SHADER
 	_crt.material = cm
 	add_child(_crt)
+	_crt.visible = not Lite.nocrt
 	_sfx = Sfx.new()
 	add_child(_sfx)
 	_load_save()
@@ -3208,7 +3211,7 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 	svc.add_child(vp)
 	_spin_model = null
 	_spin_vel = 0.0
-	if DisplayServer.get_name() == "headless":
+	if DisplayServer.get_name() == "headless" or Lite.no3d:
 		return frame
 	var we := WorldEnvironment.new()
 	var e := Environment.new()

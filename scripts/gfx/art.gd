@@ -83,7 +83,7 @@ static func _request(k: String, size: Vector2i, item: Dictionary, kind: String, 
 	var t := ImageTexture.create_from_image(img)
 	_tex[k] = t
 	_order.append(k)
-	if DisplayServer.get_name() != "headless":
+	if DisplayServer.get_name() != "headless" and not Lite.noart:
 		var job := {"key": k, "item": item.duplicate(), "kind": kind, "size": size}
 		if prio:
 			_get_host()._queue.push_front(job)

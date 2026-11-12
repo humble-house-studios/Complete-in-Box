@@ -127,6 +127,12 @@ The web build in Safari is the test for every platform.
   OpenGameArt mirrors most Kenney packs; ambientCG and Google Fonts (via
   raw.githubusercontent.com/google/fonts) work.
 
+## Weak devices
+- `scripts/gfx/lite.gd`: `?lite=1` on the page address turns off the 3D rooms,
+  rendered art and CRT overlay (or one at a time: `?no3d=1`, `?noart=1`,
+  `?nocrt=1`). The page's startup script shows errors on screen and reloads
+  with `?lite=1` if the full build crashes (seen on an Android TV browser).
+
 ## Testing pipeline
 - Use Godot 4.3 (as CI does). If the container's `godot` is newer, grab the
   4.3-stable binary; a newer one breaks GUT and adds `.uid` files (don't commit them).

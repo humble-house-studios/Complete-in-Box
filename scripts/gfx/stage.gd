@@ -79,7 +79,7 @@ func show_scene(id: String, items: Array = []) -> void:
 	_key = key
 	scene_id = id
 	# Headless runs (tests, CI) have no renderer: skip the 3D build.
-	if DisplayServer.get_name() == "headless":
+	if DisplayServer.get_name() == "headless" or Lite.no3d:
 		return
 	if world != null:
 		vp.remove_child(world)
