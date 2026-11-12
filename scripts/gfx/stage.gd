@@ -737,7 +737,8 @@ func _home(items: Array) -> void:
 	_light(Vector3(1.4, 1.6, -3.6), Color(0.35, 0.45, 1.0), 0.9, 4.0)
 	_light(Vector3(1.7, 0.6, -1.2), Color(0.45, 0.65, 1.0), 0.8, 1.8)
 	_home_view = [Vector3(0, 1.45, 2.0), Vector3(-0.3, 1.05, -0.9), 46.0]
-	_shelf_view = [Vector3(-1.2, 1.2, 1.25), Vector3(-1.2, 0.95, -0.9), 56.0]
+	# Framed a little right of centre so the shelves sit left of the pop-up card.
+	_shelf_view = [Vector3(-0.55, 1.2, 1.3), Vector3(-0.75, 0.95, -0.9), 58.0]
 	_view(_home_view[0], _home_view[1], _home_view[2])
 
 

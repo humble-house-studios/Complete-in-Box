@@ -1557,6 +1557,10 @@ func _show_preview(item: Dictionary, kind: String, i: int) -> void:
 	var r := Rect2(Vector2((vs.x - 420.0) * 0.5, _margins.y + 96), Vector2(420, 260))
 	if _gap != null and is_instance_valid(_gap) and _gap.is_inside_tree() and _gap.size.y > 120:
 		r = _gap.get_global_rect().grow(-6)
+		if _showcase and screen == "home":
+			# Shelf view: tuck the card against the right edge, clear of the shelves.
+			var w := minf(360.0, r.size.x * (0.34 if is_landscape() else 0.5))
+			r = Rect2(Vector2(r.end.x - w, r.position.y), Vector2(w, r.size.y))
 	var tall := r.size.y > r.size.x * 1.1
 	var p := PanelContainer.new()
 	var frame: Color = pcol if tier < 2 else Catalog.TIER_COLORS[tier]
