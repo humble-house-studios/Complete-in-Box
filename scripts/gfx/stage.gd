@@ -13,7 +13,7 @@ const FONT := preload("res://assets/fonts/Jersey10-Regular.ttf")
 ## Items are drawn a bit bigger than life so they read at low resolution.
 const ITEM_SCALE := 1.7
 
-var pixel := 3
+var pixel := 2
 var vp: SubViewport
 var cam: Camera3D
 var env: Environment
@@ -163,19 +163,20 @@ func _apply_cam() -> void:
 	var off := Vector2(0, (_focus - 0.5) * h)
 	if _shake > 0.0:
 		off += Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake * h * 0.02
-	cam.set_frustum(s, off, near, 40.0)
+	cam.set_frustum(s, off, near, 90.0)
 
 
-# ================================================================ building blocks
+# ================================================================ world building
 
-func _setup(fog: Color, ambient: Color, ambient_energy: float = 1.0, near: float = 3.5, far: float = 11.0) -> void:
+## sky = background/fog colour (horizon). Brighter defaults than the first pass.
+func _setup(fog: Color, ambient: Color, ambient_energy: float = 1.0, near: float = 6.0, far: float = 24.0) -> void:
 	env.background_color = fog
 	env.ambient_light_color = ambient
 	env.ambient_light_energy = ambient_energy
 	Psx.fog_color = fog
 	Psx.fog_near = near
 	Psx.fog_far = far
-	Psx.snap = 110.0
+	Psx.snap = 220.0
 
 
 func _view(pos: Vector3, look: Vector3, fov: float = 50.0) -> void:
@@ -184,20 +185,167 @@ func _view(pos: Vector3, look: Vector3, fov: float = 50.0) -> void:
 	_fov = fov
 
 
-## Floor, back wall, side walls and a dark ceiling.
-func _room(w: float, d: float, h: float, floor_tex: String, floor_tint: Color, wall_tex: String, wall_tint: Color, uv: float = 1.0) -> void:
-	var fm := Psx.mat(floor_tint, Psx.tex(floor_tex), Vector2(w, d) * 0.7 * uv)
-	var fl := Psx.quad(Vector2(w, d), fm, Vector3(0, 0, -d * 0.5 + 2.5), world)
-	fl.rotation_degrees.x = -90.0
-	var wm := Psx.mat(wall_tint, Psx.tex(wall_tex), Vector2(w, h) * 0.6 * uv)
-	Psx.quad(Vector2(w, h), wm, Vector3(0, h * 0.5, -d + 2.5), world)
+## Sunlight with hard PSX-style shadows. rot = degrees (pitch, yaw).
+func _sun(pitch: float, yaw: float, color: Color, energy: float, shadows: bool = true) -> DirectionalLight3D:
+	var d := DirectionalLight3D.new()
+	d.rotation_degrees = Vector3(pitch, yaw, 0)
+	d.light_color = color
+	d.light_energy = energy
+	d.shadow_enabled = shadows
+	d.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	d.directional_shadow_max_distance = 16.0
+	d.shadow_bias = 0.06
+	world.add_child(d)
+	return d
+
+
+## A big gradient backdrop far away (never fogged).
+func _sky(z: float, w: float, h: float, top: Color, horizon: Color, y0: float = -2.0) -> void:
+	var g := Gradient.new()
+	g.set_color(0, top)
+	g.set_color(1, horizon)
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0, 1)
+	gt.width = 4
+	gt.height = 64
+	var m := Psx.mat(Color.WHITE, gt, Vector2.ONE, 1.0)
+	m.set_shader_parameter("fog_near", 1000.0)
+	m.set_shader_parameter("fog_far", 2000.0)
+	m.set_shader_parameter("albedo", Color(0.0, 0.0, 0.0))
+	Psx.quad(Vector2(w, h), m, Vector3(0, y0 + h * 0.5, z), world)
+
+
+func _ground(tex: String, tint: Color, size: Vector2, center: Vector3, uv: float = 0.5) -> MeshInstance3D:
+	var g := Psx.quad(size, Psx.mat(tint, Psx.tex(tex), size * uv), center, world)
+	g.rotation_degrees.x = -90.0
+	return g
+
+
+## Floor, walls (back wall can have a hole: x centre, bottom, width, height),
+## ceiling, baseboards. Back wall sits at z = 2.5 - d.
+func _room(w: float, d: float, h: float, floor_tex: String, floor_tint: Color, wall_tex: String, wall_tint: Color, uv: float = 1.0, hole := Rect2(), ceiling := Color(0.55, 0.52, 0.5)) -> void:
+	var zc := -d * 0.5 + 2.5
+	var zb := 2.5 - d
+	_ground(floor_tex, floor_tint, Vector2(w, d), Vector3(0, 0, zc), 0.7 * uv)
+	var tx := Psx.tex(wall_tex)
+	if hole.size == Vector2.ZERO:
+		Psx.quad(Vector2(w, h), Psx.mat(wall_tint, tx, Vector2(w, h) * 0.6 * uv), Vector3(0, h * 0.5, zb), world)
+	else:
+		var hx0 := hole.position.x - hole.size.x * 0.5
+		var hx1 := hole.position.x + hole.size.x * 0.5
+		var hy0 := hole.position.y
+		var hy1 := hole.position.y + hole.size.y
+		var parts := [
+			Rect2(-w * 0.5, 0, hx0 + w * 0.5, h),
+			Rect2(hx1, 0, w * 0.5 - hx1, h),
+			Rect2(hx0, hy1, hx1 - hx0, h - hy1),
+			Rect2(hx0, 0, hx1 - hx0, hy0),
+		]
+		for r in parts:
+			if r.size.x <= 0.01 or r.size.y <= 0.01:
+				continue
+			Psx.quad(r.size, Psx.mat(wall_tint, tx, r.size * 0.6 * uv), Vector3(r.position.x + r.size.x * 0.5, r.position.y + r.size.y * 0.5, zb), world)
+		# Frame around the opening.
+		var fr := Psx.mat(Color(0.85, 0.82, 0.75))
+		Psx.box(Vector3(hole.size.x + 0.12, 0.08, 0.14), fr, Vector3(hole.position.x, hy1, zb), world)
+		if hy0 > 0.05:
+			Psx.box(Vector3(hole.size.x + 0.12, 0.06, 0.2), fr, Vector3(hole.position.x, hy0, zb), world)
+		for x in [hx0, hx1]:
+			Psx.box(Vector3(0.08, hole.size.y, 0.14), fr, Vector3(x, hy0 + hole.size.y * 0.5, zb), world)
 	for sx in [-1.0, 1.0]:
-		var sm := Psx.mat(wall_tint.darkened(0.2), Psx.tex(wall_tex), Vector2(d, h) * 0.6 * uv)
-		var sw := Psx.quad(Vector2(d, h), sm, Vector3(sx * w * 0.5, h * 0.5, -d * 0.5 + 2.5), world)
+		var sw := Psx.quad(Vector2(d, h), Psx.mat(wall_tint.darkened(0.12), tx, Vector2(d, h) * 0.6 * uv), Vector3(sx * w * 0.5, h * 0.5, zc), world)
 		sw.rotation_degrees.y = -90.0 * sx
-	var cm := Psx.mat(Color(0.05, 0.045, 0.05))
-	var ce := Psx.quad(Vector2(w, d), cm, Vector3(0, h, -d * 0.5 + 2.5), world)
+		Psx.box(Vector3(0.03, 0.12, d), Psx.mat(Color(0.3, 0.25, 0.22)), Vector3(sx * (w * 0.5 - 0.015), 0.06, zc), world)
+	Psx.box(Vector3(w, 0.12, 0.03), Psx.mat(Color(0.3, 0.25, 0.22)), Vector3(0, 0.06, zb + 0.015), world)
+	var ce := Psx.quad(Vector2(w, d), Psx.mat(ceiling, Psx.tex("plaster001"), Vector2(w, d) * 0.5), Vector3(0, h, zc), world)
 	ce.rotation_degrees.x = 90.0
+
+
+## Mullions for a window hole.
+func _window_bars(hole: Rect2, z: float, cols: int = 2, rows: int = 2) -> void:
+	var fr := Psx.mat(Color(0.85, 0.82, 0.75))
+	for k in range(1, cols):
+		var x := hole.position.x - hole.size.x * 0.5 + hole.size.x * k / cols
+		Psx.box(Vector3(0.05, hole.size.y, 0.06), fr, Vector3(x, hole.position.y + hole.size.y * 0.5, z), world)
+	for k in range(1, rows):
+		Psx.box(Vector3(hole.size.x, 0.05, 0.06), fr, Vector3(hole.position.x, hole.position.y + hole.size.y * k / rows, z), world)
+
+
+## A framed poster showing an item's box art.
+func _poster(pos: Vector3, rot_y: float, size: Vector2, id: String) -> void:
+	var n := Node3D.new()
+	n.position = pos
+	n.rotation_degrees.y = rot_y
+	world.add_child(n)
+	Psx.box(Vector3(size.x + 0.08, size.y + 0.08, 0.03), Psx.mat(Color(0.12, 0.1, 0.1)), Vector3.ZERO, n)
+	Psx.quad(size, Psx.mat(Color(1.1, 1.1, 1.1), ItemModels.label_for(id)), Vector3(0, 0, 0.018), n)
+
+
+func _poster_ids(seed_value: int, n: int) -> Array:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	var out: Array = []
+	for k in n:
+		out.append(String(Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()]["id"]))
+	return out
+
+
+## Shopkeeper / shopper (Kenney mini-market character), tinted.
+func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45) -> Node3D:
+	return _prop("shop/character-employee", pos, rot_y, h, tint)
+
+
+## Fluorescent ceiling panel with its light.
+func _panel_light(pos: Vector3, energy: float = 1.6, color := Color(0.95, 0.97, 1.0), rng: float = 5.0, flicker: float = 0.0) -> void:
+	var m := Psx.mat(color, null, Vector2.ONE, 2.0)
+	Psx.box(Vector3(1.2, 0.05, 0.3), m, pos, world)
+	_light(pos + Vector3(0, -0.3, 0), color, energy, rng, flicker)
+
+
+## Street outside: sidewalk, road, houses across it, trees, parked cars.
+func _street(z: float, seed_value: int, houses: bool = true) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	_ground("pavingstones070", Color(0.85, 0.83, 0.8), Vector2(40, 3), Vector3(0, 0.01, z - 1.5), 0.6)
+	_ground("asphalt012", Color(0.6, 0.6, 0.62), Vector2(40, 7), Vector3(0, 0.0, z - 6.5), 0.25)
+	for k in 7:
+		Psx.box(Vector3(1.2, 0.01, 0.15), Psx.mat(Color(0.95, 0.85, 0.3)), Vector3(-15 + k * 5, 0.015, z - 6.5), world)
+	_ground("pavingstones070", Color(0.85, 0.83, 0.8), Vector2(40, 3), Vector3(0, 0.01, z - 11.5), 0.6)
+	_ground("grass004", Color(0.8, 0.95, 0.7), Vector2(40, 14), Vector3(0, 0.0, z - 20), 0.4)
+	var cars := ["car/sedan", "car/suv", "car/van", "car/hatchback-sports", "car/taxi", "car/delivery"]
+	for k in 3:
+		var x := -8.0 + k * 7.0 + r.randf_range(-1, 1)
+		_prop(cars[r.randi() % cars.size()], Vector3(x, 0, z - 4.6 - (k % 2) * 3.8), 90.0 if k % 2 == 0 else -90.0, 0.0, Color.WHITE, 4.2)
+	if houses:
+		var types := ["a", "b", "c", "d", "e", "f"]
+		for k in 5:
+			var x := -12.0 + k * 6.0
+			_prop("suburb/building-type-" + types[r.randi() % types.size()], Vector3(x, 0, z - 17.5), 180.0, 0.0, Color.WHITE, 6.0)
+			_prop("suburb/fence-1x3", Vector3(x + 2.0, 0, z - 13.4), 0.0, 0.0, Color.WHITE, 3.0)
+	for k in 6:
+		var x := -14.0 + k * 5.5 + r.randf_range(-1, 1)
+		var trees := ["nature/tree_oak_dark", "nature/tree_detailed", "nature/tree_default", "suburb/tree-large"]
+		_prop(trees[r.randi() % trees.size()], Vector3(x, 0, z - 12.6 - r.randf_range(0, 2)), r.randf_range(0, 360), r.randf_range(4.0, 6.0), Color(0.75, 1.0, 0.7))
+
+
+func _skyline(z: float, seed_value: int, tint := Color(0.55, 0.6, 0.75), lit: bool = false) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	var types := ["a", "b", "c", "d", "e"]
+	for k in 9:
+		var p := _prop("city/low-detail-building-" + types[r.randi() % types.size()], Vector3(-20 + k * 5.0 + r.randf_range(-1, 1), 0, z - r.randf_range(0, 6)), r.randf_range(0, 360), r.randf_range(9, 20), tint)
+		if lit:
+			var b := Psx.aabb(p)
+			for i in 8:
+				var wm := Psx.mat(Color(1.0, 0.85, 0.5), null, Vector2.ONE, 2.0)
+				wm.set_shader_parameter("fog_near", 1000.0)
+				wm.set_shader_parameter("fog_far", 2000.0)
+				var wp := Vector3(r.randf_range(b.position.x + 0.4, b.end.x - 0.4), r.randf_range(1.5, b.end.y - 1.0), b.end.z + 0.05)
+				Psx.box(Vector3(0.6, 0.4, 0.05), wm, wp, world)
+
+
 
 
 func _prop(name: String, pos: Vector3, rot_y: float = 0.0, height: float = 0.0, tint := Color.WHITE, width: float = 0.0, texture: Texture2D = null) -> Node3D:
@@ -378,38 +526,45 @@ func _build(id: String, items: Array) -> void:
 
 
 func _title(items: Array) -> void:
-	_setup(Color(0.02, 0.015, 0.03), Color(0.25, 0.2, 0.3), 0.6, 2.5, 8.0)
-	_room(6, 7, 3.0, "concrete047a", Color(0.55, 0.5, 0.5), "bricks105", Color(0.45, 0.35, 0.35))
-	var ped := Psx.mat(Color(0.35, 0.12, 0.12), Psx.tex("fabric086"))
-	Psx.cyl(0.38, 0.7, ped, Vector3(0, 0.35, 0), world, 14)
-	Psx.cyl(0.42, 0.04, Psx.mat(Color(0.75, 0.6, 0.25), null, Vector2.ONE, 0.2), Vector3(0, 0.72, 0), world, 14)
+	_setup(Color(0.1, 0.07, 0.12), Color(0.6, 0.5, 0.65), 1.0, 5.0, 16.0)
+	_room(8, 8, 3.4, "marble012", Color(0.55, 0.5, 0.55), "bricks105", Color(0.6, 0.45, 0.45), 1.0, Rect2(), Color(0.25, 0.2, 0.25))
+	var ped := Psx.mat(Color(0.55, 0.15, 0.18), Psx.tex("fabric086"))
+	Psx.cyl(0.4, 0.7, ped, Vector3(0, 0.35, 0), world, 16)
+	Psx.cyl(0.44, 0.05, Psx.mat(Color(1.0, 0.8, 0.3), null, Vector2.ONE, 0.4), Vector3(0, 0.72, 0), world, 16)
 	if not items.is_empty():
 		var hero := ItemModels.build(items[0])
 		hero.scale = Vector3.ONE * 3.6
-		hero.position = Vector3(0, 0.74, 0)
+		hero.position = Vector3(0, 0.75, 0)
 		world.add_child(hero)
 		_spin.append(hero)
 		_items.append(hero)
-	# Junk on the floor around it.
-	for i in range(1, items.size()):
-		var m := ItemModels.build(items[i])
-		m.scale = Vector3.ONE * ITEM_SCALE
-		var a := float(i) * 1.9
-		m.position = Vector3(cos(a) * 1.0, 0, sin(a) * 0.6 - 0.2)
-		m.rotation_degrees = Vector3(0, a * 40.0, 0)
-		world.add_child(m)
-	_prop("cardboardBoxOpen", Vector3(-1.3, 0, -0.8), 25, 0.5)
-	_prop("cardboardBoxClosed", Vector3(1.4, 0, -0.6), -15, 0.45)
-	_prop("cardboardBoxClosed", Vector3(1.35, 0.45, -0.6), 10, 0.35)
-	_bulb(Vector3(0, 1.75, 0), Color(1.0, 0.78, 0.5), 3.2, 4.0, 3.0, 0.1)
-	_spot(Vector3(0, 2.9, 1.2), Vector3(0, 0.9, 0), Color(0.9, 0.6, 1.0), 1.5, 22)
-	_view(Vector3(0, 1.35, 2.1), Vector3(0, 1.0, 0), 44.0)
+	# A collector's vault behind it.
+	for i in 3:
+		var x := -2.6 + i * 2.6
+		var tops := _shelf_unit(Vector3(x, 0, -4.9), 2.3, 4, 0.48, Color(0.5, 0.35, 0.3))
+		_decor_stock(Vector3(x, 0, -4.85), 2.3, tops, 900 + i, 7)
+	var ids := _poster_ids(77, 4)
+	for k in 4:
+		_poster(Vector3(-3.95, 1.7, -2.6 + k * 1.3), 90, Vector2(0.7, 0.8), ids[k])
+	_prop("cardboardBoxOpen", Vector3(-1.4, 0, -0.6), 25, 0.5)
+	_prop("cardboardBoxClosed", Vector3(1.5, 0, -0.5), -15, 0.45)
+	_prop("cardboardBoxClosed", Vector3(1.45, 0.45, -0.5), 10, 0.35)
+	_prop("shop/gacha-machine", Vector3(-2.6, 0, -1.6), 20, 1.5)
+	_prop("pottedPlant", Vector3(2.6, 0, -1.8), 0, 1.2)
+	_bulb(Vector3(0, 2.0, 0), Color(1.0, 0.82, 0.55), 4.0, 6.0, 3.4, 0.06)
+	_spot(Vector3(0, 3.3, 1.4), Vector3(0, 0.9, 0), Color(1.0, 0.75, 1.0), 3.0, 24, 8.0)
+	_light(Vector3(0, 2.6, -3.8), Color(1.0, 0.75, 0.55), 2.0, 6.0)
+	_view(Vector3(0, 1.4, 2.3), Vector3(0, 1.0, 0), 44.0)
 
 
 func _home(items: Array) -> void:
-	_setup(Color(0.03, 0.025, 0.035), Color(0.35, 0.3, 0.4), 0.55, 3.0, 9.0)
-	_room(5, 5.5, 2.7, "concrete034", Color(0.45, 0.42, 0.4), "bricks105", Color(0.5, 0.4, 0.38))
-	var tops := _shelf_unit(Vector3(0, 0, -0.6), 2.0, 3, 0.48)
+	_setup(Color(0.08, 0.08, 0.14), Color(0.65, 0.58, 0.6), 1.05, 6.0, 20.0)
+	var hole := Rect2(1.4, 0.95, 1.4, 1.1)
+	_room(6, 5.5, 2.7, "woodfloor043", Color(0.85, 0.75, 0.65), "bricks105", Color(0.75, 0.6, 0.55), 1.0, hole)
+	_window_bars(hole, -3.0)
+	_sky(-26, 60, 22, Color(0.05, 0.06, 0.18), Color(0.35, 0.25, 0.45))
+	_street(-4.0, 11)
+	var tops := _shelf_unit(Vector3(-0.6, 0, -0.9), 2.2, 3, 0.48)
 	tops.reverse()
 	var per := maxi(4, int(ceil(items.size() / 3.0)))
 	var level := 0
@@ -417,178 +572,328 @@ func _home(items: Array) -> void:
 	for i in items.size():
 		row.append(items[i])
 		if row.size() == per or i == items.size() - 1:
-			_lay_items(row, Vector3(0, tops[mini(level, tops.size() - 1)], -0.58), 1.8, 0.3, per)
+			_lay_items(row, Vector3(-0.6, tops[mini(level, tops.size() - 1)], -0.88), 2.0, 0.3, per)
 			row = []
 			level += 1
-	_prop("loungeSofa", Vector3(-1.9, 0, 0.5), 70, 0.0, Color(0.6, 0.35, 0.3), 1.6)
-	_prop("lampRoundTable", Vector3(1.4, 0, -0.5), 0, 0.9)
-	_crt(Vector3(1.5, 0.0, 0.6), 0.55, Color(0.4, 0.6, 1.0), -50)
-	_prop("cardboardBoxOpen", Vector3(-1.3, 0, -0.9), 15, 0.4)
-	_prop("rugRectangle", Vector3(0, 0.005, 0.8), 0, 0.0, Color(0.7, 0.4, 0.35), 2.2)
-	_bulb(Vector3(0, 2.0, 0.4), Color(1.0, 0.75, 0.45), 2.6, 4.0, 2.7)
-	_light(Vector3(1.4, 1.0, -0.4), Color(1.0, 0.8, 0.5), 0.8, 2.0)
-	_view(Vector3(0, 1.45, 2.0), Vector3(0, 1.05, -0.6), 46.0)
+	_prop("loungeSofa", Vector3(-2.3, 0, 0.7), 80, 0.0, Color(0.75, 0.4, 0.35), 1.7)
+	_prop("cabinetTelevision", Vector3(1.7, 0, -1.6), -20, 0.0, Color(0.8, 0.65, 0.5), 1.2)
+	_crt(Vector3(1.7, 0.5, -1.6), 0.55, Color(0.45, 0.65, 1.0), -20)
+	_prop("lampRoundFloor", Vector3(2.5, 0, -0.4), 0, 1.6)
+	_prop("rugRectangle", Vector3(0, 0.005, 0.7), 0, 0.0, Color(0.85, 0.45, 0.4), 2.4)
+	_prop("cardboardBoxOpen", Vector3(-2.2, 0, -2.2), 15, 0.45)
+	_prop("cardboardBoxClosed", Vector3(-2.6, 0, -1.6), -10, 0.45)
+	_prop("plantSmall1", Vector3(0.9, 1.5, -0.9), 0, 0.3)
+	_prop("bear", Vector3(-1.5, 1.5, -0.9), 20, 0.25)
+	var ids := _poster_ids(5, 3)
+	_poster(Vector3(-2.2, 1.75, -2.98), 0, Vector2(0.6, 0.7), ids[0])
+	_poster(Vector3(-2.99, 1.6, -0.5), 90, Vector2(0.6, 0.7), ids[1])
+	_bulb(Vector3(0, 2.05, 0.4), Color(1.0, 0.8, 0.55), 3.4, 6.0, 2.7, 0.04)
+	_light(Vector3(2.4, 1.4, -0.4), Color(1.0, 0.8, 0.55), 1.5, 3.0)
+	_light(Vector3(1.4, 1.6, -3.6), Color(0.5, 0.55, 1.0), 1.0, 4.0)
+	_view(Vector3(0, 1.45, 2.0), Vector3(-0.3, 1.05, -0.9), 46.0)
 
 
 func _garage(items: Array) -> void:
-	_setup(Color(0.09, 0.05, 0.05), Color(0.45, 0.35, 0.35), 0.7, 3.5, 10.0)
-	_room(6, 6, 2.8, "concrete034", Color(0.6, 0.57, 0.52), "paintedwood009c", Color(0.65, 0.6, 0.5))
-	# Open garage door at the back: dusk outside.
-	Psx.quad(Vector2(3.2, 2.0), Psx.mat(Color(0.95, 0.55, 0.35), null, Vector2.ONE, 1.6), Vector3(0, 1.0, -3.48), world)
-	Psx.quad(Vector2(3.2, 0.6), Psx.mat(Color(0.35, 0.25, 0.45), null, Vector2.ONE, 1.2), Vector3(0, 2.3, -3.47), world)
-	Psx.box(Vector3(3.3, 0.3, 0.1), Psx.mat(Color(0.7, 0.68, 0.62), Psx.tex("corrugatedsteel009")), Vector3(0, 2.6, -3.3), world)
+	_setup(Color(0.95, 0.75, 0.55), Color(0.7, 0.62, 0.58), 1.15, 9.0, 34.0)
+	var door := Rect2(0, 0, 3.6, 2.3)
+	_room(6.5, 6, 2.8, "concrete034", Color(0.8, 0.77, 0.72), "paintedwood009c", Color(0.85, 0.82, 0.72), 1.0, door)
+	# Rolled-up door overhead.
+	Psx.box(Vector3(3.7, 0.35, 0.3), Psx.mat(Color(0.85, 0.85, 0.82), Psx.tex("corrugatedsteel009"), Vector2(3, 1)), Vector3(0, 2.55, -3.3), world)
+	_sky(-40, 90, 30, Color(0.35, 0.55, 0.9), Color(1.0, 0.8, 0.6))
+	_ground("concrete047a", Color(0.85, 0.82, 0.78), Vector2(4, 6), Vector3(0, 0.005, -6.5), 0.5)
+	_ground("grass004", Color(0.8, 0.95, 0.7), Vector2(40, 6), Vector3(0, 0, -6.5), 0.4)
+	_prop("car/suv", Vector3(0.3, 0, -7.2), 10, 0.0, Color.WHITE, 4.3)
+	_prop("nature/plant_bushLarge", Vector3(-3.0, 0, -4.4), 0, 0.9, Color(0.7, 1.0, 0.6))
+	_prop("nature/flower_yellowC", Vector3(2.6, 0, -4.2), 0, 0.4)
+	_street(-9.5, 3)
+	_sun(-32, 200, Color(1.0, 0.85, 0.65), 1.6)
+	# Inside.
 	var table := _prop("tableCross", Vector3(0, 0, 0), 0, 0.0, Color.WHITE, 2.0)
 	_lay_items(items, Vector3(0, _top(table), 0.0), 1.7, 0.32, 4)
-	_prop("cardboardBoxOpen", Vector3(-1.6, 0, 0.4), 30, 0.45)
-	_prop("cardboardBoxClosed", Vector3(1.7, 0, 0.3), -20, 0.5)
-	_prop("cardboardBoxClosed", Vector3(1.65, 0.5, 0.3), 5, 0.4)
-	_prop("bookcaseOpenLow", Vector3(-1.8, 0, -1.8), 20, 0.9)
-	_prop("kitchenFridgeSmall", Vector3(2.2, 0, -2.0), -30, 1.0)
-	_prop("trashcan", Vector3(1.2, 0, -2.6), 0, 0.7)
-	_prop("radio", Vector3(-1.8, 0.9, -1.8), 20, 0.25)
-	_bulb(Vector3(0, 1.85, 0.1), Color(1.0, 0.78, 0.5), 2.8, 4.5, 2.8)
-	_light(Vector3(0, 1.0, -3.0), Color(1.0, 0.55, 0.3), 1.5, 4.0)
+	var sign := Label3D.new()
+	sign.text = "GARAGE SALE\nEVERYTHING MUST GO"
+	sign.font = FONT
+	sign.font_size = 40
+	sign.pixel_size = 0.004
+	sign.modulate = Color(0.9, 0.15, 0.1)
+	sign.outline_size = 0
+	sign.position = Vector3(-1.9, 1.25, -0.4)
+	sign.rotation_degrees.y = 20
+	world.add_child(sign)
+	var board := Psx.box(Vector3(0.9, 0.55, 0.02), Psx.mat(Color(0.85, 0.7, 0.45), Psx.tex("cardboard002")), Vector3(-1.905, 1.25, -0.42), world)
+	board.rotation_degrees.y = 20
+	Psx.cyl(0.02, 1.0, Psx.mat(Color(0.5, 0.4, 0.3)), Vector3(-1.9, 0.5, -0.43), world, 4)
+	_prop("cardboardBoxOpen", Vector3(-1.5, 0, 0.5), 30, 0.45)
+	_prop("cardboardBoxClosed", Vector3(1.8, 0, 0.3), -20, 0.5)
+	_prop("cardboardBoxClosed", Vector3(1.75, 0.5, 0.3), 5, 0.4)
+	_prop("bookcaseOpenLow", Vector3(-2.6, 0, -1.8), 70, 0.9)
+	_prop("books", Vector3(-2.6, 0.9, -1.8), 70, 0.25)
+	_prop("washer", Vector3(2.85, 0, -2.4), -90, 0.9)
+	_prop("dryer", Vector3(2.85, 0, -1.6), -90, 0.9)
+	_prop("kitchenFridgeSmall", Vector3(2.85, 0, -0.6), -90, 1.0)
+	_prop("shop/hand-truck", Vector3(-2.6, 0, 0.6), 40, 1.2)
+	_prop("bear", Vector3(1.8, 0.9, 0.3), -10, 0.3)
+	_prop("radio", Vector3(-2.6, 0.9, -1.4), 70, 0.25)
+	_person(Vector3(-1.7, 0, -2.3), 25, Color(1.0, 0.85, 0.8))
+	_bulb(Vector3(0, 1.9, 0.2), Color(1.0, 0.85, 0.6), 2.6, 5.0, 2.8)
+	_light(Vector3(0, 1.8, -2.4), Color(1.0, 0.8, 0.6), 1.8, 5.0)
 	_view(Vector3(0, 1.45, 1.75), Vector3(0, 0.85, -0.05))
 
 
 func _flea(items: Array) -> void:
-	_setup(Color(0.04, 0.04, 0.09), Color(0.3, 0.3, 0.5), 0.7, 3.0, 11.0)
-	_room(8, 8, 4.0, "concrete047a", Color(0.45, 0.45, 0.48), "bricks105", Color(0.35, 0.3, 0.35))
-	# Canopy over the stall.
-	var tarp := Psx.mat(Color(0.75, 0.2, 0.2), Psx.tex("fabric028"), Vector2(2, 1))
-	var roof := Psx.box(Vector3(2.8, 0.04, 1.6), tarp, Vector3(0, 2.2, -0.1), world)
+	_setup(Color(0.75, 0.85, 0.95), Color(0.75, 0.75, 0.8), 1.2, 10.0, 40.0)
+	_sky(-50, 120, 40, Color(0.3, 0.55, 0.95), Color(0.85, 0.92, 1.0))
+	_ground("asphalt012", Color(0.7, 0.7, 0.72), Vector2(40, 30), Vector3(0, 0, -10), 0.25)
+	for k in 8:
+		Psx.box(Vector3(0.1, 0.01, 4.0), Psx.mat(Color(0.95, 0.95, 0.9)), Vector3(-10 + k * 2.8, 0.01, -12.5), world)
+	_sun(-50, 150, Color(1.0, 0.95, 0.85), 1.5)
+	# Our stall with a striped canopy.
+	var tarp := Psx.mat(Color(0.95, 0.3, 0.25), Psx.tex("fabric028"), Vector2(2, 1))
+	var roof := Psx.box(Vector3(2.8, 0.04, 1.7), tarp, Vector3(0, 2.2, -0.1), world)
 	roof.rotation_degrees.x = 8.0
 	for x in [-1.35, 1.35]:
-		for z in [-0.8, 0.6]:
-			Psx.cyl(0.025, 2.2, Psx.mat(Color(0.6, 0.6, 0.62)), Vector3(x, 1.1, z), world, 6)
+		for z in [-0.85, 0.65]:
+			Psx.cyl(0.025, 2.2, Psx.mat(Color(0.75, 0.75, 0.78)), Vector3(x, 1.1, z), world, 6)
 	var table := _prop("tableCloth", Vector3(0, 0, 0), 0, 0.0, Color(1, 1, 1), 2.1)
 	_lay_items(items, Vector3(0, _top(table), 0.0), 1.8, 0.32, 4)
-	# Other stalls in the dark.
-	for i in 3:
-		var x := -2.6 + i * 2.6
-		var t := _prop("tableCross", Vector3(x, 0, -2.6), 0, 0.0, Color(0.8, 0.8, 0.8), 1.6)
-		_prop("cardboardBoxOpen", Vector3(x + 0.3, _top(t), -2.6), 15 * i, 0.35)
-	# String lights.
-	for k in 9:
-		var x := -2.0 + k * 0.5
-		var y := 2.15 - sin(float(k) / 8.0 * PI) * 0.25
-		var c: Color = [Color(1, 0.8, 0.4), Color(1, 0.4, 0.4), Color(0.5, 0.8, 1)][k % 3]
-		Psx.cyl(0.035, 0.07, Psx.mat(c, null, Vector2.ONE, 3.0), Vector3(x, y, 0.75), world, 6)
-	_light(Vector3(0, 1.9, 0.6), Color(1.0, 0.8, 0.55), 2.4, 4.0, 0.06)
-	_light(Vector3(-2.5, 1.5, -2.2), Color(0.5, 0.6, 1.0), 1.0, 3.0)
-	_light(Vector3(2.5, 1.5, -2.2), Color(1.0, 0.5, 0.4), 1.0, 3.0)
+	_person(Vector3(1.15, 0, -1.25), -15, Color(0.9, 0.95, 1.0))
+	_prop("cardboardBoxOpen", Vector3(-1.4, 0, -0.7), 20, 0.45)
+	# Other stalls under parasols.
+	var r := RandomNumberGenerator.new()
+	r.seed = 21
+	for i in 5:
+		var x := -6.0 + i * 3.0
+		var z := -3.6 - (i % 2) * 1.2
+		var t := _prop("tableCross", Vector3(x, 0, z), 0, 0.0, Color(0.95, 0.95, 0.95), 1.7)
+		_decor_stock(Vector3(x, 0, z), 1.5, [_top(t)], 40 + i, 4, i % 2 == 0)
+		_prop("city/detail-parasol-" + ("a" if i % 2 == 0 else "b"), Vector3(x, 0, z - 0.3), 0, 2.6, Color.from_hsv(r.randf(), 0.5, 1.0))
+		_person(Vector3(x + 0.4, 0, z - 0.8), 0, Color.from_hsv(r.randf(), 0.3, 1.0))
+		_prop("cardboardBoxClosed", Vector3(x - 0.8, 0, z - 0.5), r.randf_range(0, 90), 0.4)
+	for i in 4:
+		var px: float = [-4.6, -2.4, 2.4, 4.6][i] + r.randf_range(-0.3, 0.3)
+		_person(Vector3(px, 0, -2.6 + r.randf_range(-0.3, 0.3)), r.randf_range(120, 240), Color.from_hsv(r.randf(), 0.35, 1.0))
+	var cars := ["car/van", "car/truck", "car/sedan", "car/suv", "car/delivery"]
+	for i in 5:
+		_prop(cars[i], Vector3(-8.5 + i * 4.2, 0, -10.5), 180 + r.randf_range(-6, 6), 0.0, Color.WHITE, 4.3)
+	_prop("car/cone", Vector3(2.4, 0, -1.6), 0, 0.5)
+	_prop("car/cone", Vector3(-2.5, 0, -1.8), 0, 0.5)
+	for i in 6:
+		_prop(["nature/tree_oak_dark", "nature/tree_detailed", "suburb/tree-large"][i % 3], Vector3(-12 + i * 4.8, 0, -15.5), r.randf_range(0, 360), r.randf_range(4.5, 6.5), Color(0.75, 1.0, 0.7))
+	_skyline(-24, 8, Color(0.75, 0.8, 0.95))
 	_view(Vector3(0, 1.5, 1.8), Vector3(0, 0.85, -0.05))
 
 
 func _estate(items: Array) -> void:
-	_setup(Color(0.05, 0.04, 0.03), Color(0.4, 0.35, 0.3), 0.6, 3.5, 10.0)
-	_room(6, 6, 2.8, "woodfloor043", Color(0.8, 0.7, 0.6), "wallpaper001a", Color(0.45, 0.55, 0.42))
-	var table := _prop("table", Vector3(0, 0, 0), 0, 0.0, Color(0.8, 0.6, 0.45), 1.9)
+	_setup(Color(0.8, 0.88, 0.95), Color(0.7, 0.65, 0.6), 1.1, 9.0, 30.0)
+	var hole := Rect2(0.9, 0.9, 2.2, 1.5)
+	_room(7, 6, 2.9, "woodfloor043", Color(0.95, 0.85, 0.75), "wallpaper001a", Color(0.62, 0.75, 0.6), 1.0, hole, Color(0.85, 0.82, 0.78))
+	_window_bars(hole, -3.5, 3, 2)
+	_sky(-40, 90, 30, Color(0.4, 0.6, 0.95), Color(0.9, 0.95, 1.0))
+	_ground("grass004", Color(0.8, 1.0, 0.7), Vector2(40, 30), Vector3(0, -0.01, -18), 0.4)
+	for k in 6:
+		_prop("nature/fence_simple", Vector3(-6 + k * 2.2, 0, -7.5), 0, 0.0, Color.WHITE, 2.2)
+	for k in 5:
+		_prop(["nature/tree_oak_dark", "nature/tree_detailed", "nature/tree_default"][k % 3], Vector3(-6 + k * 3.2, 0, -10 - (k % 2) * 2.5), k * 70, 5.0 + k * 0.4, Color(0.75, 1.0, 0.7))
+	for k in 4:
+		_prop("nature/plant_bushLarge", Vector3(-3 + k * 2.0, 0, -5.5), k * 40, 0.9, Color(0.7, 1.0, 0.6))
+	_prop("nature/flower_purpleB", Vector3(1.2, 0, -4.6), 0, 0.4)
+	_sun(-38, 205, Color(1.0, 0.95, 0.85), 1.4)
+	var table := _prop("table", Vector3(0, 0, 0), 0, 0.0, Color(0.85, 0.65, 0.5), 1.9)
 	_lay_items(items, Vector3(0, _top(table), 0.0), 1.6, 0.32, 4)
-	_prop("couch", Vector3(-1.8, 0, -1.6), 25, 0.0, Color(0.6, 0.45, 0.5), 1.7)
-	_prop("bookcase", Vector3(1.6, 0, -2.4), -10, 1.9)
-	_prop("frame", Vector3(-0.4, 1.4, -3.45), 0, 0.0, Color.WHITE, 0.8)
-	_prop("coatRackStanding", Vector3(2.3, 0, -0.6), 0, 1.7)
-	_prop("lampRoundTable", Vector3(-1.0, 0, -2.6), 0, 1.2)
-	_prop("rugRectangle", Vector3(0, 0.005, 0.2), 90, 0.0, Color(0.6, 0.3, 0.3), 2.6)
-	# Dusty sheet over something.
-	var sheet := Psx.box(Vector3(1.0, 0.9, 0.7), Psx.mat(Color(0.85, 0.84, 0.8), Psx.tex("fabric086")), Vector3(0.4, 0.45, -2.6), world)
+	_prop("couch", Vector3(-2.3, 0, -1.8), 35, 0.0, Color(0.75, 0.5, 0.55), 1.8)
+	_prop("loungeChair", Vector3(2.5, 0, -0.6), -60, 0.0, Color(0.7, 0.55, 0.45), 0.9)
+	_prop("bookcase", Vector3(-1.6, 0, -3.25), 0, 1.9)
+	_prop("tableCoffee", Vector3(-1.6, 0, -0.9), 20, 0.0, Color(0.8, 0.6, 0.45), 1.0)
+	_prop("lampRoundTable", Vector3(-1.6, _top_at(-1.6, -0.9), -0.9), 0, 0.5)
+	_prop("coatRackStanding", Vector3(3.0, 0, -2.6), 0, 1.7)
+	_prop("rugRound", Vector3(-1.6, 0.005, -0.9), 0, 0.0, Color(0.7, 0.35, 0.35), 2.4)
+	_prop("pottedPlant", Vector3(2.9, 0, 0.8), 0, 1.0)
+	_prop("ceilingFan", Vector3(0, 2.9, -0.6), 0, 0.0, Color.WHITE, 1.2)
+	var ids := _poster_ids(31, 3)
+	_poster(Vector3(-3.48, 1.6, -1.6), 90, Vector2(0.6, 0.75), ids[0])
+	_poster(Vector3(-3.48, 1.6, -0.3), 90, Vector2(0.5, 0.6), ids[1])
+	_poster(Vector3(3.48, 1.7, -1.8), -90, Vector2(0.7, 0.85), ids[2])
+	var sheet := Psx.box(Vector3(1.0, 0.9, 0.7), Psx.mat(Color(0.95, 0.94, 0.9), Psx.tex("fabric086")), Vector3(2.0, 0.45, -2.9), world)
 	sheet.rotation_degrees.y = 12.0
-	_bulb(Vector3(0, 1.9, 0.05), Color(1.0, 0.72, 0.45), 2.2, 4.0, 2.8, 0.05)
-	_light(Vector3(-1.0, 1.3, -2.4), Color(1.0, 0.8, 0.5), 0.9, 2.5)
-	_spot(Vector3(2.8, 2.4, 0.5), Vector3(0, 0.5, -1), Color(0.5, 0.65, 1.0), 1.2, 35)
+	_bulb(Vector3(0, 2.0, 0.05), Color(1.0, 0.85, 0.6), 2.4, 5.0, 2.9, 0.03)
+	_light(Vector3(0.9, 1.6, -2.8), Color(0.85, 0.92, 1.0), 2.0, 5.0)
 	_view(Vector3(0, 1.45, 1.75), Vector3(0, 0.85, -0.05))
 
 
 func _storage(items: Array) -> void:
-	_setup(Color(0.02, 0.025, 0.03), Color(0.3, 0.33, 0.38), 0.45, 2.5, 8.0)
-	_room(4.2, 6, 2.6, "concrete047a", Color(0.5, 0.5, 0.5), "corrugatedsteel009", Color(0.55, 0.58, 0.62), 1.5)
-	# The roll-up door, half open overhead.
-	Psx.box(Vector3(4.2, 0.5, 0.1), Psx.mat(Color(0.7, 0.45, 0.2), Psx.tex("corrugatedsteel009"), Vector2(3, 1)), Vector3(0, 2.4, 2.2), world)
+	_setup(Color(0.35, 0.3, 0.45), Color(0.55, 0.55, 0.65), 1.0, 8.0, 28.0)
+	_sky(-40, 90, 30, Color(0.15, 0.15, 0.35), Color(0.95, 0.55, 0.45))
+	_ground("asphalt012", Color(0.65, 0.65, 0.68), Vector2(30, 30), Vector3(0, 0, -6), 0.25)
+	# Our unit: open, packed with junk.
+	var steel := Psx.mat(Color(0.75, 0.78, 0.82), Psx.tex("corrugatedsteel009"), Vector2(3, 2))
+	var unit := Node3D.new()
+	unit.position = Vector3(0, 0, -1.6)
+	world.add_child(unit)
+	Psx.quad(Vector2(3.2, 2.6), steel, Vector3(0, 1.3, -1.6), unit)
+	for sx in [-1.0, 1.0]:
+		var sw := Psx.quad(Vector2(3.2, 2.6), steel, Vector3(sx * 1.6, 1.3, 0), unit)
+		sw.rotation_degrees.y = -90.0 * sx
+	var top := Psx.quad(Vector2(3.2, 3.2), Psx.mat(Color(0.4, 0.4, 0.42)), Vector3(0, 2.6, 0), unit)
+	top.rotation_degrees.x = 90.0
+	Psx.box(Vector3(3.3, 0.4, 0.15), Psx.mat(Color(0.95, 0.55, 0.2), Psx.tex("corrugatedsteel009"), Vector2(3, 1)), Vector3(0, 2.45, 1.6), unit)
+	_neon("UNIT 13", Vector3(0, 2.85, -0.0), Color(1.0, 0.85, 0.4), 48)
+	var crate_tex: Texture2D = load("res://assets/models/props/crate_tex.png")
 	for i in 4:
-		var c := _prop("crate", Vector3(-1.4 + (i % 2) * 0.62, (i / 2) * 0.62, -1.9), i * 7, 0.6, Color.WHITE, 0.0, load("res://assets/models/props/crate_tex.png"))
-		c.rotation_degrees.y = i * 9.0
-	_prop("MetalShelving", Vector3(1.5, 0, -2.3), 0, 1.9, Color(0.55, 0.55, 0.6))
-	_prop("StorageTub", Vector3(1.2, 0, -0.9), -20, 0.45, Color(0.3, 0.4, 0.6))
-	_prop("loungeSofa", Vector3(-1.4, 0, -0.6), 80, 0.0, Color(0.4, 0.4, 0.3), 1.4)
-	# The lots: closed boxes on a pallet, or the items if they're known.
-	Psx.box(Vector3(1.6, 0.14, 1.0), Psx.mat(Color(0.7, 0.6, 0.45), Psx.tex("wood092"), Vector2(3, 1)), Vector3(0, 0.07, 0.2), world)
+		_prop("crate", Vector3(-1.0 + (i % 2) * 0.62, (i / 2) * 0.62, -2.7), i * 9, 0.6, Color.WHITE, 0.0, crate_tex)
+	_prop("loungeSofa", Vector3(0.7, 0, -2.6), 0, 0.0, Color(0.55, 0.55, 0.4), 1.4)
+	_prop("bear", Vector3(0.5, 0.45, -2.6), 0, 0.3)
+	_prop("lampSquareFloor", Vector3(1.2, 0, -1.6), 0, 1.4)
+	_prop("televisionVintage", Vector3(-1.2, 0, -1.4), 40, 0.6)
+	_prop("StorageTub", Vector3(1.1, 0, -0.6), -20, 0.45, Color(0.3, 0.45, 0.7))
+	# Neighbouring units, doors down.
+	for sx in [-1.0, 1.0]:
+		for k in 2:
+			var x: float = sx * (3.4 + k * 3.3)
+			Psx.box(Vector3(3.2, 2.6, 0.1), Psx.mat(Color(0.95, 0.55, 0.2), Psx.tex("corrugatedsteel009"), Vector2(3, 2)), Vector3(x, 1.3, -1.6), world)
+			Psx.box(Vector3(3.3, 0.6, 0.3), Psx.mat(Color(0.8, 0.8, 0.8)), Vector3(x, 2.9, -1.6), world)
+	Psx.box(Vector3(30, 0.6, 0.3), Psx.mat(Color(0.8, 0.8, 0.8)), Vector3(0, 2.9, -1.55), world)
+	# Lots on a pallet in the aisle.
+	_prop("urban/pallet", Vector3(0, 0, 0.2), 0, 0.0, Color.WHITE, 1.6)
 	if items.is_empty():
 		for i in 3:
-			var b := _prop("cardboardBoxClosed", Vector3(-0.5 + i * 0.5, 0.14, 0.2), i * 13.0 - 10.0, 0.42)
+			var b := _prop("cardboardBoxClosed", Vector3(-0.5 + i * 0.5, 0.15, 0.2), i * 13.0 - 10.0, 0.42)
 			_items.append(b)
 	else:
-		_lay_items(items, Vector3(0, 0.14, 0.2), 1.4, 0.35, 4)
-	_spot(Vector3(0.3, 2.5, 1.6), Vector3(0, 0.2, 0.0), Color(1.0, 0.95, 0.8), 4.0, 26)
-	_light(Vector3(0, 2.4, -1.0), Color(0.75, 0.9, 1.0), 1.4, 4.0, 0.3)
-	_view(Vector3(0, 1.55, 2.0), Vector3(0, 0.45, -0.1))
+		_lay_items(items, Vector3(0, 0.15, 0.2), 1.4, 0.35, 4)
+	_person(Vector3(-2.3, 0, -0.3), 50, Color(0.9, 0.9, 1.0))
+	_prop("urban/detail-light-double", Vector3(-4.5, 0, 1.5), 90, 4.0)
+	_prop("urban/detail-light-double", Vector3(4.5, 0, 1.5), -90, 4.0)
+	_prop("urban/truck-grey", Vector3(5.0, 0, 3.5), 100, 0.0, Color.WHITE, 5.0)
+	_prop("urban/detail-dumpster-closed", Vector3(-5.5, 0, 2.5), 80, 0.0, Color.WHITE, 2.0)
+	_spot(Vector3(0.3, 3.2, 1.8), Vector3(0, 0.2, -0.5), Color(1.0, 0.95, 0.8), 5.0, 32, 8.0)
+	_light(Vector3(0, 2.3, -2.0), Color(1.0, 0.85, 0.6), 2.2, 4.0, 0.15)
+	_light(Vector3(-4.5, 3.8, 1.0), Color(1.0, 0.8, 0.5), 2.0, 6.0)
+	_light(Vector3(4.5, 3.8, 1.0), Color(1.0, 0.8, 0.5), 2.0, 6.0)
+	_view(Vector3(0, 1.6, 2.2), Vector3(0, 0.55, -0.3))
 
 
 func _retro(items: Array) -> void:
-	_setup(Color(0.05, 0.03, 0.07), Color(0.4, 0.35, 0.5), 0.7, 3.5, 11.0)
-	_room(6, 6, 2.8, "tiles139", Color(0.6, 0.55, 0.6), "bricks105", Color(0.45, 0.38, 0.45), 1.3)
+	_setup(Color(0.12, 0.1, 0.16), Color(0.75, 0.7, 0.8), 1.2, 7.0, 22.0)
+	_room(8, 6.5, 3.0, "tiles139", Color(0.9, 0.85, 0.9), "bricks105", Color(0.75, 0.6, 0.65), 1.3, Rect2(), Color(0.6, 0.6, 0.65))
 	for i in 3:
-		var x := -1.9 + i * 1.9
-		var tops := _shelf_unit(Vector3(x, 0, -3.1), 1.7, 4, 0.42, Color(0.55, 0.45, 0.4))
-		_decor_stock(Vector3(x, 0, -3.05), 1.7, tops, 100 + i)
+		var x := -2.5 + i * 2.5
+		var tops := _shelf_unit(Vector3(x, 0, -3.6), 2.3, 4, 0.42, Color(0.6, 0.48, 0.42))
+		_decor_stock(Vector3(x, 0, -3.55), 2.3, tops, 100 + i, 7)
+	for sx in [-1.0, 1.0]:
+		var side := Node3D.new()
+		side.position = Vector3(sx * 3.75, 0, -1.6)
+		side.rotation_degrees.y = -90.0 * sx
+		world.add_child(side)
+		var tops2 := _shelf_unit_at(side, 2.6, 4, 0.42)
+		_decor_stock_at(side, 2.6, tops2, 150 + int(sx), 7)
+	var ids := _poster_ids(12, 5)
+	for k in 5:
+		_poster(Vector3(-3.0 + k * 1.5, 2.45, -3.98), 0, Vector2(0.5, 0.55), ids[k])
 	# Glass counter.
-	Psx.box(Vector3(2.4, 0.9, 0.7), Psx.mat(Color(0.25, 0.22, 0.28), Psx.tex("metalplates006")), Vector3(0, 0.45, 0), world)
-	Psx.box(Vector3(2.45, 0.04, 0.75), Psx.mat(Color(0.55, 0.75, 0.8), null, Vector2.ONE, 0.3), Vector3(0, 0.92, 0), world)
-	_lay_items(items, Vector3(0, 0.94, 0.0), 2.0, 0.3, 4)
-	_crt(Vector3(-1.5, 0.94, -0.1), 0.45, Color(0.5, 0.9, 0.6), 25)
-	_neon("GAMES", Vector3(1.2, 2.1, -2.6), Color(1.0, 0.3, 0.7), 96)
-	_neon("BUY  SELL  TRADE", Vector3(-1.3, 2.25, -2.6), Color(0.3, 0.8, 1.0), 40)
-	_light(Vector3(0, 2.6, 0.2), Color(0.95, 0.95, 1.0), 2.2, 4.0, 0.05)
-	_light(Vector3(0, 2.2, -2.2), Color(1.0, 0.85, 0.75), 1.4, 3.5)
+	Psx.box(Vector3(2.6, 0.9, 0.7), Psx.mat(Color(0.35, 0.3, 0.4), Psx.tex("metalplates006")), Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.85, 0.9), null, Vector2.ONE, 0.35), Vector3(0, 0.92, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
+	_person(Vector3(1.0, 0, -1.3), -10, Color(0.85, 0.95, 1.0))
+	_crt(Vector3(-1.6, 0.94, -0.1), 0.45, Color(0.5, 0.95, 0.6), 25)
+	_prop("shop/gacha-machine", Vector3(-3.0, 0, 0.4), 60, 1.4)
+	_prop("shop/gacha-machine", Vector3(-3.0, 0, 1.2), 70, 1.4)
+	_prop("shop/shopping-basket", Vector3(2.6, 0, 0.6), 0, 0.35)
+	_neon("GAMES", Vector3(1.6, 2.65, -3.9), Color(1.0, 0.3, 0.7), 96)
+	_neon("BUY  SELL  TRADE", Vector3(-1.4, 2.75, -3.9), Color(0.3, 0.8, 1.0), 40)
+	for x in [-2.0, 0.0, 2.0]:
+		_panel_light(Vector3(x, 2.95, -0.8), 1.4, Color(0.95, 0.97, 1.0), 5.0, 0.03 if x == 2.0 else 0.0)
+	_light(Vector3(0, 2.4, -2.8), Color(1.0, 0.9, 0.8), 1.8, 5.0)
 	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
 
 
 func _pawn(items: Array) -> void:
-	_setup(Color(0.04, 0.045, 0.035), Color(0.4, 0.42, 0.35), 0.6, 3.5, 10.0)
-	_room(6, 6, 2.8, "concrete034", Color(0.55, 0.55, 0.5), "plaster001", Color(0.6, 0.6, 0.45))
-	_prop("MetalShelving", Vector3(-1.8, 0, -2.8), 0, 2.0, Color(0.5, 0.5, 0.55))
-	_prop("MetalShelving", Vector3(1.8, 0, -2.8), 0, 2.0, Color(0.5, 0.5, 0.55))
-	_prop("radio", Vector3(-1.8, 1.02, -2.7), 10, 0.3)
-	_prop("speaker", Vector3(1.6, 0, -2.0), -20, 1.0)
-	_prop("lampRoundTable", Vector3(2.0, 0.98, -2.7), 0, 0.5)
-	_crt(Vector3(-2.0, 0.5, -2.7), 0.4, Color(0.6, 0.7, 0.9))
-	# Barred window on the back wall.
-	Psx.quad(Vector2(1.4, 0.9), Psx.mat(Color(0.3, 0.45, 0.7), null, Vector2.ONE, 0.9), Vector3(0, 1.6, -3.48), world)
-	for k in 7:
-		Psx.cyl(0.02, 0.95, Psx.mat(Color(0.2, 0.2, 0.2)), Vector3(-0.6 + k * 0.2, 1.6, -3.42), world, 4)
-	Psx.box(Vector3(2.4, 0.95, 0.7), Psx.mat(Color(0.55, 0.45, 0.35), Psx.tex("wood092")), Vector3(0, 0.475, 0), world)
-	Psx.box(Vector3(2.45, 0.04, 0.75), Psx.mat(Color(0.5, 0.7, 0.75), null, Vector2.ONE, 0.2), Vector3(0, 0.97, 0), world)
-	_lay_items(items, Vector3(0, 0.99, 0.0), 2.0, 0.3, 4)
-	_neon("PAWN", Vector3(0, 2.35, -3.3), Color(1.0, 0.85, 0.2), 110)
-	_light(Vector3(0, 2.5, 0.3), Color(0.85, 1.0, 0.85), 2.2, 4.5, 0.25)
+	_setup(Color(0.7, 0.75, 0.85), Color(0.68, 0.7, 0.62), 1.1, 8.0, 28.0)
+	var hole := Rect2(-1.2, 1.0, 2.0, 1.3)
+	_room(7, 6, 2.9, "concrete034", Color(0.8, 0.8, 0.75), "plaster001", Color(0.8, 0.78, 0.6), 1.0, hole)
+	for k in 9:
+		Psx.cyl(0.02, 1.3, Psx.mat(Color(0.25, 0.25, 0.25)), Vector3(-2.1 + k * 0.225, 1.65, -3.42), world, 4)
+	_sky(-40, 90, 30, Color(0.45, 0.6, 0.85), Color(0.9, 0.9, 0.95))
+	_ground("pavingstones070", Color(0.85, 0.83, 0.8), Vector2(30, 4), Vector3(0, 0, -5.5), 0.6)
+	_ground("asphalt012", Color(0.6, 0.6, 0.62), Vector2(30, 8), Vector3(0, -0.01, -11), 0.25)
+	_prop("car/taxi", Vector3(-2.0, 0, -9.0), 90, 0.0, Color.WHITE, 4.3)
+	for k in 4:
+		var w: String = ["urban/wall-a-window", "urban/wall-b-window", "urban/wall-a", "urban/wall-a-garage"][k]
+		_prop(w, Vector3(-6 + k * 4.0, 0, -16), 0, 4.0)
+		_prop(w, Vector3(-6 + k * 4.0, 4.0, -16), 0, 4.0)
+	_prop("urban/detail-dumpster-closed", Vector3(2.5, 0, -14.6), 0, 0.0, Color.WHITE, 2.0)
+	_sun(-45, 200, Color(1.0, 0.95, 0.85), 1.2)
+	_prop("MetalShelving", Vector3(1.6, 0, -3.1), 0, 2.1, Color(0.6, 0.6, 0.65))
+	_prop("televisionVintage", Vector3(1.2, 0.0, -3.0), 0, 0.5)
+	_prop("radio", Vector3(1.6, 0.75, -3.0), 10, 0.3)
+	_prop("laptop", Vector3(2.0, 0.75, -3.0), -10, 0.15)
+	_prop("kitchenMicrowave", Vector3(1.4, 1.45, -3.0), 0, 0.3)
+	_prop("speakerSmall", Vector3(2.1, 1.45, -3.0), 0, 0.35)
+	_prop("speaker", Vector3(3.1, 0, -2.0), -60, 1.1)
+	_prop("lampSquareFloor", Vector3(3.1, 0, -0.6), 0, 1.5)
+	_prop("bear", Vector3(1.6, 1.45, -3.0), 0, 0.3)
+	_prop("kitchenCoffeeMachine", Vector3(-3.0, 0.95, -1.0), 90, 0.35)
+	_prop("sideTableDrawers", Vector3(-3.0, 0, -1.0), 90, 0.95)
+	_crt(Vector3(-2.9, 0, -2.4), 0.5, Color(0.6, 0.75, 1.0), 60)
+	# Counter.
+	Psx.box(Vector3(2.6, 0.95, 0.7), Psx.mat(Color(0.7, 0.55, 0.4), Psx.tex("wood092")), Vector3(0, 0.475, 0), world)
+	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.8, 0.85), null, Vector2.ONE, 0.25), Vector3(0, 0.97, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.99, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.1, 0.99, -0.1), -20, 0.35)
+	_person(Vector3(-1.0, 0, -1.3), 10, Color(1.0, 0.9, 0.75))
+	_neon("PAWN", Vector3(1.2, 2.45, -3.4), Color(1.0, 0.85, 0.2), 110)
+	_panel_light(Vector3(0, 2.85, -0.6), 2.0, Color(0.9, 1.0, 0.9), 6.0, 0.2)
+	_panel_light(Vector3(0, 2.85, -2.4), 1.4, Color(0.9, 1.0, 0.9), 5.0)
 	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
 
 
 func _convention(items: Array) -> void:
-	_setup(Color(0.05, 0.03, 0.08), Color(0.45, 0.35, 0.55), 0.8, 4.0, 13.0)
-	_room(9, 9, 4.5, "carpet012", Color(0.5, 0.5, 0.7), "plaster001", Color(0.3, 0.25, 0.4), 1.4)
-	var table := _prop("tableCloth", Vector3(0, 0, 0), 0, 0.0, Color(0.6, 0.6, 1.0), 2.2)
+	_setup(Color(0.2, 0.15, 0.3), Color(0.75, 0.68, 0.85), 1.25, 9.0, 30.0)
+	_room(14, 12, 5.5, "carpet012", Color(0.65, 0.65, 0.95), "plaster001", Color(0.55, 0.5, 0.7), 1.4, Rect2(), Color(0.3, 0.28, 0.35))
+	var table := _prop("tableCloth", Vector3(0, 0, 0), 0, 0.0, Color(0.7, 0.7, 1.0), 2.2)
 	_lay_items(items, Vector3(0, _top(table), 0.0), 1.9, 0.32, 4)
-	# Booth backdrop + banner.
-	Psx.box(Vector3(3.0, 2.2, 0.05), Psx.mat(Color(0.2, 0.15, 0.35), Psx.tex("fabric086")), Vector3(0, 1.1, -1.2), world)
+	Psx.box(Vector3(3.0, 2.2, 0.05), Psx.mat(Color(0.3, 0.2, 0.5), Psx.tex("fabric086")), Vector3(0, 1.1, -1.2), world)
 	_neon("COLLECTOR CON", Vector3(0, 1.85, -1.15), Color(1.0, 0.4, 0.75), 70)
-	for i in 2:
-		var x := -3.0 + i * 6.0
-		var t := _prop("tableCloth", Vector3(x, 0, -3.0), 0, 0.0, Color(0.8, 0.6, 0.6), 1.8)
-		var tops := [_top(t)]
-		_decor_stock(Vector3(x, 0, -3.0), 1.6, tops, 300 + i, 4, true)
-	_spot(Vector3(-1.5, 3.5, 1.5), Vector3(0, 0.8, 0), Color(1.0, 0.5, 0.85), 3.0, 28, 8.0)
-	_spot(Vector3(1.5, 3.5, 1.5), Vector3(0, 0.8, 0), Color(0.5, 0.7, 1.0), 3.0, 28, 8.0)
-	_light(Vector3(0, 3.0, -2.5), Color(0.8, 0.7, 1.0), 1.5, 6.0)
+	_person(Vector3(1.3, 0, -0.85), -15, Color(0.95, 0.85, 1.0))
+	var r := RandomNumberGenerator.new()
+	r.seed = 55
+	for i in 4:
+		var x := -6.0 + i * 4.0
+		var z := -5.5
+		var t := _prop("tableCloth", Vector3(x, 0, z), 0, 0.0, Color.from_hsv(r.randf(), 0.35, 1.0), 2.0)
+		_decor_stock(Vector3(x, 0, z), 1.8, [_top(t)], 300 + i, 5, true)
+		var banner := Color.from_hsv(r.randf(), 0.6, 0.9)
+		Psx.box(Vector3(2.6, 1.6, 0.05), Psx.mat(banner, Psx.tex("fabric086")), Vector3(x, 1.8, z - 0.9), world)
+		var ids := _poster_ids(400 + i, 2)
+		_poster(Vector3(x - 0.6, 1.9, z - 0.86), 0, Vector2(0.55, 0.65), ids[0])
+		_poster(Vector3(x + 0.6, 1.9, z - 0.86), 0, Vector2(0.55, 0.65), ids[1])
+		_person(Vector3(x + 0.3, 0, z - 0.5), 0, Color.from_hsv(r.randf(), 0.3, 1.0))
+	for i in 7:
+		var cx := r.randf_range(2.0, 6.0) * (1.0 if i % 2 == 0 else -1.0)
+		_person(Vector3(cx, 0, r.randf_range(-4.4, -2.4)), r.randf_range(0, 360), Color.from_hsv(r.randf(), 0.35, 1.0))
+	_prop("shop/mannequin", Vector3(-2.6, 0, -1.4), 30, 1.75, Color(0.9, 0.6, 0.9))
+	_prop("shop/mannequin", Vector3(2.7, 0, -1.5), -30, 1.75, Color(0.6, 0.8, 1.0))
+	_prop("shop/gacha-machine", Vector3(3.6, 0, -0.2), -60, 1.4)
+	for x in [-5.0, 5.0]:
+		_prop("shop/column", Vector3(x, 0, -3.0), 0, 5.5)
+	for x in [-4.0, 0.0, 4.0]:
+		_panel_light(Vector3(x, 5.4, -3.0), 1.6, Color(1.0, 0.95, 0.9), 8.0)
+	_spot(Vector3(-1.5, 3.5, 1.5), Vector3(0, 0.8, 0), Color(1.0, 0.55, 0.85), 3.5, 28, 8.0)
+	_spot(Vector3(1.5, 3.5, 1.5), Vector3(0, 0.8, 0), Color(0.55, 0.75, 1.0), 3.5, 28, 8.0)
 	_view(Vector3(0, 1.5, 1.85), Vector3(0, 0.85, -0.1))
 
 
 func _online(items: Array) -> void:
-	_setup(Color(0.015, 0.02, 0.04), Color(0.2, 0.25, 0.45), 0.5, 2.5, 8.0)
-	_room(4.5, 5, 2.6, "carpet016", Color(0.35, 0.33, 0.4), "wallpaper001c", Color(0.25, 0.28, 0.4))
-	var desk := _prop("desk", Vector3(0, 0, -0.2), 180, 0.0, Color(0.6, 0.5, 0.45), 2.0)
+	_setup(Color(0.05, 0.06, 0.15), Color(0.55, 0.55, 0.75), 1.0, 7.0, 40.0)
+	var hole := Rect2(-0.9, 1.0, 2.0, 1.2)
+	_room(5.5, 5, 2.6, "carpet016", Color(0.6, 0.55, 0.65), "wallpaper001c", Color(0.45, 0.5, 0.7), 1.0, hole)
+	_window_bars(hole, -2.5, 2, 1)
+	_sky(-60, 140, 50, Color(0.02, 0.03, 0.12), Color(0.35, 0.2, 0.45))
+	_skyline(-22, 4, Color(0.25, 0.28, 0.45), true)
+	_ground("asphalt012", Color(0.25, 0.25, 0.3), Vector2(60, 40), Vector3(0, -6, -25), 0.2)
+	var desk := _prop("desk", Vector3(0, 0, -0.2), 180, 0.0, Color(0.7, 0.6, 0.5), 2.0)
 	var top := _top(desk)
-	_crt(Vector3(0, top, -0.5), 0.6, Color(0.4, 0.6, 1.0))
+	_crt(Vector3(0.1, top, -0.5), 0.6, Color(0.45, 0.65, 1.0))
 	var l := Label3D.new()
 	l.text = "eBuy" if scene_id == "ebay" else "LOT 0451"
 	l.font = FONT
@@ -596,41 +901,90 @@ func _online(items: Array) -> void:
 	l.pixel_size = 0.004
 	l.shaded = false
 	l.modulate = Color(1, 1, 0.6)
-	l.position = Vector3(-0.02, top + 0.3, -0.23)
+	l.position = Vector3(0.08, top + 0.3, -0.23)
 	world.add_child(l)
 	_lay_items(items, Vector3(0, top, 0.05), 1.7, 0.3, 5)
+	_prop("computerKeyboard", Vector3(0.1, top, -0.15), 180, 0.0, Color.WHITE, 0.45)
 	_prop("chairDesk", Vector3(0.9, 0, 0.9), 200, 0.9)
-	_prop("frame", Vector3(-1.2, 1.5, -2.45), 0, 0.0, Color(1, 1, 1), 0.7)
-	_prop("pottedPlant", Vector3(-1.7, 0, -1.6), 0, 0.8)
-	_prop("cardboardBoxClosed", Vector3(1.6, 0, -1.4), 30, 0.45)
-	_prop("cardboardBoxClosed", Vector3(1.6, 0.45, -1.4), 10, 0.35)
-	_light(Vector3(1.4, 1.7, 0.4), Color(1.0, 0.7, 0.4), 0.8, 3.0)
+	_prop("bedSingle", Vector3(-2.0, 0, -1.6), 90, 0.0, Color(0.55, 0.6, 0.9), 2.0)
+	_prop("pillow", Vector3(-2.4, 0.5, -2.2), 90, 0.0, Color.WHITE, 0.5)
+	_prop("pottedPlant", Vector3(2.4, 0, -2.1), 0, 0.9)
+	_prop("bookcaseClosedWide", Vector3(2.4, 0, -1.0), -90, 1.6)
+	_prop("cardboardBoxClosed", Vector3(1.7, 0, -2.2), 30, 0.45)
+	_prop("cardboardBoxClosed", Vector3(1.7, 0.45, -2.2), 10, 0.35)
+	_prop("rugRound", Vector3(0, 0.005, 0.6), 0, 0.0, Color(0.5, 0.4, 0.75), 2.0)
+	var ids := _poster_ids(66, 3)
+	_poster(Vector3(1.2, 1.7, -2.48), 0, Vector2(0.55, 0.65), ids[0])
+	_poster(Vector3(-2.73, 1.6, -0.9), 90, Vector2(0.55, 0.65), ids[1])
+	_poster(Vector3(-2.73, 1.6, 0.1), 90, Vector2(0.55, 0.65), ids[2])
+	_prop("lampRoundTable", Vector3(-1.0, top, -0.4), 0, 0.45)
+	_light(Vector3(-1.0, top + 0.5, -0.3), Color(1.0, 0.75, 0.45), 1.6, 3.0)
+	_light(Vector3(0, 2.3, 0.8), Color(0.8, 0.8, 1.0), 1.2, 5.0)
 	_view(Vector3(0, 1.4, 1.5), Vector3(0, top + 0.1, -0.2))
 
 
 func _heritage(items: Array) -> void:
-	_setup(Color(0.04, 0.015, 0.02), Color(0.4, 0.25, 0.25), 0.55, 3.5, 11.0)
-	_room(7, 7, 3.4, "woodfloor051", Color(0.8, 0.65, 0.55), "wallpaper001a", Color(0.55, 0.15, 0.18))
-	var velvet := Psx.mat(Color(0.5, 0.08, 0.12), Psx.tex("fabric086"))
-	var gold := Psx.mat(Color(0.95, 0.75, 0.3), null, Vector2.ONE, 0.25)
+	_setup(Color(0.15, 0.06, 0.07), Color(0.75, 0.6, 0.55), 1.15, 8.0, 26.0)
+	_room(10, 9, 4.2, "woodfloor051", Color(0.95, 0.8, 0.65), "wallpaper001a", Color(0.75, 0.25, 0.28), 1.0, Rect2(), Color(0.85, 0.8, 0.7))
+	var velvet := Psx.mat(Color(0.65, 0.1, 0.15), Psx.tex("fabric086"))
+	var gold := Psx.mat(Color(1.0, 0.8, 0.35), null, Vector2.ONE, 0.3)
 	Psx.box(Vector3(2.2, 0.85, 0.8), velvet, Vector3(0, 0.425, 0), world)
 	Psx.box(Vector3(2.3, 0.04, 0.9), gold, Vector3(0, 0.87, 0), world)
 	_lay_items(items, Vector3(0, 0.89, 0.0), 1.9, 0.32, 4)
-	# Rope line.
 	for x in [-1.6, 1.6]:
 		Psx.cyl(0.04, 0.9, gold, Vector3(x, 0.45, 0.8), world, 8)
 	var rope := Psx.cyl(0.02, 3.2, velvet, Vector3(0, 0.8, 0.8), world, 6)
 	rope.rotation_degrees.z = 90.0
-	# Podium.
-	Psx.box(Vector3(0.6, 1.1, 0.5), Psx.mat(Color(0.5, 0.35, 0.25), Psx.tex("wood092")), Vector3(2.0, 0.55, -1.6), world)
-	_prop("frame", Vector3(-1.4, 1.7, -3.45), 0, 0.0, Color(1, 0.9, 0.6), 1.0)
-	_prop("frame", Vector3(1.0, 1.7, -3.45), 0, 0.0, Color(1, 0.9, 0.6), 0.8)
-	_neon("HERITAGE", Vector3(0, 2.7, -3.3), Color(1.0, 0.8, 0.4), 80)
-	_spot(Vector3(0, 3.2, 1.0), Vector3(0, 0.9, 0), Color(1.0, 0.85, 0.6), 5.0, 26, 6.0)
-	_light(Vector3(0, 2.6, -2.5), Color(1.0, 0.6, 0.4), 1.2, 5.0)
+	# Auctioneer at the podium, bidders in rows.
+	Psx.box(Vector3(0.7, 1.15, 0.55), Psx.mat(Color(0.6, 0.42, 0.3), Psx.tex("wood092")), Vector3(2.4, 0.575, -1.8), world)
+	_person(Vector3(2.4, 0, -2.3), -10, Color(1.0, 0.95, 0.85))
+	var r := RandomNumberGenerator.new()
+	r.seed = 9
+	for row in 2:
+		for k in 5:
+			var x := -4.2 + k * 0.7
+			var z := -2.2 - row * 0.9
+			_prop("chairCushion", Vector3(x, 0, z), 70, 0.0, Color(0.8, 0.3, 0.3), 0.6)
+			if r.randf() < 0.6:
+				_person(Vector3(x, 0.25, z), 70, Color.from_hsv(r.randf(), 0.25, 1.0), 1.3)
+	for x in [-4.6, -1.6, 1.6, 4.6]:
+		_prop("shop/column", Vector3(x, 0, -4.1), 0, 4.2, Color(1.0, 0.95, 0.85))
+	var ids := _poster_ids(88, 3)
+	for k in 3:
+		_poster(Vector3(-3.1 + k * 3.1, 2.0, -4.45), 0, Vector2(1.0, 1.15), ids[k])
+	_neon("HERITAGE", Vector3(0, 3.5, -4.4), Color(1.0, 0.8, 0.4), 90)
+	for x in [-2.5, 2.5]:
+		_bulb(Vector3(x, 3.3, -1.5), Color(1.0, 0.85, 0.6), 2.5, 6.0, 4.2, 0.0)
+	_spot(Vector3(0, 3.6, 1.2), Vector3(0, 0.9, 0), Color(1.0, 0.88, 0.65), 6.0, 26, 7.0)
+	_light(Vector3(0, 3.0, -3.2), Color(1.0, 0.75, 0.55), 2.2, 7.0)
 	_view(Vector3(0, 1.5, 1.85), Vector3(0, 0.9, -0.05))
 
 
 ## Height of a placed prop's top surface (for laying items on it).
 func _top(n: Node3D) -> float:
 	return Psx.aabb(n).end.y
+
+
+## Top of the most recently placed prop near (x, z) — used to stand a lamp on a table.
+func _top_at(x: float, z: float) -> float:
+	var best := 0.0
+	for c in world.get_children():
+		if c is Node3D and absf((c as Node3D).position.x - x) < 0.05 and absf((c as Node3D).position.z - z) < 0.05:
+			best = maxf(best, Psx.aabb(c).end.y)
+	return best
+
+
+## Shelf unit under a parent node (for side walls).
+func _shelf_unit_at(parent: Node3D, w: float, levels: int, gap: float) -> Array:
+	var holder := world
+	world = parent
+	var tops := _shelf_unit(Vector3.ZERO, w, levels, gap, Color(0.6, 0.48, 0.42))
+	world = holder
+	return tops
+
+
+func _decor_stock_at(parent: Node3D, w: float, tops: Array, seed_value: int, per_level: int) -> void:
+	var holder := world
+	world = parent
+	_decor_stock(Vector3(0, 0, 0.05), w, tops, seed_value, per_level)
+	world = holder

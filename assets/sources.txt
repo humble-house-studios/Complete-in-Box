@@ -19,3 +19,11 @@ assets/audio/music/shop.ogg (Squirrel Village Lounge) | https://opengameart.org/
 assets/audio/music/online.ogg (8bit Bossa) | https://opengameart.org/content/bossa-nova | 2026-11-12
 assets/audio/music/amb_crowd.ogg (mall ambience) | https://opengameart.org/content/free-general-ambience-sounds | 2026-11-12
 assets/audio/music/amb_rain.ogg (rain on metal roof) | https://opengameart.org/content/free-general-ambience-sounds | 2026-11-12
+assets/models/props (more Kenney furniture: washer, dryer, TV, lamps, bear, books...) | https://opengameart.org/content/furniture-kit | 2026-11-12
+assets/models/props/car | https://opengameart.org/content/car-kit | 2026-11-12
+assets/models/props/suburb | https://opengameart.org/content/city-kit-suburban | 2026-11-12
+assets/models/props/shop | https://opengameart.org/content/mini-market | 2026-11-12
+assets/models/props/urban | https://opengameart.org/content/retro-urban-kit | 2026-11-12
+assets/models/props/city | https://opengameart.org/content/city-kit-commercial | 2026-11-12
+assets/models/props/nature | https://opengameart.org/content/nature-kit | 2026-11-12
+assets/textures (grass, asphalt, paving, marble, planks; all textures now 256px) | https://ambientcg.com | 2026-11-12

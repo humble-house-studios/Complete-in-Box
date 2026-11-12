@@ -1,6 +1,6 @@
 // PSX-style surface: vertex snapping, nearest textures, hard lambert, distance fog.
 shader_type spatial;
-render_mode diffuse_lambert, specular_disabled, cull_back;
+render_mode diffuse_lambert, specular_disabled, cull_disabled;
 
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D tex : source_color, filter_nearest, repeat_enable;
@@ -49,7 +49,7 @@ void fragment() {
 			c.rgb *= body_tint.rgb;
 		}
 	}
-	ALBEDO = mix(c.rgb, fog_color.rgb, fog * 0.85);
+	ALBEDO = mix(c.rgb, fog_color.rgb, fog * 0.7);
 	ROUGHNESS = 1.0;
 	EMISSION = c.rgb * emit * (1.0 - fog);
 }

@@ -42,8 +42,14 @@ The web build in Safari is the test for every platform.
 - Ask before adding any addon beyond GUT.
 
 ## Art + sound
-- CloverPit-style look: dark grimy rooms, PSX vertex snap, nearest textures,
-  1/3-res render with dither, CRT overlay, chunky Jersey fonts, juicy counters.
+- CloverPit-style look, bright pass: lived-in rooms with windows/doors onto
+  real 3D outdoors (streets, houses, cars, trees, skyline), shopkeepers and
+  shoppers, posters of item box art, sun with hard shadows. PSX vertex snap,
+  nearest 256 px textures, 1/2-res render with light dither, soft CRT overlay,
+  chunky Jersey fonts, juicy counters.
+- Props: `assets/models/props/` (Kenney furniture) plus kit folders `car/`,
+  `suburb/`, `shop/`, `urban/`, `city/`, `nature/` — load as `Psx.prop("shop/cash-register", h)`.
+  Preview a folder: `xvfb-run ... -s res://tools/prop_sheet.gd -- OUT_DIR shop`.
 - The UI leaves a see-through gap under the header (`_stage_gap`) and aims the
   3D camera at it (`_update_focus`). Panels are smoked glass (alpha ~0.9).
 - Item art is baked, not drawn at runtime: after changing `catalog.gd` or

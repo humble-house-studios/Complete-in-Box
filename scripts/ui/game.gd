@@ -141,11 +141,11 @@ func _content_w() -> float:
 
 ## Width of the main (left) column and the side (right) column.
 func _main_w() -> float:
-	return (_content_w() - 20.0) * 0.6 if is_landscape() else _content_w() - 12.0
+	return ((_content_w() - 20.0) * 0.6 if is_landscape() else _content_w()) - 26.0
 
 
 func _side_w() -> float:
-	return (_content_w() - 20.0) * 0.4 - 12.0 if is_landscape() else _content_w() - 12.0
+	return ((_content_w() - 20.0) * 0.4 if is_landscape() else _content_w()) - 26.0
 
 
 func request_refresh() -> void:
@@ -217,8 +217,8 @@ func _update_focus() -> void:
 	if _gap != null and is_instance_valid(_gap) and _gap.is_inside_tree() and vh > 0:
 		var r := _gap.get_global_rect()
 		var zoom := 1.0
-		if screen == "title":
-			zoom = 1.5 if is_landscape() else 1.0
+		if is_landscape():
+			zoom = 1.5 if screen == "title" else 1.4
 		_stage.set_focus((r.position.y + r.size.y * 0.62) / vh, zoom)
 	else:
 		_stage.set_focus(0.42)
@@ -416,12 +416,24 @@ func _section(parent: Control, text: String, right: Control = null) -> void:
 
 ## A scrolling column. ratio splits the row in landscape.
 func _scroll_col(parent: Control, ratio: float) -> VBoxContainer:
+	# Smoked-glass backing so text reads over the bright 3D rooms.
+	var back := PanelContainer.new()
+	var st := _box(Color(0.03, 0.025, 0.045, 0.72), 8)
+	st.content_margin_left = 8
+	st.content_margin_right = 4
+	st.content_margin_top = 8
+	st.content_margin_bottom = 8
+	st.shadow_size = 0
+	back.add_theme_stylebox_override("panel", st)
+	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	back.size_flags_stretch_ratio = ratio
+	parent.add_child(back)
 	var sc := ScrollContainer.new()
 	sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sc.size_flags_stretch_ratio = ratio
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	parent.add_child(sc)
+	back.add_child(sc)
 	var v := _vbox(14)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(v)
