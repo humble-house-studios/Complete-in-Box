@@ -85,8 +85,15 @@ The web build in Safari is the test for every platform.
 - LOOK AROUND (venue button, pause menu): `_room_view` hides the menus, `Stage.room_view`
   pulls the camera back for the whole room; drag / left stick turns it (`room_turn`), B backs out.
 - The title vault: velvet plinth with gold rings and a GRAIL plaque, museum ropes, a
-  light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets and a
-  COMPLETE IN BOX neon.
+  light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets.
+- Menus share one look: `_menu_card(icon, title, sub, col, cb, h, main, chip)` (a card
+  with the thick coloured edge, a glossy icon from `Subjects.MENU`, title + line, arrow or
+  chip) and `_menu_tile` (icon over label). Title = `_title_logo` (COMPLETE / IN BOX + CIB!
+  sticker + tagline pill), MAIN MENU panel (`_title_menu`: run card, collection card with
+  WALL chip, tiles for how to play / sound / GFX / credits) and `_records_card`; landscape =
+  logo + records left, vault middle, menu right. The sound gate and the pause menu
+  (`_open_menu`: PAUSED + ANTE sticker, run card with cash and a shelf-vs-target bar,
+  RESUME, view shelf / look around, setting tiles, quit) use the same pieces.
 - Props: `assets/models/props/` (Kenney furniture) plus kit folders `car/`,
   `suburb/`, `shop/`, `urban/`, `city/`, `nature/` — load as `Psx.prop("shop/cash-register", h)`.
   Preview a folder: `xvfb-run ... -s res://tools/prop_sheet.gd -- OUT_DIR shop`.

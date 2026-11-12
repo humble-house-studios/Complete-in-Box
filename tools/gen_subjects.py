@@ -232,6 +232,15 @@ PERKS = {
     "up_reroll": ["Ticket", "Game die", "Counterclockwise arrows button"],
 }
 
+# Menu icons (title, start and pause menus).
+MENU = {
+    "new_run": ["Video game"], "continue": ["Play button"], "collection": ["Card file box"], "wall": ["Framed picture"],
+    "how_to": ["Open book"], "sound_on": ["Speaker high volume"], "sound_off": ["Muted speaker"], "gfx": ["Television"],
+    "credits": ["Clapper board"], "resume": ["Play button"], "shelf": ["Books"], "look": ["Eyes"], "quit": ["House"],
+    "close": ["Cross mark"], "headphones": ["Headphone"], "trophy": ["Trophy"], "money": ["Money bag"], "grail": ["Crown"],
+    "pause": ["Pause button"],
+}
+
 PEOPLE = {"Woman genie", "Man mechanic", "Person elf", "Person fairy", "Person vampire", "Person zombie", "Person mage", "Farmer", "Ninja",
           "Person superhero", "Person supervillain", "Person golfing", "Person bouncing ball", "Snowboarder", "Person wrestling",
           "Prince", "Princess", "Police officer", "Detective", "Woman detective", "Person surfing", "Skier", "Firefighter",
@@ -246,7 +255,7 @@ def key(name):
 def main():
     clone = sys.argv[1]
     names = set()
-    for lst in list(WORDS.values()) + list(WEAK.values()) + list(GENRE.values()) + list(PERKS.values()):
+    for lst in list(WORDS.values()) + list(WEAK.values()) + list(GENRE.values()) + list(PERKS.values()) + list(MENU.values()):
         for e in lst:
             names.add(e.split("#")[0])
     files = subprocess.run(["git", "-C", clone, "ls-files"], capture_output=True, text=True).stdout.splitlines()
@@ -322,7 +331,8 @@ def main():
         f.write("}\n\n## Title words -> subjects.\nconst WORDS := {\n" + table(WORDS) + "\n}\n\n")
         f.write("## Generic title words (used after WORDS).\nconst WEAK := {\n" + table(WEAK) + "\n}\n\n")
         f.write("## Fallback subjects per genre.\nconst GENRE := {\n" + table(GENRE) + "\n}\n\n")
-        f.write("## Perk / upgrade (up_<id>) pictures: main first.\nconst PERKS := {\n" + table(PERKS) + "\n}\n")
+        f.write("## Perk / upgrade (up_<id>) pictures: main first.\nconst PERKS := {\n" + table(PERKS) + "\n}\n\n")
+        f.write("## Menu icons (title, start and pause menus).\nconst MENU := {\n" + table(MENU) + "\n}\n")
     print("subjects", len(sprites), "files", sum(len(v) for v in sprites.values()))
 
 

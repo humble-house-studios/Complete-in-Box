@@ -2412,14 +2412,29 @@ func _start_intro() -> void:
 		gm.add_theme_constant_override("margin_" + side, int(vs.x * (0.12 if not is_landscape() else 0.3)))
 	_intro.add_child(gm)
 	gm.add_child(gate)
-	var gt := _title_label("COMPLETE IN BOX", 48, GOLD)
-	gt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	gate.add_child(gt)
-	var gh := _label("Best with sound. Headphones on?", 22, Color("ffe7b0"))
-	gh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	gate.add_child(gh)
-	gate.add_child(_button("PLAY WITH SOUND", _gate_pick.bind(true), GOLD, 30, 110))
-	gate.add_child(_button("PLAY MUTED", _gate_pick.bind(false), Color(0.2, 0.17, 0.26), 24, 88))
+	# The start screen: logo, a headphones card, two big menu cards.
+	gate.add_child(_title_logo(64 if not is_landscape() else 54))
+	var gp := _panel(Color(0.06, 0.045, 0.09, 0.95), Color(GOLD, 0.35), 2)
+	var gv := _vbox(12)
+	gp.add_child(gv)
+	var hrow := _hbox(14)
+	var hp := TextureRect.new()
+	hp.texture = CoverComp.subject(RandomNumberGenerator.new(), String(Subjects.MENU["headphones"][0]))[0]
+	hp.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hp.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	hp.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	hp.custom_minimum_size = Vector2(72, 72)
+	hrow.add_child(hp)
+	var hv := _vbox(0)
+	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hv.alignment = BoxContainer.ALIGNMENT_CENTER
+	hv.add_child(_title_label("HEADPHONES ON?", 28, INK))
+	hv.add_child(_label("Dream-pop tunes, crunchy carts, cash registers.", 17, Color("cfc3dd"), true))
+	hrow.add_child(hv)
+	gv.add_child(hrow)
+	gv.add_child(_menu_card("sound_on", "PLAY WITH SOUND", "Best way to play.", STICKER, _gate_pick.bind(true), 104.0, true))
+	gv.add_child(_menu_card("sound_off", "PLAY MUTED", "You can turn sound on later.", Color("6a5a8a"), _gate_pick.bind(false), 84.0))
+	gate.add_child(gp)
 	if _pad:
 		_pad_focus.call_deferred(0)
 	# The title vault's box art paints behind the gate while you choose.
@@ -2696,41 +2711,190 @@ func _finish_intro() -> void:
 
 func _build_title() -> void:
 	var land := is_landscape()
-	var logo := _vbox(-18 if not land else -12)
-	for pair in [["COMPLETE", INK], ["IN BOX", GOLD]]:
-		var l := _title_label(pair[0], 96 if not land else 60, pair[1])
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		logo.add_child(l)
-	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 22, Color("d9c9a8"))
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tag.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	tag.add_theme_constant_override("outline_size", 6)
-	if not land:
-		_root_box.add_child(_spacer())
-	_root_box.add_child(logo)
-	_root_box.add_child(tag)
-	var gap := _stage_gap(260 if not land else 120)
+	if land:
+		# Logo and records on the left, the vault in the middle, the menu right.
+		var cols := _hbox(18)
+		cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_root_box.add_child(cols)
+		var left := _vbox(10)
+		left.custom_minimum_size.x = 430
+		cols.add_child(left)
+		left.add_child(_title_logo(70))
+		left.add_child(_spacer())
+		left.add_child(_records_card())
+		var mid := _stage_gap(120)
+		mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		cols.add_child(mid)
+		var right := _vbox(10)
+		right.custom_minimum_size.x = 470
+		cols.add_child(right)
+		right.add_child(_spacer())
+		right.add_child(_title_menu(true))
+		return
+	_root_box.add_child(_title_logo(96))
+	var gap := _stage_gap(220)
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	gap.size_flags_stretch_ratio = 4.0
 	_root_box.add_child(gap)
-	if _run_live():
-		_root_box.add_child(_mark_main(_button("CONTINUE RUN  (Ante %d)" % run.ante, _continue_run, STICKER, 32 if not land else 26, 104 if not land else 80)))
-		_root_box.add_child(_button("NEW RUN", _on_new_run, PANEL_HI, 24, 80 if not land else 64))
-	else:
-		_root_box.add_child(_mark_main(_button("NEW RUN", _on_new_run, STICKER, 34 if not land else 28, 110 if not land else 84)))
-	_root_box.add_child(_button("COLLECTION   %d / %d found   |   WALL %d" % [_coll_seen.size(), Catalog.ITEMS.size(), _coll_wall.size()], _open_collection, Color("2f5d7a"), 22, 88 if not land else 64))
+	_root_box.add_child(_title_menu(false))
+	_root_box.add_child(_records_card())
+
+
+## The logo: COMPLETE / IN BOX, a tilted price-gun sticker and the tagline sign.
+func _title_logo(fs: int) -> Control:
+	var v := _vbox(-int(fs * 0.18))
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	var l1 := _title_label("COMPLETE", fs, INK)
+	l1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l1.add_theme_constant_override("outline_size", int(fs * 0.16))
+	l1.add_theme_color_override("font_outline_color", Color(0.06, 0.03, 0.1))
+	v.add_child(l1)
 	var row := _hbox(10)
-	var bh := 80.0 if not land else 64.0
-	for bt in [_button("HOW TO PLAY", _show_how_to, PANEL_HI, 22, bh), _button("SOUND: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI, 22, bh), _button("GFX: %s" % ["FULL", "FAST", "LITE"][Lite.level()], _cycle_gfx, PANEL_HI, 22, bh), _button("CREDITS", _show_credits, PANEL_HI, 22, bh)]:
-		bt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(bt)
-	_root_box.add_child(row)
-	var best := "No runs yet."
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var l2 := _title_label("IN BOX", fs, GOLD)
+	l2.add_theme_constant_override("outline_size", int(fs * 0.16))
+	l2.add_theme_color_override("font_outline_color", Color(0.25, 0.1, 0.02))
+	row.add_child(l2)
+	var st := _sticker("CIB!", STICKER, int(fs * 0.3))
+	st.rotation_degrees = -12.0
+	st.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(st)
+	v.add_child(row)
+	var cc := CenterContainer.new()
+	var tag := _pill("DIG  •  HAGGLE  •  FLIP  •  HOARD  •  GET APPRAISED", Color(0.06, 0.04, 0.09, 0.85), 16, Color("ffd98a"))
+	cc.add_child(tag)
+	v.add_child(cc)
+	return v
+
+
+## Big trading-card style menu entry: icon well, title, line under it, and an
+## optional chip on the right. Same edges and colours as the item cards.
+func _menu_card(icon: String, title: String, sub: String, col: Color, cb: Callable, h: float = 96.0, main := false, chip: Control = null) -> Button:
+	var b := _card_shell(0, h, col, cb, col.darkened(0.62) if main else Color(0.1, 0.08, 0.13, 0.94))
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 18)
+	m.add_theme_constant_override("margin_right", 14)
+	m.add_theme_constant_override("margin_top", 6)
+	m.add_theme_constant_override("margin_bottom", 8)
+	b.add_child(m)
+	var row := _hbox(14)
+	m.add_child(row)
+	var well := PanelContainer.new()
+	var ws := _box(Color(0, 0, 0, 0.35), 8, Color(col, 0.5), 2)
+	well.add_theme_stylebox_override("panel", ws)
+	var px := h - 22.0
+	well.custom_minimum_size = Vector2(px, px)
+	well.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var tr := TextureRect.new()
+	var refs: Array = Subjects.MENU.get(icon, [])
+	if not refs.is_empty():
+		tr.texture = CoverComp.subject(RandomNumberGenerator.new(), String(refs[0]))[0]
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	well.add_child(tr)
+	row.add_child(well)
+	var v := _vbox(0)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	var t := _title_label(title, 34 if main else 26, GOLD if main else INK)
+	t.clip_text = true
+	v.add_child(t)
+	if sub != "":
+		var sl := _label(sub, 16, Color("cfc3dd"))
+		sl.clip_text = true
+		v.add_child(sl)
+	row.add_child(v)
+	if chip != null:
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(chip)
+	else:
+		var arrow := _title_label(">", 30, Color(col, 0.9))
+		arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(arrow)
+	_ignore_mouse(b)
+	if main:
+		_mark_main(b)
+	return b
+
+
+## Small square tile: icon over a label (settings row).
+func _menu_tile(icon: String, title: String, cb: Callable, h: float = 104.0) -> Button:
+	var b := _card_shell(0, h, Color("6a5a8a"), cb, Color(0.1, 0.08, 0.13, 0.94))
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 12)
+	m.add_theme_constant_override("margin_right", 6)
+	m.add_theme_constant_override("margin_top", 6)
+	m.add_theme_constant_override("margin_bottom", 6)
+	b.add_child(m)
+	var v := _vbox(0)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	m.add_child(v)
+	var tr := TextureRect.new()
+	var refs: Array = Subjects.MENU.get(icon, [])
+	if not refs.is_empty():
+		tr.texture = CoverComp.subject(RandomNumberGenerator.new(), String(refs[0]))[0]
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	tr.custom_minimum_size = Vector2(0, h * 0.46)
+	v.add_child(tr)
+	var l := _label(title, 15, INK)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.clip_text = true
+	v.add_child(l)
+	_ignore_mouse(b)
+	return b
+
+
+## The title's menu panel: a sign header, the run card, the collection card
+## with its progress, and a row of settings tiles.
+func _title_menu(land: bool) -> Control:
+	var panel := _panel(Color(0.05, 0.035, 0.07, 0.86), Color(GOLD, 0.35), 2)
+	var v := _vbox(10)
+	panel.add_child(v)
+	_section(v, "MAIN MENU")
+	var big := 104.0 if not land else 92.0
+	if _run_live():
+		var sub := "Ante %d of 8  •  %s cash  •  shelf %d/%d" % [run.ante, _money(run.cash), run.slots_used(), run.shelf_cap]
+		v.add_child(_menu_card("continue", "CONTINUE RUN", sub, STICKER, _continue_run, big, true))
+		v.add_child(_menu_card("new_run", "NEW RUN", "Start over with an empty shelf.", Color("6a5a8a"), _on_new_run, 78.0))
+	else:
+		v.add_child(_menu_card("new_run", "NEW RUN", "8 antes. One shelf. No refunds.", STICKER, _on_new_run, big, true))
+	var found := _coll_seen.size()
+	var total := Catalog.ITEMS.size()
+	var chip := _vbox(2)
+	chip.add_child(_pill("WALL %d/%d" % [_coll_wall.size(), WALL_MAX], GOLD, 14))
+	v.add_child(_menu_card("collection", "COLLECTION", "%d of %d found  •  %d%%" % [found, total, int(100.0 * found / maxf(1.0, total))], Color("4f9fd9"), _open_collection, 84.0, false, chip))
+	var row := _hbox(8)
+	var th := 100.0 if not land else 92.0
+	row.add_child(_menu_tile("how_to", "HOW TO PLAY", _show_how_to, th))
+	row.add_child(_menu_tile("sound_on" if _sfx.enabled else "sound_off", "SOUND %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, th))
+	row.add_child(_menu_tile("gfx", "GFX %s" % ["FULL", "FAST", "LITE"][Lite.level()], _cycle_gfx, th))
+	row.add_child(_menu_tile("credits", "CREDITS", _show_credits, th))
+	v.add_child(row)
+	return panel
+
+
+## Your records as a receipt-style strip, with the version.
+func _records_card() -> Control:
+	var p := _panel(Color(0.05, 0.035, 0.07, 0.72), Color(1, 1, 1, 0.06), 1)
+	var h := _hbox(10)
+	p.add_child(h)
 	if int(_save["runs"]) > 0:
-		best = "Best: Ante %d  |  Best shelf %s  |  Wins %d" % [_save["best_ante"], _money(int(_save["best_appraisal"])), _save["wins"]]
-	var bl := _label(best + "    |    " + _build_label().get_slice("  (", 0), 19, MUTED)
-	bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_root_box.add_child(bl)
+		h.add_child(_pill("BEST ANTE %d" % int(_save["best_ante"]), Color("c77dff"), 14))
+		h.add_child(_pill("BEST SHELF %s" % _money(int(_save["best_appraisal"])), GOLD, 14))
+		h.add_child(_pill("WINS %d" % int(_save["wins"]), GOOD, 14))
+	else:
+		h.add_child(_label("No runs yet. The vault is waiting.", 16, MUTED))
+	h.add_child(_spacer(false))
+	h.add_child(_label(_build_label().get_slice("  (", 0), 15, MUTED))
+	return p
 
 
 # ================================================================ debug HUD
@@ -2831,20 +2995,100 @@ var _paused_screen := ""
 
 
 func _open_menu() -> void:
-	var acts: Array = [
-		["Resume", func(): pass, STICKER],
-		["How to play", _show_how_to, PANEL_HI],
-		["Sound: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI],
-		["Graphics: %s" % ["FULL", "FAST", "LITE"][Lite.level()], _cycle_gfx, PANEL_HI],
-		["Quit to title (run is kept)", _quit_to_title, Color("2f5d7a")],
-	]
+	_hide_preview()
+	_close_sheet()
+	if _pad:
+		_pad_focus.call_deferred(0)
+	var dim := ColorRect.new()
+	dim.color = Color(0.03, 0.015, 0.06, 0.72)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(_on_dim_input)
+	_overlay.add_child(dim)
+	_sheet = dim
+	if _sfx != null and not fast:
+		_sfx.play("open")
+	var panel := PanelContainer.new()
+	var st := _box(Color(0.07, 0.055, 0.1, 0.97), 10, Color(GOLD, 0.5), 3)
+	st.content_margin_left = 20
+	st.content_margin_right = 20
+	st.content_margin_top = 16
+	st.content_margin_bottom = 18
+	st.shadow_color = Color(0, 0, 0, 0.6)
+	st.shadow_size = 12
+	panel.add_theme_stylebox_override("panel", st)
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	var pw := 560.0 if is_landscape() else get_viewport_rect().size.x - _margins.x - _margins.z - 20.0
+	panel.offset_left = -pw * 0.5
+	panel.offset_right = pw * 0.5
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.add_child(panel)
+	var v := _vbox(10)
+	panel.add_child(v)
+	# Sign header with a tilted PAUSED sticker.
+	var head := _hbox(10)
+	var pt := _title_label("PAUSED", 44, GOLD)
+	head.add_child(pt)
+	head.add_child(_spacer(false))
+	var stk := _sticker("ANTE %d" % run.ante, STICKER, 20) if run != null else _sticker("MENU", STICKER, 20)
+	stk.rotation_degrees = 6.0
+	stk.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(stk)
+	v.add_child(head)
+	# Run summary card: where you are, cash, shelf vs target with a bar.
+	if run != null and screen in ["home", "venue"]:
+		var card := _panel(Color(0.12, 0.09, 0.16, 0.95), Color(1, 1, 1, 0.08), 1)
+		var cv := _vbox(6)
+		card.add_child(cv)
+		var r1 := _hbox(8)
+		r1.add_child(_pill("STOP %d OF 3" % (run.stop + 1), Color("4f9fd9"), 14))
+		var where := String(run.venue.get("name", "")) if screen == "venue" else "Home"
+		r1.add_child(_pill(where.to_upper(), Color("c77dff"), 14))
+		r1.add_child(_spacer(false))
+		r1.add_child(_title_label(_money(run.cash), 28, GOLD))
+		cv.add_child(r1)
+		var tot := int(run.appraise()["total"])
+		var tgt := run.target()
+		cv.add_child(_label("Shelf %s  /  target %s" % [_money(tot), _money(tgt)], 17, Color("cfc3dd")))
+		var bar_bg := Control.new()
+		bar_bg.custom_minimum_size = Vector2(0, 14)
+		var bgr := ColorRect.new()
+		bgr.color = Color(0, 0, 0, 0.45)
+		bgr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		bgr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar_bg.add_child(bgr)
+		var fill := ColorRect.new()
+		fill.color = GOOD if tot >= tgt else STICKER
+		fill.anchor_right = clampf(float(tot) / maxf(1.0, float(tgt)), 0.03, 1.0)
+		fill.anchor_bottom = 1.0
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar_bg.add_child(fill)
+		cv.add_child(bar_bg)
+		v.add_child(card)
+	v.add_child(_menu_card("resume", "RESUME", "Back to it.", STICKER, _sheet_action.bind(func(): pass), 92.0, true))
 	if screen == "home":
-		acts.insert(1, ["View your shelf", _set_showcase.bind(true), PANEL_HI])
+		v.add_child(_menu_card("shelf", "VIEW YOUR SHELF", "See your finds in 3D.", Color("2f5d7a"), _sheet_action.bind(_set_showcase.bind(true)), 76.0))
 	if screen == "venue" and not _room_view:
-		acts.insert(1, ["Look around the room", _set_room_view.bind(true), PANEL_HI])
+		v.add_child(_menu_card("look", "LOOK AROUND", "See the whole room.", Color("2f5d7a"), _sheet_action.bind(_set_room_view.bind(true)), 76.0))
+	var row := _hbox(8)
+	row.add_child(_menu_tile("how_to", "HOW TO PLAY", _sheet_action.bind(_show_how_to), 96.0))
+	row.add_child(_menu_tile("sound_on" if _sfx.enabled else "sound_off", "SOUND %s" % ("ON" if _sfx.enabled else "OFF"), _sheet_action.bind(func(): _toggle_sound(); _open_menu.call_deferred()), 96.0))
+	row.add_child(_menu_tile("gfx", "GFX %s" % ["FULL", "FAST", "LITE"][Lite.level()], _sheet_action.bind(func(): _cycle_gfx(); _open_menu.call_deferred()), 96.0))
+	v.add_child(row)
+	v.add_child(_menu_card("quit", "QUIT TO TITLE", "Your run is kept.", Color("8a6a3a"), _sheet_action.bind(_quit_to_title), 76.0))
 	if not OS.has_feature("web"):
-		acts.append(["Close the game", func(): get_tree().quit(), Color("5a3a3a")])
-	_open_sheet("Paused", [["Ante %d, stop %d of 3. Cash %s." % [run.ante, run.stop + 1, _money(run.cash)], MUTED]], acts)
+		v.add_child(_menu_card("close", "CLOSE THE GAME", "", Color("8a3a3a"), _sheet_action.bind(func(): get_tree().quit()), 70.0))
+	if not fast:
+		panel.modulate.a = 0.0
+		panel.scale = Vector2(0.94, 0.94)
+		panel.pivot_offset = Vector2(pw * 0.5, 300)
+		var tw := panel.create_tween().set_parallel(true)
+		tw.tween_property(panel, "modulate:a", 1.0, 0.14)
+		tw.tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _quit_to_title() -> void:
@@ -3743,6 +3987,7 @@ func go_to_venue(id: String) -> void:
 
 
 const SLOT_REEL := preload("res://scripts/ui/slot_reel.gd")
+const Subjects := preload("res://scripts/gfx/subjects.gd")
 ## Offer uids that already had their slot spin (new ones spin when they appear).
 var _spun: Dictionary = {}
 var _reel_tick := 0
