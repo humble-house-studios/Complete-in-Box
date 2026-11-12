@@ -47,8 +47,15 @@ func _go() -> void:
 	game._set_home_tab("route")
 	game.go_to_venue("garage")
 	await _snap("venue_garage")
+	for pair in [["fes_zeldo", 12], ["fes_robo2", 60], ["fes_console", 30]]:
+		var it: Dictionary = game.run.make_item(Catalog.get_def(pair[0]), "CIB")
+		it["paid"] = pair[1]
+		game.run.shelf.append(it)
 	game._set_venue_tab("shelf")
 	await _snap("venue_garage_shelf")
+	game._open_shelf_item(int(game.run.shelf[-1]["uid"]), "")
+	await _snap("shelf_item_open")
+	game._close_sheet()
 	game._set_venue_tab("sale")
 	game._open_offer(0)
 	await _snap("sheet_offer")

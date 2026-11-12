@@ -596,6 +596,18 @@ func sell_price(item: Dictionary) -> int:
 	return maxi(1, int(round(market_value(item) * sell_rate())))
 
 
+## How much an item's value has moved since you bought it.
+func gain(item: Dictionary) -> int:
+	return market_value(item) - int(item.get("paid", 0))
+
+
+## Profit (or loss) if you sold it right here, right now. 0 where nobody buys.
+func flip_now(item: Dictionary) -> int:
+	if sell_rate() <= 0.0:
+		return 0
+	return sell_price(item) - int(item.get("paid", 0))
+
+
 func sell(uid: int) -> Dictionary:
 	if phase != Phase.VENUE or sell_rate() <= 0.0:
 		return _fail("They don't buy here.")

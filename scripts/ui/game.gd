@@ -925,7 +925,7 @@ func _auction_card(i: int, w: float) -> Button:
 
 func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	var bg := PANEL if state == "" else PANEL.darkened(0.3)
-	var b := _card_shell(w, 188, Catalog.platform(String(item["plat"]))["color"], func(): _open_shelf_item(int(item["uid"]), state), bg)
+	var b := _card_shell(w, 214 if state == "" else 188, Catalog.platform(String(item["plat"]))["color"], func(): _open_shelf_item(int(item["uid"]), state), bg)
 	var v := _card_inner(b)
 	var well := _icon_well(item, 72)
 	well.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -937,6 +937,8 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	nm.max_lines_visible = 2
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(nm)
+	if state == "":
+		v.add_child(_gain_row(item))
 	var bottom := _hbox(4)
 	var plat := Catalog.platform(String(item["plat"]))
 	bottom.add_child(_pill(String(plat["short"]), (plat["color"] as Color).lightened(0.15), 13))
@@ -948,6 +950,28 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	v.add_child(bottom)
 	_ignore_mouse(b)
 	return b
+
+
+func _signed(n: int) -> String:
+	return ("+" if n > 0 else "-" if n < 0 else "+") + _money(absi(n))
+
+
+func _gain_color(n: int) -> Color:
+	return GOOD if n > 0 else BAD if n < 0 else MUTED
+
+
+## Value change since purchase (green up / red down) and, where someone buys,
+## the profit or loss if you sold it now.
+func _gain_row(item: Dictionary) -> Control:
+	var h := _hbox(4)
+	var g := run.gain(item)
+	var pill := _pill(("UP " if g > 0 else "DOWN " if g < 0 else "EVEN ") + _signed(g), _gain_color(g), 14)
+	h.add_child(pill)
+	h.add_child(_spacer(false))
+	if run.sell_rate() > 0.0:
+		var f := run.flip_now(item)
+		h.add_child(_label("sell " + _signed(f), 15, _gain_color(f)))
+	return h
 
 
 func _empty_tile(w: float) -> Control:
@@ -2369,10 +2393,15 @@ func _open_shelf_item(uid: int, state: String) -> void:
 		return
 	var lines := _item_lines(item, true)
 	lines.append(["Paid %s  |  Held %d stop%s" % [_money(int(item["paid"])), item["held"], "" if int(item["held"]) == 1 else "s"], MUTED])
+	var gn := run.gain(item)
+	lines.append(["Worth %s now: %s since you bought it." % [_money(run.market_value(item)), _signed(gn)], _gain_color(gn)])
+	if run.sell_rate() > 0.0:
+		var fl := run.flip_now(item)
+		lines.append(["Sell here now: %s, a %s of %s." % [_money(run.sell_price(item)), "profit" if fl >= 0 else "loss", _money(absi(fl))], _gain_color(fl)])
 	var actions: Array = []
 	if screen == "venue":
 		if run.sell_rate() > 0.0:
-			actions.append(["Sell for %s" % _money(run.sell_price(item)), func(): _act(run.sell(uid), "coin"), GOOD])
+			actions.append(["Sell for %s (%s)" % [_money(run.sell_price(item)), _signed(run.flip_now(item))], func(): _act(run.sell(uid), "coin"), GOOD])
 		if run.can_list():
 			actions.append(["List for auction", func(): _act(run.list_item(uid), "tick"), Color("4fd9a0")])
 		if run.can_repair() and item["cond"] == "Damaged":
@@ -3131,6 +3160,13 @@ func _stat_block(item: Dictionary) -> Control:
 		_stat_row(g, "MARKET", _label("x%.2f %s" % [mult, "HOT" if mult > 1.0 else "COLD"], 18, HOT_C if mult > 1.0 else COLD_C))
 	if int(item.get("paid", 0)) > 0 or int(item.get("held", 0)) > 0:
 		_stat_row(g, "PAID", _label("%s, held %d stop%s" % [_money(int(item["paid"])), item["held"], "" if int(item["held"]) == 1 else "s"], 18, INK))
+	if run.find_item(int(item.get("uid", -1))).size() > 0:
+		var gn := run.gain(item)
+		var pct := "" if int(item.get("paid", 0)) <= 0 else "  (%s%d%%)" % ["+" if gn >= 0 else "-", absi(int(round(100.0 * gn / float(item["paid"]))))]
+		_stat_row(g, "VALUE NOW", _label("%s  %s%s" % [_money(run.market_value(item)), _signed(gn), pct], 18, _gain_color(gn)))
+		if run.sell_rate() > 0.0:
+			var fl := run.flip_now(item)
+			_stat_row(g, "SELL NOW", _label("%s here = %s %s" % [_money(run.sell_price(item)), _signed(fl), "profit" if fl >= 0 else "loss"], 18, _gain_color(fl)))
 	var same := 0
 	for it in run.shelf:
 		if String(it["plat"]) == String(item["plat"]) and int(it["uid"]) != int(item["uid"]):
