@@ -86,6 +86,7 @@ jobs:
       # the game as tv.apk so the TV can download it with the Downloader app.
       - name: Export Android TV app
         continue-on-error: true
+        timeout-minutes: 25
         shell: bash
         run: |
           set +e
@@ -110,10 +111,14 @@ jobs:
           # Full Gradle build: writes the manifest properly (internet permission
           # for self-update, TV launcher entry). The quick prebuilt export's
           # patched manifest would not install on the TV.
+          # Accept SDK licenses up front so Gradle never waits for input.
+          SDKM=$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager "$SDK"/tools/bin/sdkmanager 2>/dev/null | head -1)
+          if [ -n "$SDKM" ]; then yes | timeout 120 "$SDKM" --licenses >/dev/null 2>&1; fi
           godot --headless --install-android-build-template 2>&1 | tail -3
           sed -i 's/^gradle_build\/use_gradle_build=.*/gradle_build\/use_gradle_build=true/' export_presets.cfg
-          godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
+          timeout 900 godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk < /dev/null 2>&1 | tee android.log
           if [ ! -f build/android/complete-in-box-tv.apk ]; then
+            tail -40 android.log | while IFS= read -r line; do echo "::warning title=Gradle tail::${line}"; done
             grep -iE "error|fail|what went wrong|BUILD" android.log | grep -v savepack | head -30 | while IFS= read -r line; do echo "::warning title=Gradle build::${line}"; done
             # Fallback: quick export without extra permissions (installs, no self-update).
             sed -i 's/^gradle_build\/use_gradle_build=.*/gradle_build\/use_gradle_build=false/; s/^permissions\/internet=.*/permissions\/internet=false/' export_presets.cfg
