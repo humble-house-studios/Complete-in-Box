@@ -70,6 +70,33 @@ func test_collection_tracks_and_wall() -> void:
 	assert_true(_has_text(game, "found"))
 
 
+func _pad_press(btn: int) -> void:
+	var e := InputEventJoypadButton.new()
+	e.button_index = btn
+	e.pressed = true
+	game._input(e)
+
+
+func test_controller_focus_tabs_and_back() -> void:
+	_pad_press(JOY_BUTTON_DPAD_DOWN)
+	await wait_frames(4)
+	assert_true(game._pad)
+	assert_true(get_viewport().gui_get_focus_owner() is BaseButton)
+	game.start_new_run(12)
+	await wait_frames(4)
+	var before: String = game._home_tab
+	_pad_press(JOY_BUTTON_RIGHT_SHOULDER)
+	await wait_frames(4)
+	assert_ne(game._home_tab, before)
+	assert_true(get_viewport().gui_get_focus_owner() is BaseButton)
+	game._show_how_to()
+	await wait_frames(4)
+	assert_true(game.sheet_open())
+	_pad_press(JOY_BUTTON_B)
+	await wait_frames(2)
+	assert_false(game.sheet_open())
+
+
 func test_home_then_venue_then_appraisal() -> void:
 	game.start_new_run(77)
 	await wait_frames(2)

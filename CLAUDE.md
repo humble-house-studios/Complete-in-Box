@@ -70,6 +70,11 @@ The web build in Safari is the test for every platform.
   THE WALL (up to 24 hung finds: "Hang on your Wall" from a shelf item, or one
   pick when a run ends) and the BINDER (every catalog item by platform: WALL /
   OWN NOW / OWNED / SEEN / ? not yet). Anything shown in a stop counts as seen.
+- Xbox-style controller (`# controller` in game.gd): stick / D-pad move focus,
+  A press, B back / close, LB / RB tabs (guide pages, binder consoles), Start
+  skips the intro or starts a run, right stick spins the turntable. A cyan focus
+  frame shows only in pad mode; touch or mouse turns it off. Any new button made
+  with `_button` / `_card_shell` gets this for free.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
   flavor and the actions. `_open_sheet(..., item)` routes there.

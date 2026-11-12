@@ -40,6 +40,13 @@ func _go() -> void:
 	game.start_new_run(4242)
 	game.run.cash = 60
 	await _snap("home")
+	var pe := InputEventJoypadButton.new()
+	pe.button_index = JOY_BUTTON_DPAD_DOWN
+	pe.pressed = true
+	game._input(pe)
+	await _snap("pad_home")
+	game._pad = false
+	game.request_refresh()
 	game._set_home_tab("perks")
 	await _snap("home_perks")
 	game._set_home_tab("shelf")

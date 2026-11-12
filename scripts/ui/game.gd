@@ -173,6 +173,8 @@ func _do_refresh() -> void:
 	_refresh_queued = false
 	if _root_box == null:
 		return
+	var focus_idx := _focus_index()
+	_tab_bar = []
 	for k in _scroll_reg:
 		var sc: ScrollContainer = _scroll_reg[k]
 		if is_instance_valid(sc):
@@ -194,6 +196,8 @@ func _do_refresh() -> void:
 		_: pass
 	_sync_stage()
 	_update_focus.call_deferred()
+	if _pad:
+		_pad_focus.call_deferred(focus_idx)
 
 
 ## Puts the right room (and its items) behind the UI and picks the music.
@@ -391,6 +395,7 @@ func _button(text: String, cb: Callable, color: Color = PANEL_HI, fs: int = 24, 
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	b.pressed.connect(_guarded.bind(cb))
 	b.button_down.connect(_click)
+	_focus_style(b)
 	if color.get_luminance() > 0.55:
 		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 			b.add_theme_color_override(c, Color("15131d"))
@@ -417,12 +422,155 @@ func _btn_box(color: Color, edge: int) -> StyleBoxFlat:
 
 ## A drag that scrolls a list shouldn't also tap the card under the finger.
 func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.5):
+		_drag_moved = false
+		if not _pad:
+			_pad = true
+			request_refresh()
+			_pad_focus.call_deferred(0)
+		if event is InputEventJoypadButton and (event as InputEventJoypadButton).pressed:
+			if _pad_button((event as InputEventJoypadButton).button_index):
+				get_viewport().set_input_as_handled()
+				return
+		var fo := get_viewport().gui_get_focus_owner()
+		var layer := _pad_layer()
+		if fo == null or not fo.is_visible_in_tree() or not layer.is_ancestor_of(fo):
+			_pad_focus(0)
+		return
+	if _pad and (event is InputEventMouseButton or event is InputEventScreenTouch):
+		_pad = false
+		var f := get_viewport().gui_get_focus_owner()
+		if f != null:
+			f.release_focus()
+		request_refresh()
 	if (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed):
 		_press_pos = event.position
 		_drag_moved = false
 	elif event is InputEventScreenDrag or (event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0):
 		if event.position.distance_to(_press_pos) > 18.0:
 			_drag_moved = true
+
+
+# ================================================================ controller
+## Xbox-style pad: stick / D-pad move focus, A presses, B backs out,
+## LB / RB switch tabs (and guide pages, binder consoles), Start skips the
+## intro or starts a run, right stick spins the item on its turntable.
+## The focus frame only shows while the pad is in use.
+
+var _pad := false
+var _tab_bar: Array = []
+
+
+func _focus_style(b: Control) -> void:
+	if _pad:
+		var f := StyleBoxFlat.new()
+		f.draw_center = false
+		f.set_border_width_all(5)
+		f.border_color = Color(0.35, 0.95, 1.0)
+		f.set_corner_radius_all(9)
+		f.expand_margin_left = 4
+		f.expand_margin_right = 4
+		f.expand_margin_top = 4
+		f.expand_margin_bottom = 4
+		f.shadow_color = Color(0.2, 0.85, 1.0, 0.6)
+		f.shadow_size = 8
+		b.add_theme_stylebox_override("focus", f)
+	else:
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+## The layer the pad should be steering: the topmost overlay with buttons,
+## else the screen itself.
+func _pad_layer() -> Control:
+	for i in range(_overlay.get_child_count() - 1, -1, -1):
+		var c := _overlay.get_child(i) as Control
+		if c != null and c.is_visible_in_tree() and not _focusables(c).is_empty():
+			return c
+	return _root_box
+
+
+func _focusables(n: Node, out: Array = []) -> Array:
+	for c in n.get_children():
+		if c is BaseButton and (c as Control).is_visible_in_tree() and not (c as BaseButton).disabled and (c as Control).focus_mode != Control.FOCUS_NONE:
+			out.append(c)
+		_focusables(c, out)
+	return out
+
+
+func _focus_index() -> int:
+	var fo := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	if fo == null:
+		return 0
+	return maxi(0, _focusables(_pad_layer()).find(fo))
+
+
+func _pad_focus(idx: int = 0) -> void:
+	if not _pad or not is_inside_tree():
+		return
+	await get_tree().process_frame
+	var list := _focusables(_pad_layer())
+	if list.is_empty():
+		return
+	for b in list:
+		_focus_style(b)
+	(list[clampi(idx, 0, list.size() - 1)] as Control).grab_focus()
+
+
+func _pad_button(btn: int) -> bool:
+	match btn:
+		JOY_BUTTON_B:
+			return _pad_back()
+		JOY_BUTTON_START:
+			if _intro != null and is_instance_valid(_intro):
+				_skip_intro()
+				return true
+			if screen == "title" and not sheet_open():
+				_on_new_run()
+				return true
+		JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER:
+			_pad_tab(-1 if btn == JOY_BUTTON_LEFT_SHOULDER else 1)
+			return true
+	return false
+
+
+func _pad_back() -> bool:
+	if _intro != null and is_instance_valid(_intro):
+		_skip_intro()
+		return true
+	if _overlay.get_node_or_null("Reveal") != null:
+		_close_reveal()
+		_pad_focus.call_deferred(0)
+		return true
+	if sheet_open():
+		if _guide_body != null and is_instance_valid(_guide_body) and _guide_body.is_inside_tree():
+			if _guide_page > 0:
+				_guide_step(-1)
+			else:
+				_guide_finish()
+		else:
+			_sfx.play("close")
+			_close_sheet()
+		_pad_focus.call_deferred(0)
+		return true
+	if screen == "collection":
+		show_title()
+		return true
+	return false
+
+
+func _pad_tab(d: int) -> void:
+	if sheet_open() and _guide_body != null and is_instance_valid(_guide_body) and _guide_body.is_inside_tree():
+		_guide_step(d)
+		return
+	if screen == "collection" and _coll_tab == "binder":
+		_binder_step(d)
+		return
+	if _tab_bar.is_empty():
+		return
+	var keys: Array = (_tab_bar[0] as Array).map(func(o): return String(o[0]))
+	var i := keys.find(String(_tab_bar[1]))
+	(_tab_bar[2] as Callable).call(String(keys[posmod(i + d, keys.size())]))
+	_click()
 
 
 func _guarded(cb: Callable) -> void:
@@ -534,6 +682,7 @@ func _scroll_col(parent: Control, ratio: float) -> VBoxContainer:
 	stack.clip_contents = true
 	back.add_child(stack)
 	var sc := ScrollContainer.new()
+	sc.follow_focus = true
 	sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.scroll_deadzone = 10
@@ -595,6 +744,7 @@ func _restore_scroll(sc: ScrollContainer, y: int) -> void:
 
 ## Segmented tab bar: [[key, label], ...]. The selected tab is gold.
 func _tabs(options: Array, current: String, cb: Callable) -> HBoxContainer:
+	_tab_bar = [options, current, cb]
 	var h := _hbox(6)
 	for o in options:
 		var on: bool = String(o[0]) == current
@@ -657,6 +807,7 @@ func _card_shell(w: float, h: float, stripe: Color, cb: Callable, bg: Color = PA
 	b.add_theme_stylebox_override("disabled", _card_box(base.darkened(0.35), stripe.darkened(0.5)))
 	b.pressed.connect(_guarded.bind(cb))
 	b.button_down.connect(_click)
+	_focus_style(b)
 	return b
 
 
@@ -1148,6 +1299,8 @@ func _start_intro() -> void:
 	gate.add_child(gh)
 	gate.add_child(_button("PLAY WITH SOUND", _gate_pick.bind(true), GOLD, 30, 110))
 	gate.add_child(_button("PLAY MUTED", _gate_pick.bind(false), Color(0.2, 0.17, 0.26), 24, 88))
+	if _pad:
+		_pad_focus.call_deferred(0)
 	await intro_gate_done
 	gm.queue_free()
 	if _intro_skip:
@@ -1511,6 +1664,8 @@ var _guide_drag := Vector2.ZERO
 
 
 func _open_guide(on_done: Callable) -> void:
+	if _pad:
+		_pad_focus.call_deferred(0)
 	_close_sheet()
 	_guide_done = on_done
 	_guide_page = 0
@@ -2501,6 +2656,7 @@ func _play_appraisal(res: Dictionary) -> void:
 	for e in res["events"]:
 		cv.add_child(_label(String(e), 18, Color("4fd9a0"), true))
 	var sc := ScrollContainer.new()
+	sc.follow_focus = true
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -2790,6 +2946,8 @@ func _end_stats() -> void:
 # ================================================================ sheet + toast
 
 func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary = {}) -> void:
+	if _pad:
+		_pad_focus.call_deferred(0)
 	if not item.is_empty():
 		_open_inspect(title, lines, actions, item)
 		return
@@ -2874,6 +3032,8 @@ var _spin_vel := 0.0
 ## Full-screen trading card for one item: a turntable with its spinning 3D
 ## model (drag to turn it), name, pills, flavor, stat bars and the actions.
 func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary) -> void:
+	if _pad:
+		_pad_focus.call_deferred(0)
 	_close_sheet()
 	var dim := ColorRect.new()
 	dim.color = Color(0.01, 0.01, 0.02, 0.82)
@@ -2980,6 +3140,7 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	v.add_child(tags)
 	# Info: stats + lines, scrolls if the screen is short.
 	var sc := ScrollContainer.new()
+	sc.follow_focus = true
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.custom_minimum_size = Vector2(0, 150 if is_landscape() else 290)
 	sc.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -3128,6 +3289,9 @@ func _process(delta: float) -> void:
 		_spin_model.rotation.y += _spin_vel * delta
 		_spin_vel = lerpf(_spin_vel, 0.0, 0.3)
 	else:
+		var rx := Input.get_joy_axis(0, JOY_AXIS_RIGHT_X) if _pad else 0.0
+		if absf(rx) > 0.2:
+			_spin_vel = rx * 6.0
 		_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
 		_spin_model.rotation.y += (0.8 + _spin_vel) * delta
 
