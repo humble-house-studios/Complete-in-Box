@@ -47,6 +47,29 @@ func test_new_run_shows_guide_first() -> void:
 	assert_eq(game.screen, "home")
 
 
+func test_collection_tracks_and_wall() -> void:
+	game.start_new_run(31)
+	await wait_frames(2)
+	game.go_to_venue("garage")
+	await wait_frames(2)
+	var seen_id := String(game.run.stock[0]["item"]["id"])
+	assert_true(game._coll_seen.has(seen_id))
+	var it: Dictionary = game.run.shelf[0] if not game.run.shelf.is_empty() else game.run.make_item(Catalog.get_def("fes_console"), "CIB")
+	if game.run.shelf.is_empty():
+		game.run.shelf.append(it)
+	var n: int = game._coll_wall.size()
+	game._hang_from_shelf(int(it["uid"]))
+	await wait_frames(2)
+	assert_true(game._on_wall(String(it["id"])))
+	assert_true(game._coll_wall.size() >= mini(n + 1, game.WALL_MAX) or n >= game.WALL_MAX)
+	game._open_collection()
+	await wait_frames(2)
+	assert_true(_has_text(game, "THE WALL"))
+	game._set_coll_tab("binder")
+	await wait_frames(2)
+	assert_true(_has_text(game, "found"))
+
+
 func test_home_then_venue_then_appraisal() -> void:
 	game.start_new_run(77)
 	await wait_frames(2)

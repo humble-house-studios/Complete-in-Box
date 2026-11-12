@@ -646,6 +646,16 @@ func dump(uid: int) -> Dictionary:
 	return _ok("Dumped %s for $%d." % [item["name"], Balance.DUMP_VALUE])
 
 
+## Takes an item off the shelf for good (it goes to your permanent Wall).
+func retire(uid: int) -> Dictionary:
+	var i := _shelf_index(uid)
+	if i < 0:
+		return {}
+	var item: Dictionary = shelf[i]
+	shelf.remove_at(i)
+	return item
+
+
 func can_list() -> bool:
 	return phase == Phase.VENUE and venue.has("list")
 

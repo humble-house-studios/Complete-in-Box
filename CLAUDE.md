@@ -66,6 +66,10 @@ The web build in Safari is the test for every platform.
 - NEW RUN opens the how-to-play guide first (`_open_guide`, pages in `GUIDE`):
   swipeable cards with big pictures and short funny lines; a toggle on the last
   page turns it off (`guide_off` in the save). HOW TO PLAY opens it too.
+- COLLECTION (title screen) lasts across runs, saved in `user://collection.cfg`:
+  THE WALL (up to 24 hung finds: "Hang on your Wall" from a shelf item, or one
+  pick when a run ends) and the BINDER (every catalog item by platform: WALL /
+  OWN NOW / OWNED / SEEN / ? not yet). Anything shown in a stop counts as seen.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
   flavor and the actions. `_open_sheet(..., item)` routes there.

@@ -183,12 +183,14 @@ func _do_refresh() -> void:
 		c.queue_free()
 	_gap = null
 	_cash_label = null
+	_track_collection()
 	match screen:
 		"title": _build_title()
 		"home": _build_home()
 		"venue": _build_venue()
 		"over": _build_over()
 		"won": _build_won()
+		"collection": _build_collection()
 		_: pass
 	_sync_stage()
 	_update_focus.call_deferred()
@@ -224,6 +226,12 @@ func _sync_stage() -> void:
 		"won":
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("ending")
+		"collection":
+			var hung: Array = []
+			for w in _coll_wall.slice(0, 6):
+				hung.append(w)
+			_stage.show_scene("title", hung if not hung.is_empty() else [_hero_item()])
+			_sfx.music("title")
 
 
 ## Aims the 3D camera so the table shows through the gap under the header.
@@ -1413,6 +1421,7 @@ func _build_title() -> void:
 	gap.size_flags_stretch_ratio = 4.0
 	_root_box.add_child(gap)
 	_root_box.add_child(_button("NEW RUN", _on_new_run, STICKER, 34 if not land else 28, 110 if not land else 84))
+	_root_box.add_child(_button("COLLECTION   %d / %d found   |   WALL %d" % [_coll_seen.size(), Catalog.ITEMS.size(), _coll_wall.size()], _open_collection, Color("2f5d7a"), 22, 88 if not land else 64))
 	var row := _hbox(10)
 	var bh := 80.0 if not land else 64.0
 	for bt in [_button("HOW TO PLAY", _show_how_to, PANEL_HI, 22, bh), _button("SOUND: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI, 22, bh), _button("CREDITS", _show_credits, PANEL_HI, 22, bh)]:
@@ -1798,6 +1807,8 @@ func start_new_run(seed_value: int = 0) -> void:
 	_scroll_mem.clear()
 	run = Run.new()
 	run.start(seed_value)
+	_wall_picked = false
+	_view_run = false
 	_save["runs"] = int(_save["runs"]) + 1
 	_write_save()
 	screen = "home"
@@ -2408,6 +2419,7 @@ func _open_shelf_item(uid: int, state: String) -> void:
 			actions.append(["Repair for %s" % _money(run.repair_cost(item)), func(): _act(run.repair(uid), "haggle"), PANEL_HI])
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
 			actions.append(["Send to grading for %s" % _money(run.grade_cost(item)), func(): _act(run.send_to_grading(uid), "tick"), GOLD])
+	actions.append(["Hang on your Wall (keeps it forever, leaves this run)", func(): _hang_from_shelf(uid), Color("2f5d7a")])
 	actions.append(["Dump it for %s" % _money(Balance.DUMP_VALUE), func(): _act(run.dump(uid), "buzz"), Color("5a3a3a")])
 	_open_sheet(String(item["name"]), lines, actions, item)
 
@@ -2720,6 +2732,7 @@ func _build_over() -> void:
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_root_box.add_child(gap)
 	_end_stats()
+	_wall_pick_button()
 	_root_box.add_child(_button("NEW RUN", start_new_run, STICKER, 32, 104))
 	_root_box.add_child(_button("TITLE", show_title, PANEL_HI, 24, 88))
 
@@ -2736,6 +2749,7 @@ func _build_won() -> void:
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_root_box.add_child(gap)
 	_end_stats()
+	_wall_pick_button()
 	_root_box.add_child(_button("KEEP GOING (ENDLESS)", _go_endless, STICKER, 28, 100))
 	_root_box.add_child(_button("NEW RUN", start_new_run, PANEL_HI, 24, 88))
 
@@ -3284,6 +3298,313 @@ func _toast_msg(text: String, color: Color) -> void:
 
 
 # ================================================================ save
+
+# ================================================================ collection
+## Kept across runs in its own file: every item you've seen or owned, and the
+## Wall where you hang your best finds for good.
+
+const COLL_PATH := "user://collection.cfg"
+const WALL_MAX := 24
+var _coll_seen: Dictionary = {}
+var _coll_owned: Dictionary = {}
+var _coll_wall: Array = []
+var _coll_dirty := false
+var _coll_tab := "wall"
+var _binder_plat := 0
+var _wall_picked := false
+var _coll_loaded := false
+## True while `run` is only a stand-in for viewing items from the title.
+var _view_run := false
+
+
+func _load_collection() -> void:
+	var cf := ConfigFile.new()
+	if cf.load(COLL_PATH) != OK:
+		return
+	for id in cf.get_value("c", "seen", []):
+		_coll_seen[String(id)] = true
+	for id in cf.get_value("c", "owned", []):
+		_coll_owned[String(id)] = true
+	_coll_wall = cf.get_value("c", "wall", [])
+
+
+func _write_collection() -> void:
+	var cf := ConfigFile.new()
+	cf.set_value("c", "seen", _coll_seen.keys())
+	cf.set_value("c", "owned", _coll_owned.keys())
+	cf.set_value("c", "wall", _coll_wall)
+	cf.save(COLL_PATH)
+	_coll_dirty = false
+
+
+## Everything on screen this run counts as seen; your shelf counts as owned.
+func _track_collection() -> void:
+	if not _coll_loaded:
+		_coll_loaded = true
+		_load_collection()
+	if run == null or _view_run:
+		return
+	for o in run.stock:
+		_coll_mark(o["item"], false)
+	for a in run.auctions:
+		_coll_mark(a["item"], false)
+	for it in run.shelf + run.listings:
+		_coll_mark(it, true)
+	for gr in run.grading:
+		_coll_mark(gr["item"], true)
+	if _coll_dirty:
+		_write_collection()
+
+
+func _coll_mark(item: Dictionary, owned: bool) -> void:
+	var id := String(item.get("id", ""))
+	if id == "":
+		return
+	if not _coll_seen.has(id):
+		_coll_seen[id] = true
+		_coll_dirty = true
+	if owned and not _coll_owned.has(id):
+		_coll_owned[id] = true
+		_coll_dirty = true
+
+
+func _on_wall(id: String) -> bool:
+	for w in _coll_wall:
+		if String(w.get("id", "")) == id:
+			return true
+	return false
+
+
+## Hang an item on the Wall. When it's full, it bumps the least valuable piece.
+func _hang(item: Dictionary, value: int) -> String:
+	var w := item.duplicate(true)
+	w["uid"] = -1
+	w["value"] = value
+	w["run"] = int(_save["runs"])
+	_coll_mark(item, true)
+	if _coll_wall.size() >= WALL_MAX:
+		var low := 0
+		for k in _coll_wall.size():
+			if int(_coll_wall[k].get("value", 0)) < int(_coll_wall[low].get("value", 0)):
+				low = k
+		if int(_coll_wall[low].get("value", 0)) >= value:
+			return "Your Wall is full of better stuff."
+		var gone := String(_coll_wall[low]["name"])
+		_coll_wall[low] = w
+		_write_collection()
+		return "Hung %s on your Wall (bumped %s)." % [item["name"], gone]
+	_coll_wall.append(w)
+	_write_collection()
+	return "Hung %s on your Wall. It's yours forever." % item["name"]
+
+
+func _hang_from_shelf(uid: int) -> void:
+	var item := run.find_item(uid)
+	if item.is_empty():
+		return
+	var value := run.market_value(item)
+	run.retire(uid)
+	_toast_msg(_hang(item, value), GOLD)
+	_sfx.play("grail")
+	request_refresh()
+
+
+func _wall_pick_button() -> void:
+	if _wall_picked or run == null or run.shelf.is_empty():
+		return
+	_root_box.add_child(_button("HANG A FIND ON YOUR WALL", _wall_pick_sheet, GOLD, 26, 96))
+
+
+func _wall_pick_sheet() -> void:
+	var best: Array = run.shelf.duplicate()
+	best.sort_custom(func(a, b): return run.market_value(a) > run.market_value(b))
+	var actions: Array = []
+	for it in best.slice(0, 8):
+		var item: Dictionary = it
+		actions.append(["%s  %s" % [item["name"], _money(run.market_value(item))], func():
+			_wall_picked = true
+			_toast_msg(_hang(item, run.market_value(item)), GOLD)
+			_sfx.play("grail")
+			request_refresh(), PANEL_HI])
+	_open_sheet("Pick one to keep forever", [["It goes on your Wall and stays there across every future run.", INK]], actions)
+
+
+func _open_collection() -> void:
+	_close_sheet()
+	_track_collection()
+	screen = "collection"
+	request_refresh()
+
+
+func _set_coll_tab(t: String) -> void:
+	_coll_tab = t
+	request_refresh()
+
+
+func _binder_step(d: int) -> void:
+	_binder_plat = posmod(_binder_plat + d, Catalog.PLATFORMS.size())
+	request_refresh()
+
+
+func _build_collection() -> void:
+	var h := _hbox(10)
+	var t := _title_label("COLLECTION", 40, GOLD)
+	h.add_child(t)
+	h.add_child(_spacer(false))
+	var back := _button("BACK", show_title, PANEL_HI, 22, 80)
+	back.custom_minimum_size.x = 150
+	h.add_child(back)
+	_root_box.add_child(h)
+	var total := Catalog.ITEMS.size()
+	_root_box.add_child(_label("Found %d of %d   |   Owned %d   |   On the Wall %d / %d" % [_coll_seen.size(), total, _coll_owned.size(), _coll_wall.size(), WALL_MAX], 19, MUTED, true))
+	_root_box.add_child(_tabs([["wall", "THE WALL"], ["binder", "BINDER"]], _coll_tab, _set_coll_tab))
+	var col := _scroll_col(_root_box, 1.0)
+	var avail := _content_w() - 26.0
+	if _coll_tab == "wall":
+		_build_wall(col, avail)
+	else:
+		_build_binder(col, avail)
+
+
+func _build_wall(col: Control, avail: float) -> void:
+	_section(col, "YOUR WALL OF FAME")
+	if _coll_wall.is_empty():
+		var l := _label("Nothing hung yet. Tap an item on your shelf and choose Hang on your Wall, or pick a find when a run ends. Wall pieces stay forever.", 22, INK, true)
+		col.add_child(l)
+		return
+	var sorted: Array = _coll_wall.duplicate()
+	sorted.sort_custom(func(a, b): return int(a.get("value", 0)) > int(b.get("value", 0)))
+	var gc: Array = _grid(avail, 200, 10)
+	var g: GridContainer = gc[0]
+	var w: float = gc[1]
+	for it in sorted:
+		g.add_child(_wall_tile(it, w))
+	col.add_child(g)
+
+
+func _wall_tile(item: Dictionary, w: float) -> Button:
+	var b := _card_shell(w, 250, GOLD, func(): _coll_inspect(item, true), Color(0.12, 0.09, 0.05, 0.95))
+	var v := _card_inner(b)
+	var well := _icon_well(item, 110)
+	well.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(well)
+	var nm := _title_label(String(item["name"]), 18, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.max_lines_visible = 2
+	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(nm)
+	var row := _hbox(4)
+	var vr := String(item.get("variant", "Standard"))
+	row.add_child(_pill(vr if vr != "Standard" else String(item.get("cond", "")), Catalog.VARIANTS.get(vr, {}).get("color", MUTED) if vr != "Standard" else MUTED, 13))
+	row.add_child(_spacer(false))
+	row.add_child(_title_label(_money(int(item.get("value", 0))), 20, GOLD))
+	v.add_child(row)
+	_ignore_mouse(b)
+	return b
+
+
+func _build_binder(col: Control, avail: float) -> void:
+	var codes: Array = Catalog.PLATFORMS.keys()
+	var code := String(codes[clampi(_binder_plat, 0, codes.size() - 1)])
+	var plat := Catalog.platform(code)
+	var items: Array = Catalog.ITEMS.filter(func(d): return String(d["plat"]) == code)
+	items.sort_custom(func(a, b): return int(a.get("tier", 0)) > int(b.get("tier", 0)) or (int(a.get("tier", 0)) == int(b.get("tier", 0)) and String(a["name"]) < String(b["name"])))
+	var got := 0
+	for d in items:
+		if _coll_seen.has(String(d["id"])):
+			got += 1
+	var nav := _hbox(8)
+	var prev := _button("<", _binder_step.bind(-1), PANEL_HI, 30, 88)
+	prev.custom_minimum_size.x = 96
+	nav.add_child(prev)
+	var mid := _vbox(0)
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var pn := _title_label(String(plat["name"]), 28, (plat["color"] as Color).lightened(0.3))
+	pn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mid.add_child(pn)
+	var pc := _label("%d / %d found" % [got, items.size()], 18, MUTED)
+	pc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mid.add_child(pc)
+	nav.add_child(mid)
+	var nxt := _button(">", _binder_step.bind(1), PANEL_HI, 30, 88)
+	nxt.custom_minimum_size.x = 96
+	nav.add_child(nxt)
+	col.add_child(nav)
+	var key := _hbox(6)
+	key.add_child(_pill("WALL", GOLD, 15))
+	key.add_child(_pill("OWN NOW", GOOD, 15))
+	key.add_child(_pill("OWNED", Color("7fb8ff"), 15))
+	key.add_child(_pill("SEEN", MUTED, 15))
+	key.add_child(_pill("?  NOT YET", Color(0.35, 0.33, 0.42), 15))
+	col.add_child(key)
+	var gc: Array = _grid(avail, 120, 8)
+	var g: GridContainer = gc[0]
+	var w: float = gc[1]
+	var now: Dictionary = {}
+	if run != null and not _view_run:
+		for it in run.shelf:
+			now[String(it["id"])] = true
+	for d in items:
+		g.add_child(_binder_tile(d, w, now))
+	col.add_child(g)
+
+
+func _binder_tile(def: Dictionary, w: float, now: Dictionary) -> Button:
+	var id := String(def["id"])
+	var state := "unseen"
+	if _on_wall(id):
+		state = "wall"
+	elif now.has(id):
+		state = "now"
+	elif _coll_owned.has(id):
+		state = "owned"
+	elif _coll_seen.has(id):
+		state = "seen"
+	var colr: Color = {"wall": GOLD, "now": GOOD, "owned": Color("7fb8ff"), "seen": MUTED, "unseen": Color(0.3, 0.28, 0.36)}[state]
+	var item := def.duplicate()
+	item["cond"] = "CIB"
+	var b := _card_shell(w, 176, colr, func(): _coll_inspect(item, state != "unseen"), PANEL if state != "unseen" else Color(0.05, 0.045, 0.07, 0.9))
+	var v := _card_inner(b)
+	if state == "unseen":
+		var q := _title_label("?", 64, Color(0.45, 0.42, 0.55))
+		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		q.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		v.add_child(q)
+		var tl := _label(["Common", "Uncommon", "Rare", "GRAIL"][clampi(int(def.get("tier", 0)), 0, 3)], 15, Color(Catalog.TIER_COLORS[int(def.get("tier", 0))], 0.8))
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(tl)
+	else:
+		var ic := _icon(item, 64)
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		if state == "seen":
+			ic.modulate = Color(0.55, 0.55, 0.62, 0.8)
+		v.add_child(ic)
+		var nm := _label(String(def["name"]), 15, INK if state != "seen" else MUTED)
+		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nm.max_lines_visible = 2
+		nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		v.add_child(nm)
+		v.add_child(_pill({"wall": "WALL", "now": "OWN NOW", "owned": "OWNED", "seen": "SEEN"}[state], colr, 13))
+	_ignore_mouse(b)
+	return b
+
+
+func _coll_inspect(item: Dictionary, known: bool) -> void:
+	if not known:
+		_toast_msg("Not found yet. Keep digging!", MUTED)
+		_sfx.play("buzz")
+		return
+	if run == null:
+		run = Run.new()
+		run.start(1)
+		_view_run = true
+	var it := item.duplicate()
+	it["uid"] = -1
+	var lines: Array = [[String(Catalog.get_def(String(it["id"])).get("blurb", "")), FLAVOR_C]]
+	if it.has("value"):
+		lines.append(["Hung on your Wall worth %s (run #%d)." % [_money(int(it["value"])), int(it.get("run", 0))], GOLD])
+	_open_sheet(String(it["name"]), lines, [], it)
+
 
 func _load_save() -> void:
 	var cf := ConfigFile.new()

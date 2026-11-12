@@ -69,6 +69,16 @@ func _go() -> void:
 	game.run.ante = 3
 	game.run._prepare_home()
 	await _snap("home_later")
+	for id in ["fes_wcup", "fes_samsin", "fes_console", "fes_zeldo"]:
+		var w: Dictionary = game.run.make_item(Catalog.get_def(id), "CIB")
+		game._hang(w, int(Catalog.get_def(id)["base"]))
+	game._open_collection()
+	game._set_coll_tab("wall")
+	await _snap("collection_wall")
+	game._set_coll_tab("binder")
+	await _snap("collection_binder")
+	game.screen = "home"
+	game.request_refresh()
 	game.go_to_venue(game.run.venue_choices[-1])
 	await _snap("venue_shop")
 	game.run.phase = Run.Phase.HOME
