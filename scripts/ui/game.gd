@@ -5,15 +5,24 @@ extends Control
 ## after every action (cheap at this size, and impossible to get out of sync).
 ##
 ## Portrait (phones) = one column. Landscape (Steam) = two columns.
+##
+## Look: a low-res PSX-style 3D room (scripts/gfx/stage.gd) sits behind the UI,
+## with the items on the table. The UI leaves a "window" gap under the header
+## so you look into the room; panels are dark smoked glass over it.
 
 const SafeArea := preload("res://scripts/ui/safe_area.gd")
+const FONT_BODY := preload("res://assets/fonts/Jersey15-Regular.ttf")
+const FONT_DISPLAY := preload("res://assets/fonts/Jersey10-Regular.ttf")
+const CRT_SHADER := preload("res://assets/shaders/crt.gdshader")
+## Jersey runs small, so every font size is scaled up by this.
+const FONT_SCALE := 1.18
 
 ## Dev shortcuts (+$100, +1 ante) at Home. Set false before shipping.
 const DEV := true
 
 const BG := Color("15131d")
-const PANEL := Color("221f2e")
-const PANEL_HI := Color("2f2a42")
+const PANEL := Color(0.075, 0.065, 0.095, 0.9)
+const PANEL_HI := Color("3a3150")
 const INK := Color("f2ead8")
 const MUTED := Color("9a93ab")
 const GOOD := Color("5ee08a")
@@ -42,7 +51,14 @@ var _last_inset := Vector4(-1, -1, -1, -1)
 var _refresh_queued := false
 var _busy := false
 var _skip := false
-var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0}
+var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1}
+var _stage: Stage
+var _gap: Control
+var _crt: ColorRect
+var _shown_cash := -1
+var _cash_label: Label
+var _cash_tween: Tween
+var _title_item: Dictionary = {}
 
 
 func _ready() -> void:
@@ -53,6 +69,8 @@ func _ready() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	_stage = Stage.new()
+	add_child(_stage)
 	_safe = MarginContainer.new()
 	_safe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_safe)
@@ -64,9 +82,18 @@ func _ready() -> void:
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_overlay)
 	_build_toast()
+	_crt = ColorRect.new()
+	_crt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crt.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var cm := ShaderMaterial.new()
+	cm.shader = CRT_SHADER
+	_crt.material = cm
+	add_child(_crt)
 	_sfx = Sfx.new()
 	add_child(_sfx)
 	_load_save()
+	_sfx.enabled = int(_save["sound"]) == 1
+	_sfx.music_enabled = _sfx.enabled
 	get_viewport().size_changed.connect(_on_resized)
 	var poll := Timer.new()
 	poll.wait_time = 1.0
@@ -135,6 +162,8 @@ func _do_refresh() -> void:
 	for c in _root_box.get_children():
 		_root_box.remove_child(c)
 		c.queue_free()
+	_gap = null
+	_cash_label = null
 	match screen:
 		"title": _build_title()
 		"home": _build_home()
@@ -142,39 +171,131 @@ func _do_refresh() -> void:
 		"over": _build_over()
 		"won": _build_won()
 		_: pass
+	_sync_stage()
+	_update_focus.call_deferred()
+
+
+## Puts the right room (and its items) behind the UI and picks the music.
+func _sync_stage() -> void:
+	if _stage == null:
+		return
+	match screen:
+		"title":
+			_stage.show_scene("title", [_hero_item()])
+			_sfx.music("title")
+		"home":
+			_stage.show_scene("home", run.shelf)
+			_sfx.music("home")
+		"venue":
+			var items: Array = []
+			for o in run.stock:
+				items.append(o["item"])
+			for a in run.auctions:
+				items.append(a["item"])
+			_stage.show_scene(String(run.venue["id"]), items)
+			_sfx.music(String(run.venue["slot"]), String(run.venue["id"]))
+		"over":
+			var it := _hero_item()
+			it["cond"] = "Damaged"
+			_stage.show_scene("title", [it])
+			_sfx.music("title")
+		"won":
+			_stage.show_scene("title", [_hero_item()])
+			_sfx.music("home")
+
+
+## Aims the 3D camera so the table shows through the gap under the header.
+func _update_focus() -> void:
+	if _stage == null or not is_inside_tree():
+		return
+	# Containers settle a frame or two after a rebuild.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _stage == null or not is_inside_tree() or screen == "appraisal":
+		return
+	var vh := get_viewport_rect().size.y
+	if _gap != null and is_instance_valid(_gap) and _gap.is_inside_tree() and vh > 0:
+		var r := _gap.get_global_rect()
+		var zoom := 1.0
+		if screen == "title":
+			zoom = 1.5 if is_landscape() else 1.0
+		_stage.set_focus((r.position.y + r.size.y * 0.62) / vh, zoom)
+	else:
+		_stage.set_focus(0.42)
+
+
+## The big sealed box spinning on the title screen.
+func _hero_item() -> Dictionary:
+	if _title_item.is_empty():
+		var grails := Catalog.defs_of_tier(3)
+		var d: Dictionary = grails[randi() % grails.size()].duplicate()
+		d["cond"] = "Sealed"
+		_title_item = d
+	return _title_item.duplicate()
+
+
+## A see-through hole in the layout where the 3D room shows.
+func _stage_gap(h: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(0, h)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gap = c
+	return c
 
 
 # ================================================================ theme + widgets
 
 func _make_theme() -> Theme:
 	var t := Theme.new()
-	t.default_font_size = 24
+	t.default_font = FONT_BODY
+	t.default_font_size = int(24 * FONT_SCALE)
 	t.set_color("font_color", "Label", INK)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		t.set_color(c, "Button", INK)
 	t.set_color("font_disabled_color", "Button", Color(INK, 0.35))
-	t.set_stylebox("normal", "Button", _box(PANEL_HI, 14))
-	t.set_stylebox("hover", "Button", _box(PANEL_HI.lightened(0.07), 14))
-	t.set_stylebox("pressed", "Button", _box(PANEL_HI.darkened(0.25), 14))
-	t.set_stylebox("disabled", "Button", _box(PANEL.darkened(0.15), 14))
+	t.set_font("font", "Button", FONT_DISPLAY)
+	t.set_stylebox("normal", "Button", _box(PANEL_HI, 6))
+	t.set_stylebox("hover", "Button", _box(PANEL_HI.lightened(0.07), 6))
+	t.set_stylebox("pressed", "Button", _box(PANEL_HI.darkened(0.25), 6))
+	t.set_stylebox("disabled", "Button", _box(PANEL.darkened(0.15), 6))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	t.set_stylebox("panel", "PanelContainer", _box(PANEL, 16))
+	t.set_stylebox("panel", "PanelContainer", _box(PANEL, 6))
+	var grab := StyleBoxFlat.new()
+	grab.bg_color = Color(GOLD, 0.5)
+	grab.set_corner_radius_all(3)
+	grab.content_margin_left = 3
+	grab.content_margin_right = 3
+	t.set_stylebox("grabber", "VScrollBar", grab)
+	t.set_stylebox("grabber_highlight", "VScrollBar", grab)
+	t.set_stylebox("grabber_pressed", "VScrollBar", grab)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0, 0, 0, 0.25)
+	track.content_margin_left = 3
+	track.content_margin_right = 3
+	t.set_stylebox("scroll", "VScrollBar", track)
 	return t
 
 
-func _box(color: Color, radius: int = 14, border: Color = Color(0, 0, 0, 0), width: int = 0, stripe: int = 0) -> StyleBoxFlat:
+func _box(color: Color, radius: int = 6, border: Color = Color(0, 0, 0, 0), width: int = 0, stripe: int = 0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = color
-	s.set_corner_radius_all(radius)
+	s.set_corner_radius_all(mini(radius, 8))
 	s.content_margin_left = 14 + stripe
 	s.content_margin_right = 14
 	s.content_margin_top = 10
 	s.content_margin_bottom = 10
+	s.shadow_color = Color(0, 0, 0, 0.45)
+	s.shadow_size = 1
+	s.shadow_offset = Vector2(0, 4)
 	if width > 0:
 		s.set_border_width_all(width)
 		s.border_color = border
+	elif stripe == 0:
+		s.border_width_top = 2
+		s.border_color = Color(1, 1, 1, 0.06)
 	if stripe > 0:
 		s.border_width_left = stripe
+		s.border_width_bottom = 3
 		s.border_color = border
 	return s
 
@@ -182,7 +303,7 @@ func _box(color: Color, radius: int = 14, border: Color = Color(0, 0, 0, 0), wid
 func _label(text: String, fs: int = 24, color: Color = INK, wrap: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", fs)
+	l.add_theme_font_size_override("font_size", int(fs * FONT_SCALE))
 	l.add_theme_color_override("font_color", color)
 	if wrap:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -191,27 +312,62 @@ func _label(text: String, fs: int = 24, color: Color = INK, wrap: bool = false) 
 	return l
 
 
+## Big chunky display text with a dark outline and a drop shadow.
 func _title_label(text: String, fs: int, color: Color) -> Label:
 	var l := _label(text, fs, color)
+	l.add_theme_font_override("font", FONT_DISPLAY)
+	l.add_theme_font_size_override("font_size", int(fs * FONT_SCALE * 1.12))
 	l.add_theme_color_override("font_outline_color", Color("0b0a10"))
-	l.add_theme_constant_override("outline_size", maxi(4, int(fs / 7.0)))
+	l.add_theme_constant_override("outline_size", maxi(5, int(fs / 5.0)))
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	l.add_theme_constant_override("shadow_offset_x", 0)
+	l.add_theme_constant_override("shadow_offset_y", maxi(2, int(fs / 10.0)))
 	return l
 
 
+## Chunky arcade button: thick darker bottom edge that squashes when pressed.
 func _button(text: String, cb: Callable, color: Color = PANEL_HI, fs: int = 24, height: float = 88.0) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(0, height)
-	b.add_theme_font_size_override("font_size", fs)
-	b.add_theme_stylebox_override("normal", _box(color, 14))
-	b.add_theme_stylebox_override("hover", _box(color.lightened(0.08), 14))
-	b.add_theme_stylebox_override("pressed", _box(color.darkened(0.25), 14))
+	b.add_theme_font_override("font", FONT_DISPLAY)
+	b.add_theme_font_size_override("font_size", int(fs * FONT_SCALE * 1.15))
+	b.add_theme_stylebox_override("normal", _btn_box(color, 7))
+	b.add_theme_stylebox_override("hover", _btn_box(color.lightened(0.08), 7))
+	b.add_theme_stylebox_override("pressed", _btn_box(color.darkened(0.15), 2))
+	b.add_theme_stylebox_override("disabled", _btn_box(color.darkened(0.45), 3))
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
+	b.add_theme_constant_override("outline_size", 4)
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	b.pressed.connect(cb)
+	b.button_down.connect(_click)
 	if color.get_luminance() > 0.55:
 		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 			b.add_theme_color_override(c, Color("15131d"))
+		b.add_theme_constant_override("outline_size", 0)
 	return b
+
+
+func _btn_box(color: Color, edge: int) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = color
+	s.set_corner_radius_all(7)
+	s.border_width_bottom = edge
+	s.border_width_top = 2
+	s.border_color = color.darkened(0.5)
+	s.content_margin_left = 14
+	s.content_margin_right = 14
+	s.content_margin_top = 10 + (7 - edge)
+	s.content_margin_bottom = 8
+	s.shadow_color = Color(0, 0, 0, 0.5)
+	s.shadow_size = 1
+	s.shadow_offset = Vector2(0, 3)
+	return s
+
+
+func _click() -> void:
+	if _sfx != null:
+		_sfx.play("click")
 
 
 func _ignore_mouse(n: Node) -> void:
@@ -245,7 +401,7 @@ func _spacer(vertical: bool = true) -> Control:
 
 func _panel(color: Color = PANEL, border: Color = Color(0, 0, 0, 0), width: int = 0) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", _box(color, 16, border, width))
+	p.add_theme_stylebox_override("panel", _box(color, 6, border, width))
 	return p
 
 
@@ -329,6 +485,69 @@ func _card_inner(b: Button) -> VBoxContainer:
 	return v
 
 
+## Card body with the item's 3D icon on the left; returns the text column.
+func _card_inner_icon(b: Button, item: Dictionary, px: float) -> VBoxContainer:
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 16)
+	m.add_theme_constant_override("margin_right", 10)
+	m.add_theme_constant_override("margin_top", 8)
+	m.add_theme_constant_override("margin_bottom", 8)
+	b.add_child(m)
+	var h := _hbox(10)
+	m.add_child(h)
+	h.add_child(_icon_well(item, px))
+	var v := _vbox(2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	return v
+
+
+## The baked 3D render of an item (assets/items/icons), pixel-crisp.
+func _icon(item: Dictionary, px: float) -> TextureRect:
+	var form := "box" if ItemModels.is_boxed(item) and String(item["kind"]) != "misc" else "loose"
+	var path := "res://assets/items/icons/%s_%s.png" % [item["id"], form]
+	var tr := TextureRect.new()
+	if ResourceLoader.exists(path):
+		tr.texture = load(path)
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.custom_minimum_size = Vector2(px, px)
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if String(item.get("cond", "")) == "Damaged":
+		tr.modulate = Color(0.85, 0.68, 0.58)
+	return tr
+
+
+## Icon on a little dark plinth, glowing for rare and grail items.
+func _icon_well(item: Dictionary, px: float) -> PanelContainer:
+	var p := PanelContainer.new()
+	var tier := int(item.get("tier", 0))
+	var st := _box(Color(0, 0, 0, 0.35), 6)
+	st.content_margin_left = 2
+	st.content_margin_right = 2
+	st.content_margin_top = 2
+	st.content_margin_bottom = 2
+	st.shadow_size = 0
+	if tier >= 2:
+		st.set_border_width_all(2)
+		st.border_color = Color(Catalog.TIER_COLORS[tier], 0.8)
+		st.shadow_color = Color(Catalog.TIER_COLORS[tier], 0.35)
+		st.shadow_size = 6
+		st.shadow_offset = Vector2.ZERO
+	p.add_theme_stylebox_override("panel", st)
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p.add_child(_icon(item, px))
+	if int(item.get("grade", 0)) > 0:
+		var g := _sticker(str(item["grade"]), GOLD)
+		g.size_flags_horizontal = Control.SIZE_SHRINK_END
+		g.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		p.add_child(g)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return p
+
+
 func _tag_row(item: Dictionary, fs: int = 17) -> HBoxContainer:
 	var plat := Catalog.platform(String(item["plat"]))
 	var row := _hbox(8)
@@ -371,8 +590,8 @@ func _sticker(text: String, color: Color = STICKER) -> PanelContainer:
 func _offer_card(i: int, w: float) -> Button:
 	var o: Dictionary = run.stock[i]
 	var item: Dictionary = o["item"]
-	var b := _card_shell(w, 150, Catalog.platform(String(item["plat"]))["color"], func(): _open_offer(i))
-	var v := _card_inner(b)
+	var b := _card_shell(w, 160, Catalog.platform(String(item["plat"]))["color"], func(): _open_offer(i))
+	var v := _card_inner_icon(b, item, 104)
 	v.add_child(_tag_row(item))
 	var nm := _label(String(item["name"]), 22, INK, true)
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -397,8 +616,22 @@ func _offer_card(i: int, w: float) -> Button:
 func _lot_card(i: int, w: float) -> Button:
 	var lot: Dictionary = run.lots[i]
 	var storage: bool = run.venue["id"] == "storage"
-	var b := _card_shell(w, 150, GOLD, func(): _open_lot(i), Color("2b2433"))
-	var v := _card_inner(b)
+	var b := _card_shell(w, 160, GOLD, func(): _open_lot(i), Color(0.17, 0.13, 0.2, 0.92))
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 10 if side != "left" else 16)
+	b.add_child(m)
+	var hb := _hbox(10)
+	m.add_child(hb)
+	var q := _title_label("?", 70, GOLD)
+	q.custom_minimum_size = Vector2(90, 0)
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hb.add_child(q)
+	var v := _vbox(2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hb.add_child(v)
 	var items: Array = lot["items"]
 	v.add_child(_label(("STORAGE UNIT #%d" % (i + 1)) if storage else "MYSTERY BOX LOT", 20, GOLD))
 	var peek: Array = []
@@ -424,8 +657,8 @@ func _lot_card(i: int, w: float) -> Button:
 func _auction_card(i: int, w: float) -> Button:
 	var a: Dictionary = run.auctions[i]
 	var item: Dictionary = a["item"]
-	var b := _card_shell(w, 150, Catalog.platform(String(item["plat"]))["color"], func(): _open_auction(i))
-	var v := _card_inner(b)
+	var b := _card_shell(w, 160, Catalog.platform(String(item["plat"]))["color"], func(): _open_auction(i))
+	var v := _card_inner_icon(b, item, 104)
 	v.add_child(_tag_row(item))
 	var nm := _label("AUCTION: " + String(item["name"]), 21, INK, true)
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -450,8 +683,13 @@ func _auction_card(i: int, w: float) -> Button:
 
 func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	var bg := PANEL if state == "" else PANEL.darkened(0.3)
-	var b := _card_shell(w, 104, Catalog.platform(String(item["plat"]))["color"], func(): _open_shelf_item(int(item["uid"]), state), bg)
+	var b := _card_shell(w, 176, Catalog.platform(String(item["plat"]))["color"], func(): _open_shelf_item(int(item["uid"]), state), bg)
 	var v := _card_inner(b)
+	var ic := _icon(item, 64)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	if state != "":
+		ic.modulate = Color(0.6, 0.6, 0.7)
+	v.add_child(ic)
 	v.add_child(_tag_row(item, 14))
 	var nm := _label(String(item["name"]), 16, INK if state == "" else MUTED, true)
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -472,8 +710,8 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 
 func _empty_tile(w: float) -> Control:
 	var p := PanelContainer.new()
-	p.custom_minimum_size = Vector2(w, 104)
-	p.add_theme_stylebox_override("panel", _box(Color(1, 1, 1, 0.03), 12, Color(1, 1, 1, 0.08), 2))
+	p.custom_minimum_size = Vector2(w, 176)
+	p.add_theme_stylebox_override("panel", _box(Color(0, 0, 0, 0.25), 6, Color(1, 1, 1, 0.1), 2))
 	var l := _label("empty", 15, Color(MUTED, 0.5))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -521,17 +759,53 @@ func _header() -> void:
 		var pips := _hbox(5)
 		for k in maxi(run.time_left, 1):
 			var pip := ColorRect.new()
-			pip.custom_minimum_size = Vector2(16, 22)
-			pip.color = COLD_C if run.time_left > 0 else Color(BAD, 0.6)
+			pip.custom_minimum_size = Vector2(14, 24)
+			pip.color = Color("ffb347") if run.time_left > 0 else Color(BAD, 0.6)
 			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			pips.add_child(pip)
 		tv.add_child(pips)
 		h.add_child(tv)
 	var cv := _vbox(0)
 	cv.add_child(_label("CASH", 15, MUTED))
-	cv.add_child(_title_label(_money(run.cash), 34, GOLD))
+	if _shown_cash < 0 or fast:
+		_shown_cash = run.cash
+	_cash_label = _title_label(_money(_shown_cash), 40, GOLD)
+	_cash_label.add_theme_color_override("font_outline_color", Color("3a2600"))
+	cv.add_child(_cash_label)
 	h.add_child(cv)
-	_root_box.add_child(h)
+	var hp := _panel(Color(0.04, 0.035, 0.05, 0.82))
+	hp.add_child(h)
+	_root_box.add_child(hp)
+	if _shown_cash != run.cash:
+		_roll_cash.call_deferred(_shown_cash, run.cash)
+
+
+## Cash counts up/down like a till instead of jumping.
+func _roll_cash(from: int, to: int) -> void:
+	if _cash_label == null or not is_instance_valid(_cash_label):
+		_shown_cash = to
+		return
+	if _cash_tween != null and _cash_tween.is_valid():
+		_cash_tween.kill()
+	_cash_tween = create_tween()
+	_cash_tween.tween_method(_set_cash, from, to, clampf(absf(to - from) / 200.0, 0.25, 0.8))
+	_punch(_cash_label, 1.25)
+
+
+func _set_cash(v: int) -> void:
+	_shown_cash = v
+	if _cash_label != null and is_instance_valid(_cash_label):
+		_cash_label.text = _money(v)
+
+
+## Quick scale pop for numbers and stickers.
+func _punch(c: Control, amount: float = 1.3) -> void:
+	if c == null or not is_instance_valid(c) or fast:
+		return
+	c.pivot_offset = c.size * 0.5
+	var tw := c.create_tween()
+	tw.tween_property(c, "scale", Vector2.ONE * amount, 0.05)
+	tw.tween_property(c, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _market_panel(parent: Control) -> void:
@@ -556,36 +830,63 @@ func show_title() -> void:
 
 
 func _build_title() -> void:
-	_root_box.add_child(_spacer())
-	var cart := _panel(Color("3a3646"), Color("6b6580"), 4)
-	var cv := _vbox(4)
-	cart.add_child(cv)
-	var stripe := ColorRect.new()
-	stripe.color = Color("d64545")
-	stripe.custom_minimum_size = Vector2(0, 14)
-	cv.add_child(stripe)
+	var land := is_landscape()
+	var logo := _vbox(-18 if not land else -12)
 	for pair in [["COMPLETE", INK], ["IN BOX", GOLD]]:
-		var l := _title_label(pair[0], 76, pair[1])
+		var l := _title_label(pair[0], 96 if not land else 60, pair[1])
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cv.add_child(l)
-	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 22, MUTED)
+		logo.add_child(l)
+	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 22, Color("d9c9a8"))
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cv.add_child(tag)
-	var stripe2 := ColorRect.new()
-	stripe2.color = Color("3a6fd6")
-	stripe2.custom_minimum_size = Vector2(0, 14)
-	cv.add_child(stripe2)
-	_root_box.add_child(cart)
-	_root_box.add_child(_spacer())
-	_root_box.add_child(_button("NEW RUN", start_new_run, STICKER, 34, 110))
-	_root_box.add_child(_button("HOW TO PLAY", _show_how_to, PANEL_HI, 24, 88))
+	tag.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	tag.add_theme_constant_override("outline_size", 6)
+	if not land:
+		_root_box.add_child(_spacer())
+	_root_box.add_child(logo)
+	_root_box.add_child(tag)
+	var gap := _stage_gap(260 if not land else 120)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gap.size_flags_stretch_ratio = 4.0
+	_root_box.add_child(gap)
+	_root_box.add_child(_button("NEW RUN", start_new_run, STICKER, 34 if not land else 28, 110 if not land else 84))
+	var row := _hbox(10)
+	var bh := 80.0 if not land else 64.0
+	for bt in [_button("HOW TO PLAY", _show_how_to, PANEL_HI, 22, bh), _button("SOUND: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI, 22, bh), _button("CREDITS", _show_credits, PANEL_HI, 22, bh)]:
+		bt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(bt)
+	_root_box.add_child(row)
 	var best := "No runs yet."
 	if int(_save["runs"]) > 0:
 		best = "Best: Ante %d  |  Best shelf %s  |  Wins %d" % [_save["best_ante"], _money(int(_save["best_appraisal"])), _save["wins"]]
 	var bl := _label(best, 19, MUTED)
 	bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(bl)
-	_root_box.add_child(_spacer())
+
+
+func _toggle_sound() -> void:
+	var on := not _sfx.enabled
+	_save["sound"] = 1 if on else 0
+	_write_save()
+	_sfx.enabled = on
+	_sfx.set_music_enabled(on)
+	request_refresh()
+
+
+const CREDITS := [
+	"3D props: Kenney Furniture Kit, 3D Interior Home Assets, Escape Room Pack, Crate model (OpenGameArt).",
+	"Cartridge models: Late 1980s Game Cartridges (OpenGameArt, CC-BY 3.0).",
+	"Textures: ambientCG (CC0). Fonts: Jersey 10/15, VT323 (OFL).",
+	"Sounds: Kenney Casino, Interface Sounds and Music Jingles; 80 CC0 RPG SFX; 75 CC0 breaking/falling SFX.",
+	"Music: Jazzy Vibes #89, A Cloudy Morning, Chilled Lofi Beat, Squirrel Village Lounge, 8bit Bossa (OpenGameArt). Ambience: Free General Ambience Sounds.",
+	"Full list with links: assets/sources.txt",
+]
+
+
+func _show_credits() -> void:
+	var lines: Array = []
+	for c in CREDITS:
+		lines.append([c, MUTED])
+	_open_sheet("Credits", lines, [])
 
 
 func _show_how_to() -> void:
@@ -628,6 +929,7 @@ func _act(res: Dictionary, good: String = "coin") -> void:
 
 func _build_home() -> void:
 	_header()
+	_root_box.add_child(_stage_gap(190 if is_landscape() else 250))
 	var cols := _columns()
 	var main: VBoxContainer = cols[0]
 	var side: VBoxContainer = cols[1]
@@ -778,7 +1080,7 @@ func go_to_venue(id: String) -> void:
 	var res := run.enter_venue(id)
 	if bool(res["ok"]):
 		screen = "venue"
-		_sfx.play("land")
+		_sfx.play("door")
 		if not String(res["msg"]).begins_with("Welcome"):
 			_toast_msg(String(res["msg"]), GOLD)
 	else:
@@ -802,6 +1104,7 @@ func _dev_ante() -> void:
 
 func _build_venue() -> void:
 	_header()
+	_root_box.add_child(_stage_gap(170 if is_landscape() else 270))
 	var ap := run.appraise()
 	var total := int(ap["total"])
 	var tgt := run.target()
@@ -847,7 +1150,7 @@ func _build_venue() -> void:
 			ag[0].add_child(_auction_card(i, ag[1]))
 		main.add_child(ag[0])
 	if int(run.venue["dig"]) > 0:
-		var dig := _button("%s  (1 Time)" % run.venue["dig_label"], func(): _act(run.dig(), "tick"), PANEL_HI, 22, 80)
+		var dig := _button("%s  (1 Time)" % run.venue["dig_label"], func(): _act(run.dig(), "dig"), PANEL_HI, 22, 80)
 		dig.disabled = run.time_left <= 0
 		main.add_child(dig)
 	var hint := _venue_hint()
@@ -913,9 +1216,11 @@ func _do_buy(i: int) -> void:
 		var diff := value - price
 		var msg := "%s  Turns out it's worth %s (%s%s)." % [res["msg"], _money(value), "+" if diff >= 0 else "", _money(diff)]
 		res["msg"] = msg
-		_act(res, "grail" if diff > 100 else "coin")
+		_act(res, "grail" if diff > 100 else ("bargain" if diff > 0 else "buy"))
+		if diff > 100:
+			_stage.shake(0.6)
 		return
-	_act(res, "coin")
+	_act(res, "buy")
 
 
 func _do_haggle(i: int) -> void:
@@ -944,6 +1249,7 @@ func _do_lot(i: int) -> void:
 		_act(res)
 		return
 	request_refresh()
+	_sfx.play("lot")
 	_play_lot_reveal(res["items"], int(res["worth"]), String(res["msg"]))
 
 
@@ -1020,7 +1326,9 @@ func finish_stop() -> void:
 	if _busy or run.phase != Run.Phase.VENUE:
 		return
 	_close_sheet()
+	var shelf_before: Array = run.shelf.duplicate()
 	var res := run.end_stop()
+	res["shelf_before"] = shelf_before
 	screen = "appraisal"
 	request_refresh()
 	if int(res["appraisal"]["total"]) > int(_save["best_appraisal"]):
@@ -1044,8 +1352,18 @@ func _play_appraisal(res: Dictionary) -> void:
 	_hide_toast()
 	var ap: Dictionary = res["appraisal"]
 	var tgt := run.target()
+	# The shelf being appraised, in the order the rows count up.
+	var before: Array = res.get("shelf_before", run.shelf)
+	var shown: Array = []
+	for row in ap["items"]:
+		for it in before:
+			if int(it["uid"]) == int(row["uid"]):
+				shown.append(it)
+				break
+	_stage.show_scene("appraisal", shown)
+	_sfx.duck(true)
 	var layer := ColorRect.new()
-	layer.color = Color(BG, 0.97)
+	layer.color = Color(0.02, 0.015, 0.03, 0.35)
 	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	layer.gui_input.connect(_on_appraisal_input)
@@ -1060,35 +1378,52 @@ func _play_appraisal(res: Dictionary) -> void:
 	var v := _vbox(8)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(v)
-	v.add_child(_title_label("APPRAISAL", 44, GOLD))
-	v.add_child(_label("Target %s" % _money(tgt), 22, MUTED))
+	var head := _hbox()
+	head.add_child(_title_label("APPRAISAL", 52, GOLD))
+	head.add_child(_spacer(false))
+	head.add_child(_title_label("Target %s" % _money(tgt), 30, INK))
+	v.add_child(head)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 150 if is_landscape() else 260)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(gap)
+	_focus_on.call_deferred(gap)
+	var card := _panel(Color(0.05, 0.04, 0.065, 0.93), Color(GOLD, 0.35), 2)
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(card)
+	var cv := _vbox(6)
+	card.add_child(cv)
 	for e in res["events"]:
-		v.add_child(_label(String(e), 18, Color("4fd9a0"), true))
+		cv.add_child(_label(String(e), 18, Color("4fd9a0"), true))
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.mouse_filter = Control.MOUSE_FILTER_PASS
-	v.add_child(sc)
+	cv.add_child(sc)
 	var list := _vbox(4)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(list)
 	var totals := _hbox(16)
-	var chips_l := _title_label("$0", 36, Color("4fa3ff"))
-	var x_l := _label("x", 26, MUTED)
-	var mult_l := _title_label("1.00", 36, Color("ff5577"))
+	totals.alignment = BoxContainer.ALIGNMENT_CENTER
+	var chips_l := _title_label("$0", 44, Color("4fa3ff"))
+	var x_l := _title_label("x", 30, MUTED)
+	var mult_l := _title_label("1.00", 44, Color("ff5577"))
 	totals.add_child(chips_l)
 	totals.add_child(x_l)
 	totals.add_child(mult_l)
-	v.add_child(totals)
-	var total_l := _title_label("", 52, INK)
-	v.add_child(total_l)
+	cv.add_child(totals)
+	var total_l := _title_label("", 64, INK)
+	total_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cv.add_child(total_l)
 	var items: Array = ap["items"]
-	var d := minf(0.2, 2.4 / maxf(1.0, items.size()))
+	var d := minf(0.22, 2.6 / maxf(1.0, items.size()))
 	var chips := 0
 	var pitch := 0.8
+	var idx := 0
 	for row in items:
 		var h := _hbox()
-		h.add_child(_label("+" + _money(int(row["value"])), 22, Color("4fa3ff")))
+		h.add_child(_title_label("+" + _money(int(row["value"])), 24, Color("4fa3ff")))
 		var n := String(row["name"])
 		if not (row["notes"] as Array).is_empty():
 			n += "  (" + ", ".join(row["notes"]) + ")"
@@ -1096,6 +1431,9 @@ func _play_appraisal(res: Dictionary) -> void:
 		list.add_child(h)
 		chips += int(row["value"])
 		chips_l.text = _money(chips)
+		_punch(chips_l, 1.15)
+		_stage.pulse(idx)
+		idx += 1
 		_sfx.play("tick", pitch)
 		pitch = minf(2.0, pitch + 0.06)
 		await _wait(d)
@@ -1110,31 +1448,93 @@ func _play_appraisal(res: Dictionary) -> void:
 			add += float(b["add"])
 			txt = "+%s Mult" % str(snappedf(float(b["add"]), 0.01))
 		var h2 := _hbox()
-		h2.add_child(_label(txt, 22, Color("ff5577")))
+		h2.add_child(_title_label(txt, 24, Color("ff5577")))
 		h2.add_child(_label(String(b["label"]), 18, INK, true))
 		list.add_child(h2)
 		mult_l.text = "%.2f" % ((1.0 + add) * times)
-		_sfx.play("tick", 1.4)
-		await _wait(0.25)
+		_punch(mult_l, 1.35)
+		_sfx.play("mult", 1.0 + add * 0.1)
+		await _wait(0.28)
 	mult_l.text = "%.2f" % float(ap["mult"])
-	await _wait(0.3)
+	await _wait(0.35)
 	var total := int(ap["total"])
 	var passed := bool(res["passed"])
 	total_l.text = "= " + _money(total)
 	total_l.add_theme_color_override("font_color", GOOD if passed else BAD)
-	_sfx.play("pass" if passed else "fail")
+	_sfx.play("stamp")
+	_punch(total_l, 1.6)
 	if passed:
+		_sfx.play("pass")
+		_stage.shake(0.5)
+		_coin_burst(layer, total_l)
 		var r: Dictionary = res["rewards"]
-		v.add_child(_label("CLEARED! Payout: stop %s + interest %s + leftover Time %s = %s" % [
+		cv.add_child(_label("CLEARED! Payout: stop %s + interest %s + leftover Time %s = %s" % [
 			_money(int(r["base"])), _money(int(r["interest"])), _money(int(r["time"])), _money(int(r["total"]))], 20, GOOD, true))
 		var label := "CONTINUE"
 		if run.phase == Run.Phase.WON:
 			label = "YOU WON. SEE RESULTS"
+			_sfx.play("win")
 		v.add_child(_button(label, _after_appraisal, STICKER, 28, 96))
 	else:
-		v.add_child(_label("Short by %s. The appraiser shakes their head." % _money(tgt - total), 22, BAD, true))
+		_sfx.play("fail")
+		_stage.shake(1.4)
+		_flash(layer, BAD)
+		cv.add_child(_label("Short by %s. The appraiser shakes their head." % _money(tgt - total), 22, BAD, true))
 		v.add_child(_button("SEE RESULTS", _after_appraisal, BAD, 28, 96))
 	_busy = false
+
+
+func _focus_on(c: Control) -> void:
+	if c == null or not is_instance_valid(c) or not c.is_inside_tree():
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(c) or not c.is_inside_tree():
+		return
+	var vh := get_viewport_rect().size.y
+	var r := c.get_global_rect()
+	_stage.set_focus((r.position.y + r.size.y * 0.6) / maxf(vh, 1.0))
+
+
+## Gold confetti from a label (appraisal passed).
+func _coin_burst(parent: Control, from: Control) -> void:
+	if fast:
+		return
+	var p := CPUParticles2D.new()
+	p.amount = 48
+	p.one_shot = true
+	p.explosiveness = 0.95
+	p.lifetime = 1.4
+	p.direction = Vector2(0, -1)
+	p.spread = 70.0
+	p.initial_velocity_min = 350.0
+	p.initial_velocity_max = 750.0
+	p.gravity = Vector2(0, 1300)
+	p.scale_amount_min = 6.0
+	p.scale_amount_max = 12.0
+	p.angular_velocity_min = -360.0
+	p.angular_velocity_max = 360.0
+	var g := Gradient.new()
+	g.set_color(0, GOLD)
+	g.set_color(1, Color("ff8a3d"))
+	p.color_initial_ramp = g
+	parent.add_child(p)
+	p.global_position = from.global_position + from.size * 0.5
+	p.emitting = true
+	get_tree().create_timer(2.0).timeout.connect(p.queue_free)
+
+
+func _flash(parent: Control, color: Color) -> void:
+	if fast:
+		return
+	var f := ColorRect.new()
+	f.color = Color(color, 0.45)
+	f.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	f.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	parent.add_child(f)
+	var tw := f.create_tween()
+	tw.tween_property(f, "color:a", 0.0, 0.5)
+	tw.tween_callback(f.queue_free)
 
 
 func _on_appraisal_input(event: InputEvent) -> void:
@@ -1143,6 +1543,7 @@ func _on_appraisal_input(event: InputEvent) -> void:
 
 
 func _after_appraisal() -> void:
+	_sfx.duck(false)
 	var layer := _overlay.get_node_or_null("Appraisal")
 	if layer != null:
 		_overlay.remove_child(layer)
@@ -1195,6 +1596,9 @@ func _play_lot_reveal(items: Array, worth: int, msg: String) -> void:
 		l.text = "%s  (%s %s)  %s" % [it["name"], Catalog.platform(String(it["plat"]))["short"], Catalog.COND_SHORT[it["cond"]], _money(run.market_value(it))]
 		l.add_theme_color_override("font_color", Catalog.TIER_COLORS[tier])
 		_sfx.play("grail" if tier >= 3 else "land")
+		_punch(l, 1.2)
+		if tier >= 3:
+			_stage.shake(0.8)
 		await _wait(0.25)
 	v.add_child(_label(msg, 22, GOOD, true))
 	v.add_child(_button("NICE", _close_reveal, STICKER, 26, 88))
@@ -1213,23 +1617,29 @@ func _close_reveal() -> void:
 
 func _build_over() -> void:
 	_root_box.add_child(_spacer())
-	var t := _title_label("OUT OF BUSINESS", 56, BAD)
+	var t := _title_label("OUT OF BUSINESS", 64, BAD)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(t)
+	var gap := _stage_gap(160)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_root_box.add_child(gap)
 	_end_stats()
-	_root_box.add_child(_spacer())
 	_root_box.add_child(_button("NEW RUN", start_new_run, STICKER, 32, 104))
 	_root_box.add_child(_button("TITLE", show_title, PANEL_HI, 24, 88))
 
 
 func _build_won() -> void:
 	_root_box.add_child(_spacer())
-	var t := _title_label("CERTIFIED LEGEND", 56, GOLD)
+	var t := _title_label("CERTIFIED LEGEND", 64, GOLD)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root_box.add_child(t)
-	_root_box.add_child(_label("You beat all %d antes. The collection is museum grade." % Balance.ANTES_TO_WIN, 22, INK, true))
+	var sub := _label("You beat all %d antes. The collection is museum grade." % Balance.ANTES_TO_WIN, 22, INK, true)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_root_box.add_child(sub)
+	var gap := _stage_gap(160)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_root_box.add_child(gap)
 	_end_stats()
-	_root_box.add_child(_spacer())
 	_root_box.add_child(_button("KEEP GOING (ENDLESS)", _go_endless, STICKER, 28, 100))
 	_root_box.add_child(_button("NEW RUN", start_new_run, PANEL_HI, 24, 88))
 
@@ -1278,8 +1688,10 @@ func _open_sheet(title: String, lines: Array, actions: Array) -> void:
 	dim.gui_input.connect(_on_dim_input)
 	_overlay.add_child(dim)
 	_sheet = dim
+	if _sfx != null and not fast:
+		_sfx.play("open")
 	var panel := PanelContainer.new()
-	var st := _box(Color("2a2638"), 22, Color("4a4460"), 2)
+	var st := _box(Color(0.09, 0.075, 0.11, 0.97), 8, Color(GOLD, 0.45), 2)
 	st.content_margin_left = 22
 	st.content_margin_right = 22
 	st.content_margin_top = 18
@@ -1312,7 +1724,16 @@ func _open_sheet(title: String, lines: Array, actions: Array) -> void:
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 24, 88)
 		v.add_child(btn)
-	v.add_child(_button("Close", _close_sheet, Color("3a3548"), 22, 72))
+	v.add_child(_button("Close", _close_sheet_sfx, Color("3a3548"), 22, 72))
+	if not fast:
+		panel.modulate.a = 0.0
+		var tw := panel.create_tween()
+		tw.tween_property(panel, "modulate:a", 1.0, 0.12)
+
+
+func _close_sheet_sfx() -> void:
+	_sfx.play("close")
+	_close_sheet()
 
 
 func _sheet_action(cb: Callable) -> void:
@@ -1322,6 +1743,7 @@ func _sheet_action(cb: Callable) -> void:
 
 func _on_dim_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		_sfx.play("close")
 		_close_sheet.call_deferred()
 
 
@@ -1338,7 +1760,7 @@ func sheet_open() -> bool:
 
 func _build_toast() -> void:
 	_toast = PanelContainer.new()
-	_toast.add_theme_stylebox_override("panel", _box(Color("0d0c12"), 14, GOLD, 2))
+	_toast.add_theme_stylebox_override("panel", _box(Color(0.05, 0.04, 0.07, 0.95), 8, GOLD, 2))
 	_toast.anchor_left = 0.0
 	_toast.anchor_right = 1.0
 	_toast.anchor_top = 1.0
@@ -1374,7 +1796,10 @@ func _toast_msg(text: String, color: Color) -> void:
 	_toast.offset_top = _toast.offset_bottom
 	if _toast_tween != null and _toast_tween.is_valid():
 		_toast_tween.kill()
+	_toast.pivot_offset = Vector2(_toast.size.x * 0.5, 0)
+	_toast.scale = Vector2(0.9, 0.9)
 	_toast_tween = create_tween()
+	_toast_tween.tween_property(_toast, "scale", Vector2.ONE, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_toast_tween.tween_interval(2.2)
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.4)
 	_toast_tween.tween_callback(func(): _toast.visible = false)

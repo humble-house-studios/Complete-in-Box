@@ -23,7 +23,7 @@ func _initialize() -> void:
 
 
 func _snap(name: String) -> void:
-	for i in 4:
+	for i in 6:
 		await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(out.path_join(name + ".png"))

@@ -1,0 +1,21 @@
+# path | source URL | date
+assets/models/props (Kenney furniture: tables, shelves, boxes, lamps, sofa...) | https://opengameart.org/content/furniture-kit | 2026-11-12
+assets/models/props (shelf, bookcase, cabinet, couch, frame, chair01) | https://opengameart.org/content/3d-interior-home-assets | 2026-11-12
+assets/models/props (MetalShelving, StorageTub, WallShelving) | https://opengameart.org/content/escape-room-pack | 2026-11-12
+assets/models/props/crate.glb + crate_tex.png | https://opengameart.org/content/crate-model | 2026-11-12
+assets/models/items (gameCartridge1, handheldCartridge1) | https://opengameart.org/content/late-1980s-game-cartridges | 2026-11-12
+assets/textures (wood, concrete, wallpaper, carpet, steel, cardboard, plaster, tiles, bricks, fabric) | https://ambientcg.com | 2026-11-12
+assets/fonts/Jersey10-Regular.ttf, Jersey15-Regular.ttf | https://fonts.google.com/specimen/Jersey+10 | 2026-11-12
+assets/fonts/VT323-Regular.ttf | https://fonts.google.com/specimen/VT323 | 2026-11-12
+assets/audio/sfx (chip*, chips_*, slide_*, place*, pack_open, shake, fan) | https://opengameart.org/content/54-casino-sound-effects-cards-dice-chips | 2026-11-12
+assets/audio/sfx (click, tick, error, confirm, drop, glass, scratch) | https://opengameart.org/content/interface-sounds | 2026-11-12
+assets/audio/sfx (pass, fail, grail, haggle, win, bargain) | https://opengameart.org/content/85-short-music-jingles | 2026-11-12
+assets/audio/sfx (coins*, rummage, paper, lock) | https://opengameart.org/content/80-cc0-rpg-sfx | 2026-11-12
+assets/audio/sfx (stamp, thud, metal) | https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx | 2026-11-12
+assets/audio/music/title.ogg (Jazzy Vibes #89 melancholic piano) | https://opengameart.org/content/jazzy-vibes-89-melancholic-jazz-piano | 2026-11-12
+assets/audio/music/home.ogg (A Cloudy Morning) | https://opengameart.org/content/a-cloudy-morning-jazz | 2026-11-12
+assets/audio/music/hunt.ogg (Chilled lofi beat) | https://opengameart.org/content/chilled-lofi-beat | 2026-11-12
+assets/audio/music/shop.ogg (Squirrel Village Lounge) | https://opengameart.org/content/squirrel-village-lounge | 2026-11-12
+assets/audio/music/online.ogg (8bit Bossa) | https://opengameart.org/content/bossa-nova | 2026-11-12
+assets/audio/music/amb_crowd.ogg (mall ambience) | https://opengameart.org/content/free-general-ambience-sounds | 2026-11-12
+assets/audio/music/amb_rain.ogg (rain on metal roof) | https://opengameart.org/content/free-general-ambience-sounds | 2026-11-12
