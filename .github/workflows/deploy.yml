@@ -137,6 +137,12 @@ jobs:
             # Game data alone, for the TV app's self-update.
             godot --headless --export-pack "Android TV" build/web/tv-game.pck 2>&1 | tail -3
             if [ -f build/web/tv-game.pck ]; then cp build_id.txt build/web/tv-version.txt; fi
+            # Plain build for comparison: quick export, no internet permission
+            # (exactly like the first build that installed on the TV).
+            cp export_presets.cfg /tmp/presets.bak
+            sed -i 's/^gradle_build\/use_gradle_build=.*/gradle_build\/use_gradle_build=false/; s/^permissions\/internet=.*/permissions\/internet=false/' export_presets.cfg
+            timeout 300 godot --headless --export-debug "Android TV" build/web/tv-basic.apk < /dev/null 2>&1 | tail -3
+            cp /tmp/presets.bak export_presets.cfg
             echo "::notice title=Android TV app::tv.apk $(du -h build/android/complete-in-box-tv.apk | cut -f1)"
           else
             { grep -iE "error|fail|missing|invalid|not found|require|configur|keystore|sdk|template" android.log | grep -v savepack || tail -20 android.log; } | head -40 | while IFS= read -r line; do echo "::warning title=Android export::${line}"; done
