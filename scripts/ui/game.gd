@@ -893,6 +893,9 @@ func _pad_button(btn: int) -> bool:
 		JOY_BUTTON_Y:
 			return _press_main()
 		JOY_BUTTON_X:
+			if _room_view and screen == "venue" and _stage != null and not sheet_open():
+				_stage.room_reset()
+				return true
 			return _pad_x()
 		JOY_BUTTON_BACK:
 			if not sheet_open() and (_intro == null or not is_instance_valid(_intro)):
@@ -1120,7 +1123,14 @@ func _pad_sticks(delta: float) -> void:
 		var lx := _axis(JOY_AXIS_LEFT_X)
 		var ly := _axis(JOY_AXIS_LEFT_Y)
 		if absf(lx) > 0.15 or absf(ly) > 0.15:
-			_stage.room_turn(lx * 600.0 * delta, ly * 400.0 * delta)
+			_stage.room_orbit(lx * 500.0 * delta, ly * 350.0 * delta)
+		var rx := _axis(JOY_AXIS_RIGHT_X)
+		var ry := _axis(JOY_AXIS_RIGHT_Y)
+		if absf(rx) > 0.15 or absf(ry) > 0.15:
+			_stage.room_move(-rx * 400.0 * delta, -ry * 400.0 * delta)
+		var zt := _axis(JOY_AXIS_TRIGGER_RIGHT) - _axis(JOY_AXIS_TRIGGER_LEFT)
+		if absf(zt) > 0.1:
+			_stage.room_zoom_by(1.0 - zt * 1.2 * delta)
 		return
 	if _side_panels():
 		_side_stick("L", delta)
@@ -4064,29 +4074,107 @@ func _build_room_view() -> void:
 	var gap := _stage_gap(200)
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_STOP
-	gap.gui_input.connect(_on_room_drag)
+	gap.gui_input.connect(_on_room_input)
 	_root_box.add_child(gap)
+	_touches.clear()
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
-	var h := _hbox(12)
+	var h := _hbox(10)
 	bar.add_child(h)
 	var v := _vbox(0)
-	v.add_child(_title_label(String(run.venue.get("name", "THE VENUE")).to_upper(), 30, GOLD))
-	v.add_child(_label("Drag to look around." if not _pad else "Left stick to look around.", 18, MUTED))
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(_title_label(String(run.venue.get("name", "THE VENUE")).to_upper(), 28, GOLD))
+	var hint := "Drag to turn  •  pinch to zoom  •  two fingers to move  •  double-tap resets"
+	if not OS.has_feature("mobile") and not OS.has_feature("web_ios") and not OS.has_feature("web_android"):
+		hint = "Drag to turn  •  wheel or pinch to zoom  •  right-drag / two fingers to move"
+	if _pad:
+		hint = "Left stick turns  •  right stick moves  •  LT / RT zoom  •  X resets"
+	v.add_child(_label(hint, 16, MUTED, true))
 	h.add_child(v)
-	h.add_child(_spacer(false))
+	for z in [["-", 1.15], ["+", 0.87]]:
+		var zb := _button(String(z[0]), _stage_zoom.bind(float(z[1])), PANEL_HI, 30, 80)
+		zb.custom_minimum_size.x = 80
+		h.add_child(zb)
+	var rb := _button("RESET", _stage_reset, PANEL_HI, 20, 80)
+	rb.custom_minimum_size.x = 110
+	h.add_child(rb)
 	var back := _mark_main(_button("BACK", _set_room_view.bind(false), STICKER, 24, 80))
-	back.custom_minimum_size.x = 180
+	back.custom_minimum_size.x = 150
 	h.add_child(back)
 	_root_box.add_child(bar)
 
 
-func _on_room_drag(e: InputEvent) -> void:
+func _stage_zoom(f: float) -> void:
+	if _stage != null:
+		_stage.room_zoom_by(f)
+
+
+func _stage_reset() -> void:
+	if _stage != null:
+		_stage.room_reset()
+
+
+## Touch points on the room (index -> position), for pinch and two-finger pan.
+var _touches: Dictionary = {}
+var _touch_t := 0
+var _last_tap := 0
+
+
+## Common 3D-viewer controls: one finger / left drag orbits, pinch / wheel
+## zooms, two fingers / right or middle drag pans, double-tap / double-click resets.
+func _on_room_input(e: InputEvent) -> void:
 	if _stage == null:
 		return
-	if e is InputEventMouseMotion and ((e as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-		_stage.room_turn((e as InputEventMouseMotion).relative.x, (e as InputEventMouseMotion).relative.y)
-	elif e is InputEventScreenDrag:
-		_stage.room_turn((e as InputEventScreenDrag).relative.x, (e as InputEventScreenDrag).relative.y)
+	if e is InputEventScreenTouch:
+		var t := e as InputEventScreenTouch
+		_touch_t = Time.get_ticks_msec()
+		if t.pressed:
+			_touches[t.index] = t.position
+			if _touches.size() == 1:
+				var now := Time.get_ticks_msec()
+				if now - _last_tap < 300:
+					_stage.room_reset()
+				_last_tap = now
+		else:
+			_touches.erase(t.index)
+		return
+	if e is InputEventScreenDrag:
+		var d := e as InputEventScreenDrag
+		_touch_t = Time.get_ticks_msec()
+		if _touches.size() >= 2 and _touches.has(d.index):
+			var keys := _touches.keys()
+			var other: Vector2 = _touches[keys[1] if keys[0] == d.index else keys[0]]
+			var before: Vector2 = _touches[d.index]
+			var d0 := before.distance_to(other)
+			var d1 := d.position.distance_to(other)
+			if d0 > 1.0 and d1 > 1.0:
+				_stage.room_zoom_by(d0 / d1)
+			# Each finger moves the middle by half its own motion.
+			_stage.room_move(d.relative.x * 0.5, d.relative.y * 0.5)
+		else:
+			_stage.room_orbit(d.relative.x, d.relative.y)
+		_touches[d.index] = d.position
+		return
+	# Mouse (skipped right after touches: browsers echo them as mouse events).
+	if Time.get_ticks_msec() - _touch_t < 600:
+		return
+	if e is InputEventMouseButton:
+		var mb := e as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_stage.room_zoom_by(0.9)
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_stage.room_zoom_by(1.1)
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and mb.double_click:
+			_stage.room_reset()
+	elif e is InputEventMouseMotion:
+		var mm := e as InputEventMouseMotion
+		if (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 and not mm.shift_pressed:
+			_stage.room_orbit(mm.relative.x, mm.relative.y)
+		elif (mm.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE)) != 0 or ((mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 and mm.shift_pressed):
+			_stage.room_move(mm.relative.x, mm.relative.y)
+	elif e is InputEventMagnifyGesture:
+		_stage.room_zoom_by(1.0 / maxf(0.2, (e as InputEventMagnifyGesture).factor))
+	elif e is InputEventPanGesture:
+		_stage.room_move(-(e as InputEventPanGesture).delta.x * 8.0, -(e as InputEventPanGesture).delta.y * 8.0)
 
 
 func _build_venue() -> void:

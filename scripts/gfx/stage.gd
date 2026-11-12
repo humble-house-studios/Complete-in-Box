@@ -292,11 +292,12 @@ func _apply_cam() -> void:
 		cam.look_at(_cine_look_s)
 		fov = cine_fov + (16.0 if portrait else 0.0)
 	elif room_on:
-		# Wide shot: back and up from the usual spot, turning round the room.
-		var centre := _look + Vector3(0, 0.3, -0.9)
-		var back := _cam_pos + Vector3(0, 0.25, 0.55) - centre
+		# Orbit round the middle of the room (see room_orbit / zoom / move).
+		var centre := _look + Vector3(0, 0.3, -0.9) + room_pan
+		var back := (_cam_pos + Vector3(0, 0.25, 0.55)) - (_look + Vector3(0, 0.3, -0.9))
 		var rot := Basis(Vector3.UP, room_yaw) * Basis(Vector3.RIGHT, -room_pitch)
-		cam.position = centre + rot * back
+		cam.position = centre + rot * (back * room_zoom)
+		cam.position.y = maxf(cam.position.y, 0.25)
 		cam.look_at(centre)
 		fov = minf(fov + 10.0, 100.0)
 	else:
@@ -477,7 +478,7 @@ func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45, w
 var _walkers: Array = []
 
 const ARM_DOWN := 40.0
-const ARM_IN := 15.0
+const ARM_IN := 3.0
 
 
 func _rig(n: Node3D) -> Dictionary:
@@ -510,7 +511,8 @@ func _pose(w: Dictionary, ph: float, walk: float, act: String, at: float) -> voi
 		_rot(w, side + " Thigh", Quaternion(Vector3.BACK, deg_to_rad(26.0 * leg * walk)))
 		var knee := maxf(0.0, -sin(ph + (0.0 if side == "L" else PI) - 0.6)) * 38.0 * walk
 		_rot(w, side + " Calf", Quaternion(Vector3.BACK, deg_to_rad(-knee)))
-		var swing := 22.0 * leg * walk
+		# Arms swing against the leg on the same side (+Z = back).
+		var swing := 16.0 * leg * walk
 		var lift := 0.0
 		var bend := 12.0
 		if act == "reach" and side == "R":
@@ -526,7 +528,7 @@ func _pose(w: Dictionary, ph: float, walk: float, act: String, at: float) -> voi
 		elif act == "talk":
 			lift = (10.0 + sin(at * 2.6 + sg) * 12.0) if side == "R" else 0.0
 			bend = 50.0 if side == "R" else 12.0
-		var down := Quaternion(Vector3.UP, deg_to_rad(ARM_DOWN * sg)) * Quaternion(Vector3.BACK, deg_to_rad(ARM_IN - swing - lift))
+		var down := Quaternion(Vector3.UP, deg_to_rad(ARM_DOWN * sg)) * Quaternion(Vector3.BACK, deg_to_rad(ARM_IN + swing - lift))
 		_rot(w, side + " UpperArm", down)
 		_rot(w, side + " Forearm", Quaternion(Vector3.UP, deg_to_rad(-bend)))
 	var look := 0.0
@@ -1020,23 +1022,49 @@ func _beam(top: Vector3, r_top: float, r_bot: float, h: float, col: Color) -> vo
 	world.add_child(mi)
 
 
-## LOOK AROUND: the camera pulls back and up for a wide shot of the whole
-## venue; dragging turns it (yaw, within limits) round the middle of the room.
+## LOOK AROUND: an orbit camera round the middle of the venue, like any 3D
+## viewer. Drag orbits (yaw + pitch), pinch / wheel zooms, two fingers /
+## right-drag pans the centre across the floor. room_reset() goes back.
 var room_on := false
 var room_yaw := 0.0
 var room_pitch := 0.0
+var room_zoom := 1.0
+var room_pan := Vector3.ZERO
 
 
 func room_view(on: bool) -> void:
 	room_on = on
+	room_reset()
+
+
+func room_reset() -> void:
 	room_yaw = 0.0
 	room_pitch = 0.0
+	room_zoom = 1.0
+	room_pan = Vector3.ZERO
 	mark_dirty(12)
 
 
-func room_turn(dx: float, dy: float) -> void:
-	room_yaw = clampf(room_yaw - dx * 0.006, -0.85, 0.85)
-	room_pitch = clampf(room_pitch + dy * 0.004, -0.25, 0.35)
+## Screen pixels -> orbit: dragging right swings the room right (camera left).
+func room_orbit(dx: float, dy: float) -> void:
+	room_yaw = wrapf(room_yaw - dx * 0.008, -PI, PI)
+	room_pitch = clampf(room_pitch + dy * 0.006, -0.35, 0.9)
+	mark_dirty(4)
+
+
+func room_zoom_by(f: float) -> void:
+	room_zoom = clampf(room_zoom * f, 0.35, 1.8)
+	mark_dirty(4)
+
+
+## Screen pixels -> slide the centre over the floor (moves with the finger).
+func room_move(dx: float, dy: float) -> void:
+	var right := Vector3(cos(room_yaw), 0, -sin(room_yaw))
+	var fwd := Vector3(-sin(room_yaw), 0, -cos(room_yaw))
+	var k := 0.006 * room_zoom
+	room_pan += (-right * dx + fwd * dy) * k
+	room_pan.x = clampf(room_pan.x, -3.0, 3.0)
+	room_pan.z = clampf(room_pan.z, -2.5, 1.5)
 	mark_dirty(4)
 
 

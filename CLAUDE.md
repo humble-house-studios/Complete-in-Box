@@ -82,8 +82,12 @@ The web build in Safari is the test for every platform.
   restock, wipe, talk). `_person(pos, rot, tint, h, who)` = standing; `_walker(path,
   acts, who, speed)` = walks the path in a loop, pausing to do `acts` (a name or
   [name, facing_deg]); walkers stand still in Lite.perf. Arcade machines in `props/arcade/`.
-- LOOK AROUND (venue button, pause menu): `_room_view` hides the menus, `Stage.room_view`
-  pulls the camera back for the whole room; drag / left stick turns it (`room_turn`), B backs out.
+- LOOK AROUND (venue button, pause menu): `_room_view` hides the menus; `Stage.room_view`
+  is an orbit camera round the room. `_on_room_input`: one finger / left drag orbits
+  (`room_orbit`), pinch / wheel / trackpad zooms (`room_zoom_by`), two fingers / right or
+  middle or shift-drag pans (`room_move`), double-tap resets (`room_reset`); on screen - / +
+  / RESET buttons; pad: left stick orbit, right stick pan, LT/RT zoom, X reset, B back.
+  Walk cycle: arms swing against the same-side leg, `ARM_IN` near 0 (+Z = back).
 - The title vault: velvet plinth with gold rings and a GRAIL plaque, museum ropes, a
   light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets.
 - Menus share one look: `_menu_card(icon, title, sub, col, cb, h, main, chip)` (a card
