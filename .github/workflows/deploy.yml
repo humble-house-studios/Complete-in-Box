@@ -99,12 +99,12 @@ jobs:
           done
           export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$KS" GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           mkdir -p build/android
-          godot --headless --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
+          godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
           if [ -f build/android/complete-in-box-tv.apk ]; then
             cp build/android/complete-in-box-tv.apk build/web/tv.apk
             echo "::notice title=Android TV app::tv.apk $(du -h build/android/complete-in-box-tv.apk | cut -f1)"
           else
-            { grep -iE "error|fail|missing|invalid|not found" android.log || tail -20 android.log; } | head -25 | while IFS= read -r line; do echo "::warning title=Android export::${line}"; done
+            { grep -iE "error|fail|missing|invalid|not found|require|configur|keystore|sdk|template" android.log | grep -v savepack || tail -20 android.log; } | head -40 | while IFS= read -r line; do echo "::warning title=Android export::${line}"; done
           fi
 
       - uses: actions/upload-pages-artifact@v3
