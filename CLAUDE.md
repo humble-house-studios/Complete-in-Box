@@ -137,7 +137,9 @@ The web build in Safari is the test for every platform.
   game. Install on a TV with Downloader by AFTVnews. Never blocks the web deploy.
   The `tv` feature turns on `Lite.perf` (3D at ~360 px tall, no sun shadows,
   fewer art renders per frame, 30 fps cap, no CRT); `?perf=1` does it on web.
-  TV remote arrows / OK / BACK drive the same focus as a pad.
+  TV remote arrows / OK / BACK drive the same focus as a pad. A presses the
+  focused button directly (Android doesn't map it to ui_accept). The TV app
+  draws at the base size (content_scale_mode VIEWPORT) and lets the TV scale up.
 - TV self-update: main scene is `scenes/boot.tscn` (`scripts/boot/boot.gd`). On
   the `tv` build it checks `tv-version.txt` (CI build time, also in
   `res://build_id.txt`) and downloads `tv-game.pck` into user:// when newer, then

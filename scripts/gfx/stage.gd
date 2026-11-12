@@ -46,7 +46,9 @@ func _ready() -> void:
 	stretch_shrink = pixel
 	if Lite.perf:
 		# Big TV screens: keep the 3D render around 360 px tall.
-		var h := DisplayServer.window_get_size().y
+		var h := float(DisplayServer.window_get_size().y)
+		if get_window() != null and get_window().content_scale_mode == Window.CONTENT_SCALE_MODE_VIEWPORT:
+			h = get_viewport().get_visible_rect().size.y
 		stretch_shrink = maxi(pixel, int(ceil(h / 360.0)))
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_IGNORE

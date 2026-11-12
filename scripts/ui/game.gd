@@ -83,6 +83,10 @@ func _ready() -> void:
 	_confirm_boot.call_deferred()
 	if Lite.perf:
 		Engine.max_fps = 30
+	if OS.has_feature("tv") and Lite.perf and get_viewport() == get_window():
+		# Draw at the base size (1280x720) and let the TV scale it up,
+		# instead of drawing every menu at 4K.
+		get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
 	theme = _make_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
@@ -558,6 +562,17 @@ func _notification(what: int) -> void:
 
 func _pad_button(btn: int) -> bool:
 	match btn:
+		JOY_BUTTON_A:
+			# Press the highlighted button ourselves (not every platform maps
+			# A to ui_accept).
+			var fo := get_viewport().gui_get_focus_owner()
+			if fo is BaseButton and fo.is_visible_in_tree() and not (fo as BaseButton).disabled:
+				_drag_moved = false
+				_click()
+				(fo as BaseButton).pressed.emit()
+				return true
+			_pad_focus(0)
+			return true
 		JOY_BUTTON_B:
 			return _pad_back()
 		JOY_BUTTON_START:

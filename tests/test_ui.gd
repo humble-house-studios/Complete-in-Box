@@ -98,6 +98,18 @@ func test_controller_focus_tabs_and_back() -> void:
 	assert_false(game.sheet_open(), "B closes")
 
 
+func test_pad_a_presses_focused_button() -> void:
+	_pad_press(JOY_BUTTON_DPAD_DOWN)
+	await wait_frames(8)
+	var fo = get_viewport().gui_get_focus_owner()
+	assert_true(fo is BaseButton, "something focused")
+	var hits := [0]
+	(fo as BaseButton).pressed.connect(func(): hits[0] += 1)
+	_pad_press(JOY_BUTTON_A)
+	await wait_frames(2)
+	assert_eq(hits[0], 1, "A pressed the focused button once")
+
+
 func test_home_then_venue_then_appraisal() -> void:
 	game.start_new_run(77)
 	await wait_frames(2)
