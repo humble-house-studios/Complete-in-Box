@@ -103,6 +103,9 @@ jobs:
           done
           export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$KS" GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           mkdir -p build/android
+          # Each build gets a higher version so Android accepts it as an update.
+          sed -i "s/^version\/code=.*/version\/code=${GITHUB_RUN_NUMBER}/; s/^version\/name=.*/version\/name=\"0.1.${GITHUB_RUN_NUMBER}\"/" export_presets.cfg
+          grep -E "^version/(code|name)" export_presets.cfg
           godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk 2>&1 | tee android.log
           if [ -f build/android/complete-in-box-tv.apk ]; then
             cp build/android/complete-in-box-tv.apk build/web/tv.apk
