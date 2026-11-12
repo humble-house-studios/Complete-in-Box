@@ -1037,6 +1037,12 @@ func _stick_nav(delta: float) -> void:
 
 
 func _pad_sticks(delta: float) -> void:
+	if _room_view and screen == "venue" and _stage != null and not sheet_open():
+		var lx := _axis(JOY_AXIS_LEFT_X)
+		var ly := _axis(JOY_AXIS_LEFT_Y)
+		if absf(lx) > 0.15 or absf(ly) > 0.15:
+			_stage.room_turn(lx * 600.0 * delta, ly * 400.0 * delta)
+		return
 	_stick_nav(delta)
 	if _inspecting():
 		return
@@ -1242,6 +1248,9 @@ func _pad_back() -> bool:
 		return true
 	if screen == "home" and _showcase:
 		_set_showcase(false)
+		return true
+	if screen == "venue" and _room_view:
+		_set_room_view(false)
 		return true
 	if screen in ["home", "venue"]:
 		_open_menu()
@@ -2747,6 +2756,8 @@ func _open_menu() -> void:
 	]
 	if screen == "home":
 		acts.insert(1, ["View your shelf", _set_showcase.bind(true), PANEL_HI])
+	if screen == "venue" and not _room_view:
+		acts.insert(1, ["Look around the room", _set_room_view.bind(true), PANEL_HI])
 	if not OS.has_feature("web"):
 		acts.append(["Close the game", func(): get_tree().quit(), Color("5a3a3a")])
 	_open_sheet("Paused", [["Ante %d, stop %d of 3. Cash %s." % [run.ante, run.stop + 1, _money(run.cash)], MUTED]], acts)
@@ -3676,6 +3687,9 @@ func _reel_sound(kind: String, v) -> void:
 
 
 func _go_to_venue(id: String) -> void:
+	_room_view = false
+	if _stage != null:
+		_stage.room_view(false)
 	var res := run.enter_venue(id)
 	_venue_tab = "sale"
 	_scroll_mem.clear()
@@ -3703,7 +3717,53 @@ func _dev_ante() -> void:
 
 # ================================================================ venue
 
+## LOOK AROUND: hide the menus and see the whole venue (drag to turn).
+var _room_view := false
+
+
+func _set_room_view(on: bool) -> void:
+	_room_view = on
+	_close_sheet()
+	_hide_preview()
+	if _stage != null:
+		_stage.room_view(on)
+	request_refresh()
+
+
+func _build_room_view() -> void:
+	_header()
+	var gap := _stage_gap(200)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_STOP
+	gap.gui_input.connect(_on_room_drag)
+	_root_box.add_child(gap)
+	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
+	var h := _hbox(12)
+	bar.add_child(h)
+	var v := _vbox(0)
+	v.add_child(_title_label(String(run.venue.get("name", "THE VENUE")).to_upper(), 30, GOLD))
+	v.add_child(_label("Drag to look around." if not _pad else "Left stick to look around.", 18, MUTED))
+	h.add_child(v)
+	h.add_child(_spacer(false))
+	var back := _mark_main(_button("BACK", _set_room_view.bind(false), STICKER, 24, 80))
+	back.custom_minimum_size.x = 180
+	h.add_child(back)
+	_root_box.add_child(bar)
+
+
+func _on_room_drag(e: InputEvent) -> void:
+	if _stage == null:
+		return
+	if e is InputEventMouseMotion and ((e as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+		_stage.room_turn((e as InputEventMouseMotion).relative.x, (e as InputEventMouseMotion).relative.y)
+	elif e is InputEventScreenDrag:
+		_stage.room_turn((e as InputEventScreenDrag).relative.x, (e as InputEventScreenDrag).relative.y)
+
+
 func _build_venue() -> void:
+	if _room_view:
+		_build_room_view()
+		return
 	_header()
 	if not is_landscape():
 		_root_box.add_child(_stage_gap(270))
@@ -3728,6 +3788,11 @@ func _build_venue() -> void:
 	if run.is_boss_stop():
 		var boss := Venues.boss(run.boss_id)
 		main.add_child(_label("BOSS %s: %s" % [String(boss["name"]).to_upper(), boss["desc"]], 16, BAD, true))
+	var look := _button("LOOK AROUND THE %s" % ("ROOM" if not is_landscape() else "VENUE"), _set_room_view.bind(true), Color("2f5d7a"), 18, 64 if is_landscape() else 72)
+	if is_landscape() and _land_center != null and is_instance_valid(_land_center) and _land_center.is_inside_tree():
+		_land_center.add_child(look)
+	else:
+		main.add_child(look)
 	if not show_sale:
 		_shelf_grid(side, _side_w())
 		var hint0 := _venue_hint()

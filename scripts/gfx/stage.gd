@@ -102,6 +102,7 @@ func show_scene(id: String, items: Array = []) -> void:
 	_spin.clear()
 	_swing.clear()
 	_breathe.clear()
+	_walkers.clear()
 	world = Node3D.new()
 	vp.add_child(world)
 	_build(id, items)
@@ -255,6 +256,8 @@ func _process(delta: float) -> void:
 	for s in _spin:
 		if is_instance_valid(s):
 			(s as Node3D).rotation.y += delta * 0.22
+	if not _walkers.is_empty():
+		_walk_update(delta)
 	for b in _breathe:
 		if is_instance_valid(b[0]):
 			(b[0] as Node3D).scale.y = float(b[1]) * (1.0 + sin(_t * 1.6 + float(b[2])) * 0.006)
@@ -288,6 +291,14 @@ func _apply_cam() -> void:
 		_cine_look_s = _cine_look_s.lerp(cine_look, 0.2)
 		cam.look_at(_cine_look_s)
 		fov = cine_fov + (16.0 if portrait else 0.0)
+	elif room_on:
+		# Wide shot: back and up from the usual spot, turning round the room.
+		var centre := _look + Vector3(0, 0.3, -0.9)
+		var back := _cam_pos + Vector3(0, 0.25, 0.55) - centre
+		var rot := Basis(Vector3.UP, room_yaw) * Basis(Vector3.RIGHT, -room_pitch)
+		cam.position = centre + rot * back
+		cam.look_at(centre)
+		fov = minf(fov + 10.0, 100.0)
 	else:
 		cam.position = _cam_pos + sway + raise
 		cam.look_at(_look + sway * 0.5)
@@ -441,7 +452,7 @@ var _breathe: Array = []
 
 func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45, who: String = "", _anim: String = "") -> Node3D:
 	var pick := who
-	if pick == "" or not ResourceLoader.exists("res://assets/models/people_rb/%s.res" % pick):
+	if pick == "" or not ResourceLoader.exists("res://assets/models/people_rb/%s_rig.scn" % pick):
 		pick = String(PEOPLE[absi(hash(Vector2i(int(pos.x * 10.0), int(pos.z * 10.0)))) % PEOPLE.size()])
 	var n := Psx.person(pick)
 	n.scale = Vector3.ONE * (h / 1.45) * 0.86
@@ -451,8 +462,157 @@ func _person(pos: Vector3, rot_y: float, tint := Color.WHITE, h: float = 1.45, w
 	if tint != Color.WHITE:
 		Psx.tint_all(n, Color.WHITE.lerp(tint, 0.15))
 	Psx.outline(n, 1.0)
+	var w := _rig(n)
+	_pose(w, 0.0, 0.0, "", 0.0)
 	_breathe.append([n, n.scale.y, absf(pos.x * 1.7 + pos.z)])
 	return n
+
+
+# ---------------------------------------------------------------- walkers
+
+## People who move: customers wandering between spots and browsing, the
+## manager pacing between counter and shelves to restock, tidy and wipe.
+## Rocketbox skeletons are posed in code (no animation clips): a walk cycle
+## (legs, knees, arm swing, hip bob) and a few chores. Off in Lite.perf.
+var _walkers: Array = []
+
+const ARM_DOWN := 40.0
+const ARM_IN := 15.0
+
+
+func _rig(n: Node3D) -> Dictionary:
+	var sk: Skeleton3D = n.find_child("Skeleton3D", true, false)
+	var w := {"node": n, "sk": sk, "b": {}, "rest": {}}
+	if sk == null:
+		return w
+	for nm in ["L Thigh", "R Thigh", "L Calf", "R Calf", "L UpperArm", "R UpperArm", "L Forearm", "R Forearm", "Spine1", "Head", "Neck"]:
+		var b := sk.find_bone("Bip01 " + nm)
+		if b >= 0:
+			w["b"][nm] = b
+			w["rest"][nm] = sk.get_bone_pose_rotation(b)
+	return w
+
+
+func _rot(w: Dictionary, nm: String, q: Quaternion) -> void:
+	if not w["b"].has(nm):
+		return
+	(w["sk"] as Skeleton3D).set_bone_pose_rotation(w["b"][nm], (w["rest"][nm] as Quaternion) * q)
+
+
+## walk: 0..1 how much of the walk cycle, ph its phase; act: chore name, at: its clock.
+func _pose(w: Dictionary, ph: float, walk: float, act: String, at: float) -> void:
+	if w["sk"] == null:
+		return
+	var s := sin(ph)
+	for side in ["L", "R"]:
+		var sg := 1.0 if side == "L" else -1.0
+		var leg := s * sg
+		_rot(w, side + " Thigh", Quaternion(Vector3.BACK, deg_to_rad(26.0 * leg * walk)))
+		var knee := maxf(0.0, -sin(ph + (0.0 if side == "L" else PI) - 0.6)) * 38.0 * walk
+		_rot(w, side + " Calf", Quaternion(Vector3.BACK, deg_to_rad(-knee)))
+		var swing := 22.0 * leg * walk
+		var lift := 0.0
+		var bend := 12.0
+		if act == "reach" and side == "R":
+			lift = 70.0 + sin(at * 2.2) * 8.0
+			bend = 25.0
+		elif act == "restock" and side == "R":
+			lift = 45.0 + absf(sin(at * 1.6)) * 55.0
+			bend = 40.0 - absf(sin(at * 1.6)) * 30.0
+		elif act == "wipe" and side == "R":
+			lift = 38.0
+			bend = 55.0 + sin(at * 5.0) * 18.0
+			swing = sin(at * 5.0) * 10.0
+		elif act == "talk":
+			lift = (10.0 + sin(at * 2.6 + sg) * 12.0) if side == "R" else 0.0
+			bend = 50.0 if side == "R" else 12.0
+		var down := Quaternion(Vector3.UP, deg_to_rad(ARM_DOWN * sg)) * Quaternion(Vector3.BACK, deg_to_rad(ARM_IN - swing - lift))
+		_rot(w, side + " UpperArm", down)
+		_rot(w, side + " Forearm", Quaternion(Vector3.UP, deg_to_rad(-bend)))
+	var look := 0.0
+	var nod := 0.0
+	if act == "browse":
+		look = sin(at * 0.7) * 25.0
+		nod = 12.0
+	elif act == "reach" or act == "restock":
+		nod = -6.0
+	_rot(w, "Head", Quaternion(Vector3.RIGHT, deg_to_rad(look)) * Quaternion(Vector3.BACK, deg_to_rad(-nod)))
+	_rot(w, "Spine1", Quaternion(Vector3.RIGHT, deg_to_rad(s * 4.0 * walk)))
+
+
+## A walker following `path` (looping), pausing at each point to do `acts`
+## (one per point: "browse", "reach", "restock", "wipe", "talk", "").
+func _walker(path: Array, acts: Array, who: String = "", speed: float = 0.55, h: float = 1.45) -> void:
+	if path.is_empty():
+		return
+	var n := _person(path[0], 0.0, Color.WHITE, h, who)
+	_breathe.pop_back()
+	if Lite.perf:
+		# Weak devices draw the room once: stand them at their first chore.
+		if path.size() > 1:
+			var d0: Vector3 = (path[1] as Vector3) - (path[0] as Vector3)
+			n.rotation.y = atan2(d0.x, d0.z)
+		return
+	var w := _rig(n)
+	w["path"] = path
+	w["acts"] = acts
+	w["seg"] = 0
+	w["pos"] = path[0]
+	w["speed"] = speed * randf_range(0.85, 1.15)
+	w["pause"] = randf_range(0.5, 3.0)
+	w["ph"] = randf() * TAU
+	w["at"] = 0.0
+	w["walk"] = 0.0
+	w["base_y"] = (path[0] as Vector3).y
+	_walkers.append(w)
+
+
+func _walk_update(delta: float) -> void:
+	for w in _walkers:
+		var n: Node3D = w["node"]
+		if not is_instance_valid(n):
+			continue
+		var path: Array = w["path"]
+		var seg := int(w["seg"])
+		var entry = (w["acts"] as Array)[seg % (w["acts"] as Array).size()] if not (w["acts"] as Array).is_empty() else ""
+		var act := ""
+		var face := INF
+		if entry is Array:
+			act = String(entry[0])
+			face = deg_to_rad(float(entry[1]))
+		else:
+			act = String(entry)
+		var walk_goal := 0.0
+		if float(w["pause"]) > 0.0:
+			w["pause"] = float(w["pause"]) - delta
+			w["at"] = float(w["at"]) + delta
+			if face != INF:
+				n.rotation.y = lerp_angle(n.rotation.y, face, minf(1.0, delta * 4.0))
+		else:
+			act = ""
+			var target: Vector3 = path[(seg + 1) % path.size()]
+			var pos: Vector3 = w["pos"]
+			var to := target - pos
+			to.y = 0.0
+			var dist := to.length()
+			if dist < 0.05:
+				w["seg"] = (seg + 1) % path.size()
+				seg = int(w["seg"])
+				w["pause"] = randf_range(2.5, 6.0)
+				w["at"] = 0.0
+			else:
+				walk_goal = 1.0
+				var step := minf(dist, float(w["speed"]) * delta)
+				pos += to / dist * step
+				w["pos"] = pos
+				w["ph"] = float(w["ph"]) + step * 5.2
+				var yaw := atan2(to.x, to.z)
+				n.rotation.y = lerp_angle(n.rotation.y, yaw, minf(1.0, delta * 6.0))
+		# At a chore: face the point's facing (stored as the next point's direction).
+		w["walk"] = lerpf(float(w["walk"]), walk_goal, minf(1.0, delta * 5.0))
+		var p: Vector3 = w["pos"]
+		n.position = Vector3(p.x, float(w["base_y"]) + absf(cos(float(w["ph"]))) * 0.025 * float(w["walk"]), p.z)
+		_pose(w, float(w["ph"]), float(w["walk"]), act, float(w["at"]))
 
 
 ## Loops one of a model's own animations, started at `offset` seconds.
@@ -861,6 +1021,26 @@ func _beam(top: Vector3, r_top: float, r_bot: float, h: float, col: Color) -> vo
 	world.add_child(mi)
 
 
+## LOOK AROUND: the camera pulls back and up for a wide shot of the whole
+## venue; dragging turns it (yaw, within limits) round the middle of the room.
+var room_on := false
+var room_yaw := 0.0
+var room_pitch := 0.0
+
+
+func room_view(on: bool) -> void:
+	room_on = on
+	room_yaw = 0.0
+	room_pitch = 0.0
+	mark_dirty(12)
+
+
+func room_turn(dx: float, dy: float) -> void:
+	room_yaw = clampf(room_yaw - dx * 0.006, -0.85, 0.85)
+	room_pitch = clampf(room_pitch + dy * 0.004, -0.25, 0.35)
+	mark_dirty(4)
+
+
 ## Close-up on the collection shelf ("VIEW SHELF") or back to the room.
 func showcase(on: bool) -> void:
 	var v: Array = _shelf_view if on else _home_view
@@ -976,7 +1156,9 @@ func _garage(items: Array) -> void:
 	_prop("shop/hand-truck", Vector3(-2.6, 0, 0.6), 40, 1.2)
 	_prop("bear", Vector3(1.8, 0.9, 0.3), -10, 0.3)
 	_prop("radio", Vector3(-2.6, 0.9, -1.4), 70, 0.25)
-	_person(Vector3(-1.6, 0, -2.8), 25, Color(1.0, 0.85, 0.8))
+	# The host potters about; a neighbour wanders in off the driveway to browse.
+	_walker([Vector3(-1.6, 0, -2.7), Vector3(-2.2, 0, -1.5)], [["talk", 20], ["reach", -100]], "male_adult_14")
+	_walker([Vector3(2.4, 0, -7.0), Vector3(1.0, 0, -3.9), Vector3(0.8, 0, -1.4), Vector3(-0.7, 0, -1.3), Vector3(0.4, 0, -4.2)], ["", "", ["browse", 0], ["browse", 0], ""], "female_adult_05")
 	_bulb(Vector3(0, 1.9, 0.2), Color(1.0, 0.85, 0.6), 2.6, 5.0, 2.8)
 	_light(Vector3(0, 1.8, -2.4), Color(1.0, 0.8, 0.6), 1.8, 5.0)
 	_view(Vector3(0, 1.45, 1.75), Vector3(0, 0.85, -0.05))
@@ -1022,6 +1204,9 @@ func _flea(items: Array) -> void:
 	for i in 6:
 		_prop(["nature/tree_oak_dark", "nature/tree_detailed", "suburb/tree-large"][i % 3], Vector3(-12 + i * 4.8, 0, -15.5), r.randf_range(0, 360), r.randf_range(4.5, 6.5), Color(0.75, 1.0, 0.7))
 	_skyline(-24, 8, Color(0.75, 0.8, 0.95))
+	# Shoppers drifting between the stalls.
+	_walker([Vector3(-5.0, 0, -3.8), Vector3(-1.8, 0, -3.6), Vector3(2.4, 0, -4.0), Vector3(5.0, 0, -3.7)], ["", ["browse", 180], ["browse", 180], ""], "male_adult_17", 0.6)
+	_walker([Vector3(4.6, 0, -1.4), Vector3(2.6, 0, -1.2), Vector3(-2.8, 0, -1.5), Vector3(-4.8, 0, -1.2)], ["", ["browse", 0], ["browse", 0], ""], "female_adult_14", 0.5)
 	_view(Vector3(0, 1.5, 1.8), Vector3(0, 0.85, -0.05))
 
 
@@ -1059,6 +1244,8 @@ func _estate(items: Array) -> void:
 	sheet.rotation_degrees.y = 12.0
 	_bulb(Vector3(0, 2.0, 0.05), Color(1.0, 0.85, 0.6), 2.4, 5.0, 2.9, 0.03)
 	_light(Vector3(0.9, 1.6, -2.8), Color(0.85, 0.92, 1.0), 2.0, 5.0)
+	_walker([Vector3(-2.4, 0, -2.2), Vector3(1.8, 0, -2.5), Vector3(2.6, 0, -1.0)], [["browse", -90], ["reach", 180], ["browse", 90]], "female_adult_03", 0.4)
+	_walker([Vector3(2.2, 0, -2.6), Vector3(-1.9, 0, -1.7)], [["browse", 180], ["browse", -60]], "male_adult_05", 0.45)
 	_view(Vector3(0, 1.45, 1.75), Vector3(0, 0.85, -0.05))
 
 
@@ -1136,7 +1323,10 @@ func _retro(items: Array) -> void:
 	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.85, 0.9), null, Vector2.ONE, 0.35), Vector3(0, 0.92, 0), world)
 	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
 	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
-	_person(Vector3(0.9, 0, -2.6), -10, Color(0.85, 0.95, 1.0))
+	# The manager restocks the back shelves and wipes down the counter.
+	_walker([Vector3(0.9, 0, -2.6), Vector3(-1.4, 0, -3.0), Vector3(1.9, 0, -3.0), Vector3(0.9, 0, -0.75)], [["talk", 0], ["restock", 180], ["restock", 180], ["wipe", 0]], "male_adult_08")
+	_walker([Vector3(-3.0, 0, -2.2), Vector3(-1.0, 0, -2.7), Vector3(2.8, 0, -2.0)], [["browse", -90], ["browse", 180], ["browse", 90]], "female_adult_11", 0.45)
+	_walker([Vector3(2.9, 0, -0.6), Vector3(3.0, 0, -2.6), Vector3(-2.9, 0, -1.2)], [["browse", 90], ["reach", 90], ["browse", -90]], "male_adult_03", 0.5)
 	_crt(Vector3(-1.6, 0.94, -0.1), 0.45, Color(0.5, 0.95, 0.6), 25)
 	_prop("shop/gacha-machine", Vector3(-3.0, 0, 0.4), 60, 1.4)
 	_prop("arcade/arcade-machine", Vector3(-3.1, 0, 1.4), 75, 1.75)
@@ -1183,7 +1373,9 @@ func _pawn(items: Array) -> void:
 	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.8, 0.85), null, Vector2.ONE, 0.25), Vector3(0, 0.97, 0), world)
 	_lay_items(items, Vector3(-0.2, 0.99, 0.0), 1.9, 0.3, 4)
 	_prop("shop/cash-register", Vector3(1.1, 0.99, -0.1), -20, 0.35)
-	_person(Vector3(-0.6, 0, -2.4), 10, Color(1.0, 0.9, 0.75))
+	# The pawnbroker checks stock on the shelving and the drawers out back.
+	_walker([Vector3(-0.6, 0, -2.4), Vector3(1.3, 0, -2.5), Vector3(-2.3, 0, -1.6)], [["talk", 10], ["restock", 180], ["reach", -90]], "male_adult_11")
+	_walker([Vector3(2.5, 0, -1.6), Vector3(2.4, 0, -0.4)], [["browse", 90], ["browse", 120]], "female_adult_08", 0.4)
 	_neon("PAWN", Vector3(1.2, 2.45, -3.4), Color(1.0, 0.85, 0.2), 110)
 	_panel_light(Vector3(0, 2.85, -0.6), 2.0, Color(0.9, 1.0, 0.9), 6.0, 0.2)
 	_panel_light(Vector3(0, 2.85, -2.4), 1.4, Color(0.9, 1.0, 0.9), 5.0)
@@ -1228,6 +1420,10 @@ func _convention(items: Array) -> void:
 		_panel_light(Vector3(x, 5.4, -3.0), 1.6, Color(1.0, 0.95, 0.9), 8.0)
 	_spot(Vector3(-1.5, 3.5, 1.5), Vector3(0, 0.8, 0), Color(1.0, 0.55, 0.85), 3.5, 28, 8.0)
 	_spot(Vector3(1.5, 3.5, 1.5), Vector3(0, 0.8, 0), Color(0.55, 0.75, 1.0), 3.5, 28, 8.0)
+	# Con-goers doing laps of the hall.
+	for k in 3:
+		var zl := -3.0 - k * 0.6
+		_walker([Vector3(-6.5 + k, 0, zl), Vector3(-2.0, 0, zl - 0.4), Vector3(2.5, 0, zl), Vector3(6.5 - k, 0, zl - 0.3)], ["", ["browse", 180], ["browse", 180], ""], String(PEOPLE[(k * 5 + 2) % PEOPLE.size()]), 0.55)
 	_view(Vector3(0, 1.5, 1.85), Vector3(0, 0.85, -0.1))
 
 
@@ -1286,7 +1482,7 @@ func _heritage(items: Array) -> void:
 	# Auctioneer at the podium, bidders in rows.
 	Psx.box(Vector3(0.7, 1.15, 0.55), Psx.mat(Color(0.6, 0.42, 0.3), Psx.tex("wood092")), Vector3(2.4, 0.575, -1.8), world)
 	_person(Vector3(2.4, 0, -2.3), -10, Color(1.0, 0.95, 0.85), 1.45, "business_male_02")
-	_person(Vector3(-4.9, 0, -3.4), 30, Color.WHITE, 1.45, "security_male_01")
+	_walker([Vector3(-4.6, 0, -3.4), Vector3(-4.6, 0, -0.4)], [["browse", 60], ["browse", 120]], "security_male_01", 0.35)
 	var r := RandomNumberGenerator.new()
 	r.seed = 9
 	for row in 2:
