@@ -50,6 +50,11 @@ The web build in Safari is the test for every platform.
 - Props: `assets/models/props/` (Kenney furniture) plus kit folders `car/`,
   `suburb/`, `shop/`, `urban/`, `city/`, `nature/` — load as `Psx.prop("shop/cash-register", h)`.
   Preview a folder: `xvfb-run ... -s res://tools/prop_sheet.gd -- OUT_DIR shop`.
+- Cards and menus: coloured pills for tags (`_pill`), tilted price-gun
+  stickers, platform-tinted cards with a thick left edge, sign-style section
+  headers, light icon wells. Flavor text lives in `scripts/data/flavor.gd`
+  (condition notes, seller quotes per venue, venue moods, appraiser quips);
+  quoted lines render as speech panels in sheets. Keep body text >= 16 px.
 - The UI leaves a see-through gap under the header (`_stage_gap`) and aims the
   3D camera at it (`_update_focus`). Panels are smoked glass (alpha ~0.9).
 - Item art is baked, not drawn at runtime: after changing `catalog.gd` or

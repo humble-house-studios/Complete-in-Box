@@ -24,7 +24,9 @@ const BG := Color("15131d")
 const PANEL := Color(0.075, 0.065, 0.095, 0.9)
 const PANEL_HI := Color("3a3150")
 const INK := Color("f2ead8")
-const MUTED := Color("9a93ab")
+const MUTED := Color("b9b0cc")
+const FLAVOR_C := Color("e3d3ae")
+const DARK_TXT := Color("17131f")
 const GOOD := Color("5ee08a")
 const BAD := Color("ff6b6b")
 const GOLD := Color("ffcc33")
@@ -405,16 +407,49 @@ func _panel(color: Color = PANEL, border: Color = Color(0, 0, 0, 0), width: int 
 	return p
 
 
+## Section header like a shop sign: gold bar, title, a rule to the right.
 func _section(parent: Control, text: String, right: Control = null) -> void:
-	var h := _hbox()
-	h.add_child(_title_label(text, 26, GOLD))
-	h.add_child(_spacer(false))
+	var h := _hbox(10)
+	var bar := ColorRect.new()
+	bar.color = GOLD
+	bar.custom_minimum_size = Vector2(6, 30)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(bar)
+	h.add_child(_title_label(text, 28, GOLD))
+	var rule := ColorRect.new()
+	rule.color = Color(GOLD, 0.25)
+	rule.custom_minimum_size = Vector2(0, 2)
+	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(rule)
 	if right != null:
 		h.add_child(right)
 	parent.add_child(h)
 
 
-## A scrolling column. ratio splits the row in landscape.
+## Small rounded badge with dark text on a coloured background.
+func _pill(text: String, bg: Color, fs: int = 15, fg: Color = DARK_TXT) -> PanelContainer:
+	var p := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = bg
+	st.set_corner_radius_all(5)
+	st.content_margin_left = 7
+	st.content_margin_right = 7
+	st.content_margin_top = 0
+	st.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", st)
+	var l := _label(text, fs, fg)
+	l.add_theme_font_override("font", FONT_DISPLAY)
+	l.add_theme_font_size_override("font_size", int(fs * FONT_SCALE * 1.12))
+	p.add_child(l)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	return p
+
+
 func _scroll_col(parent: Control, ratio: float) -> VBoxContainer:
 	# Smoked-glass backing so text reads over the bright 3D rooms.
 	var back := PanelContainer.new()
@@ -477,11 +512,28 @@ func _card_shell(w: float, h: float, stripe: Color, cb: Callable, bg: Color = PA
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(w, h)
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
-	b.add_theme_stylebox_override("normal", _box(bg, 12, stripe, 0, 10))
-	b.add_theme_stylebox_override("hover", _box(bg.lightened(0.06), 12, stripe, 0, 10))
-	b.add_theme_stylebox_override("pressed", _box(bg.darkened(0.2), 12, stripe, 0, 10))
+	var base := Color(bg.lerp(stripe.darkened(0.55), 0.22), maxf(bg.a, 0.93))
+	b.add_theme_stylebox_override("normal", _card_box(base, stripe))
+	b.add_theme_stylebox_override("hover", _card_box(base.lightened(0.06), stripe))
+	b.add_theme_stylebox_override("pressed", _card_box(base.darkened(0.2), stripe))
+	b.add_theme_stylebox_override("disabled", _card_box(base.darkened(0.35), stripe.darkened(0.5)))
 	b.pressed.connect(cb)
+	b.button_down.connect(_click)
 	return b
+
+
+func _card_box(bg: Color, edge: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.set_corner_radius_all(8)
+	s.set_border_width_all(2)
+	s.border_width_left = 8
+	s.border_width_bottom = 4
+	s.border_color = Color(edge, 0.85)
+	s.shadow_color = Color(0, 0, 0, 0.5)
+	s.shadow_size = 1
+	s.shadow_offset = Vector2(0, 4)
+	return s
 
 
 func _card_inner(b: Button) -> VBoxContainer:
@@ -536,7 +588,7 @@ func _icon(item: Dictionary, px: float) -> TextureRect:
 func _icon_well(item: Dictionary, px: float) -> PanelContainer:
 	var p := PanelContainer.new()
 	var tier := int(item.get("tier", 0))
-	var st := _box(Color(0, 0, 0, 0.35), 6)
+	var st := _box(Color(0.85, 0.8, 0.95, 0.13), 6)
 	st.content_margin_left = 2
 	st.content_margin_right = 2
 	st.content_margin_top = 2
@@ -560,21 +612,27 @@ func _icon_well(item: Dictionary, px: float) -> PanelContainer:
 	return p
 
 
-func _tag_row(item: Dictionary, fs: int = 17) -> HBoxContainer:
+## Platform / condition / grade / tier as coloured pills.
+func _tag_row(item: Dictionary, fs: int = 16) -> HFlowContainer:
 	var plat := Catalog.platform(String(item["plat"]))
-	var row := _hbox(8)
-	row.add_child(_label(String(plat["short"]), fs, plat["color"]))
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 5)
+	row.add_theme_constant_override("v_separation", 4)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_pill(String(plat["short"]), (plat["color"] as Color).lightened(0.15), fs))
 	var cond := String(item["cond"])
-	row.add_child(_label(String(Catalog.COND_SHORT[cond]), fs, Catalog.COND_COLORS[cond]))
+	row.add_child(_pill(String(Catalog.COND_SHORT[cond]), (Catalog.COND_COLORS[cond] as Color).lightened(0.1), fs))
 	if int(item["grade"]) > 0:
-		row.add_child(_label("GRADE %d" % item["grade"], fs, GOLD))
-	row.add_child(_spacer(false))
+		row.add_child(_pill("GRADE %d" % item["grade"], GOLD, fs))
 	var tier := int(item["tier"])
 	if tier > 0:
 		var tn := String(Catalog.TIER_NAMES[tier]).to_upper()
 		if fs < 16:
 			tn = ["", "UNC", "RARE", "GRAIL"][tier]
-		row.add_child(_label(tn, fs - 2, Catalog.TIER_COLORS[tier]))
+		row.add_child(_pill(tn, Catalog.TIER_COLORS[tier], fs))
+	var t := _trend_tag(item).strip_edges()
+	if t != "":
+		row.add_child(_pill(t, HOT_C if t == "HOT" else COLD_C, fs))
 	return row
 
 
@@ -587,74 +645,108 @@ func _trend_tag(item: Dictionary) -> String:
 	return ""
 
 
+## Price-gun sticker: chunky, slightly crooked.
 func _sticker(text: String, color: Color = STICKER) -> PanelContainer:
 	var p := PanelContainer.new()
-	var s := _box(color, 8)
-	s.content_margin_left = 10
-	s.content_margin_right = 10
-	s.content_margin_top = 2
+	var s := _box(color, 6)
+	s.content_margin_left = 12
+	s.content_margin_right = 12
+	s.content_margin_top = 0
 	s.content_margin_bottom = 2
+	s.border_width_bottom = 3
+	s.border_width_top = 0
+	s.border_color = color.darkened(0.35)
+	s.shadow_offset = Vector2(2, 3)
 	p.add_theme_stylebox_override("panel", s)
-	p.add_child(_label(text, 22, Color("15131d")))
+	var l := _title_label(text, 26, DARK_TXT)
+	l.add_theme_constant_override("outline_size", 0)
+	l.add_theme_constant_override("shadow_offset_y", 0)
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	p.add_child(l)
+	p.rotation_degrees = -4.0
+	p.size_flags_vertical = Control.SIZE_SHRINK_END
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return p
 
 
 func _offer_card(i: int, w: float) -> Button:
 	var o: Dictionary = run.stock[i]
 	var item: Dictionary = o["item"]
-	var b := _card_shell(w, 160, Catalog.platform(String(item["plat"]))["color"], func(): _open_offer(i))
-	var v := _card_inner_icon(b, item, 104)
-	v.add_child(_tag_row(item))
-	var nm := _label(String(item["name"]), 22, INK, true)
-	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var b := _card_shell(w, 196, Catalog.platform(String(item["plat"]))["color"], func(): _open_offer(i))
+	var v := _card_inner_icon(b, item, 112)
+	var nm := _title_label(String(item["name"]), 24, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.max_lines_visible = 2
 	v.add_child(nm)
-	var bottom := _hbox()
-	var worth: String
+	v.add_child(_tag_row(item))
+	var fl := _label(Flavor.cond_line(item), 16, FLAVOR_C, true)
+	fl.max_lines_visible = 1
+	fl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	fl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(fl)
+	var bottom := _hbox(6)
+	var wv := _vbox(-4)
 	if run.shows_exact():
-		worth = "Worth " + _money(run.market_value(item)) + _trend_tag(item)
+		wv.add_child(_label("WORTH", 13, MUTED))
+		wv.add_child(_title_label(_money(run.market_value(item)), 22, GOLD))
 	else:
 		var est: Array = o["est"]
-		worth = "~%s-%s?" % [_money(int(est[0])), _money(int(est[1]))]
-	bottom.add_child(_label(worth, 18, MUTED))
+		wv.add_child(_label("GUESS", 13, MUTED))
+		wv.add_child(_title_label("%s-%s?" % [_money(int(est[0])), _money(int(est[1]))], 20, Color("e8dcc0")))
+	bottom.add_child(wv)
 	bottom.add_child(_spacer(false))
 	if bool(o["bargain"]):
-		bottom.add_child(_label("BARGAIN", 15, GOOD))
+		bottom.add_child(_pill("BARGAIN", GOOD, 14))
 	bottom.add_child(_sticker(_money(int(o["price"]))))
 	v.add_child(bottom)
 	_ignore_mouse(b)
 	return b
 
 
+## A taped-up cardboard box.
 func _lot_card(i: int, w: float) -> Button:
 	var lot: Dictionary = run.lots[i]
 	var storage: bool = run.venue["id"] == "storage"
-	var b := _card_shell(w, 160, GOLD, func(): _open_lot(i), Color(0.17, 0.13, 0.2, 0.92))
+	var b := _card_shell(w, 196, Color("c8963e"), func(): _open_lot(i), Color(0.36, 0.25, 0.14, 0.95))
 	var m := MarginContainer.new()
 	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
-		m.add_theme_constant_override("margin_" + side, 10 if side != "left" else 16)
+		m.add_theme_constant_override("margin_" + side, 12 if side != "left" else 18)
 	b.add_child(m)
-	var hb := _hbox(10)
+	var hb := _hbox(12)
 	m.add_child(hb)
-	var q := _title_label("?", 70, GOLD)
-	q.custom_minimum_size = Vector2(90, 0)
+	var boxw := PanelContainer.new()
+	var bs := _box(Color("b98a4b"), 4)
+	bs.shadow_size = 0
+	bs.border_width_top = 10
+	bs.border_color = Color("e8d27a")
+	boxw.add_theme_stylebox_override("panel", bs)
+	boxw.custom_minimum_size = Vector2(104, 104)
+	boxw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var q := _title_label("?", 72, Color("3a2412"))
+	q.add_theme_constant_override("outline_size", 0)
 	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hb.add_child(q)
+	boxw.add_child(q)
+	hb.add_child(boxw)
 	var v := _vbox(2)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb.add_child(v)
 	var items: Array = lot["items"]
-	v.add_child(_label(("STORAGE UNIT #%d" % (i + 1)) if storage else "MYSTERY BOX LOT", 20, GOLD))
-	var peek: Array = []
-	for k in mini(int(lot["peek"]), items.size()):
-		peek.append(String(items[k]["name"]))
-	var txt := "%d items. You can see: %s" % [items.size(), ", ".join(peek)]
+	v.add_child(_title_label(("STORAGE UNIT #%d" % (i + 1)) if storage else "MYSTERY BOX LOT", 22, GOLD))
 	if bool(lot["bought"]):
-		txt = "SOLD to you."
-	var l := _label(txt, 18, INK, true)
-	l.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(l)
+		v.add_child(_label("SOLD to you.", 18, INK, true))
+	else:
+		v.add_child(_label("%d items inside" % items.size(), 18, INK))
+		var peek: Array = []
+		for k in mini(int(lot["peek"]), items.size()):
+			peek.append(String(items[k]["name"]))
+		var pk := _label("On top: " + ", ".join(peek), 16, Color("f0e2c0"), true)
+		pk.max_lines_visible = 2
+		v.add_child(pk)
+		var fl := _label(Flavor.pick(Flavor.LOT, i + run.ante * 7), 15, FLAVOR_C, true)
+		fl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		v.add_child(fl)
 	var bottom := _hbox()
 	bottom.add_child(_spacer(false))
 	if not bool(lot["bought"]):
@@ -669,14 +761,17 @@ func _lot_card(i: int, w: float) -> Button:
 func _auction_card(i: int, w: float) -> Button:
 	var a: Dictionary = run.auctions[i]
 	var item: Dictionary = a["item"]
-	var b := _card_shell(w, 160, Catalog.platform(String(item["plat"]))["color"], func(): _open_auction(i))
-	var v := _card_inner_icon(b, item, 104)
-	v.add_child(_tag_row(item))
-	var nm := _label("AUCTION: " + String(item["name"]), 21, INK, true)
+	var b := _card_shell(w, 196, Catalog.platform(String(item["plat"]))["color"], func(): _open_auction(i))
+	var v := _card_inner_icon(b, item, 112)
+	v.add_child(_label("AUCTION", 14, Color("4fd9a0")))
+	var nm := _title_label(String(item["name"]), 24, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.max_lines_visible = 2
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(nm)
-	var bottom := _hbox()
-	var status := "no bid yet"
+	v.add_child(_tag_row(item))
+	var bottom := _hbox(6)
+	var status := "NO BID YET"
 	var sc := MUTED
 	if int(a["my_max"]) > 0:
 		if run.winning(i):
@@ -685,7 +780,10 @@ func _auction_card(i: int, w: float) -> Button:
 		else:
 			status = "OUTBID"
 			sc = BAD
-	bottom.add_child(_label(status, 18, sc))
+	if sc == MUTED:
+		bottom.add_child(_label(status, 16, MUTED))
+	else:
+		bottom.add_child(_pill(status, sc, 15))
 	bottom.add_child(_spacer(false))
 	bottom.add_child(_sticker(_money(int(a["bid"])), Color("4fd9a0")))
 	v.add_child(bottom)
@@ -695,26 +793,26 @@ func _auction_card(i: int, w: float) -> Button:
 
 func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	var bg := PANEL if state == "" else PANEL.darkened(0.3)
-	var b := _card_shell(w, 176, Catalog.platform(String(item["plat"]))["color"], func(): _open_shelf_item(int(item["uid"]), state), bg)
+	var b := _card_shell(w, 188, Catalog.platform(String(item["plat"]))["color"], func(): _open_shelf_item(int(item["uid"]), state), bg)
 	var v := _card_inner(b)
-	var ic := _icon(item, 64)
-	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var well := _icon_well(item, 72)
+	well.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if state != "":
-		ic.modulate = Color(0.6, 0.6, 0.7)
-	v.add_child(ic)
-	v.add_child(_tag_row(item, 14))
-	var nm := _label(String(item["name"]), 16, INK if state == "" else MUTED, true)
-	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		well.modulate = Color(0.6, 0.6, 0.7)
+	v.add_child(well)
+	var nm := _title_label(String(item["name"]), 18, INK if state == "" else MUTED)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.max_lines_visible = 2
+	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(nm)
 	var bottom := _hbox(4)
+	var plat := Catalog.platform(String(item["plat"]))
+	bottom.add_child(_pill(String(plat["short"]), (plat["color"] as Color).lightened(0.15), 13))
+	bottom.add_child(_spacer(false))
 	if state == "":
-		bottom.add_child(_label(_money(run.market_value(item)), 18, GOLD))
-		var t := _trend_tag(item)
-		if t != "":
-			bottom.add_child(_label(t.strip_edges(), 13, HOT_C if t == " HOT" else COLD_C))
+		bottom.add_child(_title_label(_money(run.market_value(item)), 20, GOLD))
 	else:
-		bottom.add_child(_label(state, 15, COLD_C))
+		bottom.add_child(_pill(state, COLD_C, 13))
 	v.add_child(bottom)
 	_ignore_mouse(b)
 	return b
@@ -821,16 +919,19 @@ func _punch(c: Control, amount: float = 1.3) -> void:
 
 
 func _market_panel(parent: Control) -> void:
-	var p := _panel(PANEL)
-	var v := _vbox(4)
+	var p := _panel(Color(0.06, 0.05, 0.08, 0.85), Color(1, 1, 1, 0.08), 2)
+	var v := _vbox(6)
 	p.add_child(v)
-	var row := _hbox(16)
+	v.add_child(_label("MARKET REPORT", 14, MUTED))
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 8)
+	row.add_theme_constant_override("v_separation", 6)
 	for plat in run.hot:
-		row.add_child(_label("HOT: %s x%.1f" % [Catalog.platform(plat)["name"], run.trend_mult(plat)], 19, HOT_C))
+		row.add_child(_pill("HOT  %s x%.1f" % [Catalog.platform(plat)["name"], run.trend_mult(plat)], HOT_C, 16))
 	for plat in run.cold:
-		row.add_child(_label("COLD: %s x%.2f" % [Catalog.platform(plat)["name"], run.trend_mult(plat)], 19, COLD_C))
+		row.add_child(_pill("COLD  %s x%.2f" % [Catalog.platform(plat)["name"], run.trend_mult(plat)], COLD_C, 16))
 	v.add_child(row)
-	v.add_child(_label("Rumor: %s could be hot next stop." % Catalog.platform(run.rumor)["name"], 18, MUTED, true))
+	v.add_child(_label("Word around the shops: %s could be hot next stop." % Catalog.platform(run.rumor)["name"], 18, FLAVOR_C, true))
 	parent.add_child(p)
 
 
@@ -941,7 +1042,7 @@ func _act(res: Dictionary, good: String = "coin") -> void:
 
 func _build_home() -> void:
 	_header()
-	_root_box.add_child(_stage_gap(190 if is_landscape() else 250))
+	_root_box.add_child(_stage_gap(130 if is_landscape() else 250))
 	var cols := _columns()
 	var main: VBoxContainer = cols[0]
 	var side: VBoxContainer = cols[1]
@@ -993,22 +1094,43 @@ func _build_home() -> void:
 	_shelf_grid(side, _side_w())
 
 
+## A destination card: coloured sign band, mood line, fact pills.
 func _venue_button(id: String) -> Button:
 	var d := Venues.get_def(id)
-	var b := _card_shell(0, 150, d["color"], func(): go_to_venue(id), PANEL)
+	var col: Color = d["color"]
+	var b := _card_shell(0, 210, col, func(): go_to_venue(id), PANEL)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var v := _card_inner(b)
+	var band := PanelContainer.new()
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = col
+	bs.set_corner_radius_all(5)
+	bs.content_margin_left = 10
+	bs.content_margin_right = 10
+	band.add_theme_stylebox_override("panel", bs)
 	var top := _hbox()
-	top.add_child(_title_label(String(d["name"]), 28, d["color"]))
+	var nm := _title_label(String(d["name"]), 30, DARK_TXT)
+	nm.add_theme_constant_override("outline_size", 0)
+	nm.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.25))
+	top.add_child(nm)
 	top.add_child(_spacer(false))
-	top.add_child(_label("GO >", 22, INK))
-	v.add_child(top)
-	var blurb := _label(String(d["blurb"]), 18, INK, true)
+	var go := _title_label("GO >", 26, DARK_TXT)
+	go.add_theme_constant_override("outline_size", 0)
+	top.add_child(go)
+	band.add_child(top)
+	v.add_child(band)
+	var mood := _label(Flavor.mood(id), 18, FLAVOR_C, true)
+	v.add_child(mood)
+	var blurb := _label(String(d["blurb"]), 17, INK, true)
 	blurb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(blurb)
-	v.add_child(_label(_venue_facts(d), 16, MUTED, true))
+	var facts := HFlowContainer.new()
+	facts.add_theme_constant_override("h_separation", 5)
+	facts.add_theme_constant_override("v_separation", 4)
+	for f in _venue_facts(d).split(" | "):
+		facts.add_child(_pill(String(f).to_upper(), Color(1, 1, 1, 0.82), 13))
+	v.add_child(facts)
 	_ignore_mouse(b)
-	b.custom_minimum_size.y = 170
 	return b
 
 
@@ -1035,16 +1157,20 @@ func _venue_facts(d: Dictionary) -> String:
 
 func _perk_card(id: String, w: float, owned: bool) -> Button:
 	var d := Perks.get_def(id)
-	var b := _card_shell(w, 170, Color("b07cff") if not owned else GOOD, func(): _open_perk(id, owned), PANEL)
+	var col := Color("b07cff") if not owned else GOOD
+	var b := _card_shell(w, 190, col, func(): _open_perk(id, owned), PANEL)
 	var v := _card_inner(b)
-	v.add_child(_label(String(d["name"]), 21, INK, true))
-	var desc := _label(String(d["desc"]), 16, MUTED, true)
+	v.add_child(_pill("OWNED" if owned else "PERK", col, 13))
+	var nm := _title_label(String(d["name"]), 22, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(nm)
+	var desc := _label(String(d["desc"]), 17, Color("ddd5ea"), true)
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(desc)
 	var bottom := _hbox()
 	bottom.add_child(_spacer(false))
 	if owned:
-		bottom.add_child(_label("sell %s" % _money(int(d["cost"]) / 2), 16, MUTED))
+		bottom.add_child(_label("sell %s" % _money(int(d["cost"]) / 2), 17, MUTED))
 	else:
 		bottom.add_child(_sticker(_money(int(d["cost"]))))
 	v.add_child(bottom)
@@ -1054,11 +1180,13 @@ func _perk_card(id: String, w: float, owned: bool) -> Button:
 
 func _upgrade_card(w: float) -> Button:
 	var d := run.upgrade_offer
-	var b := _card_shell(w, 170, GOLD, func(): _open_upgrade(), Color("2b2433"))
+	var b := _card_shell(w, 190, GOLD, func(): _open_upgrade(), Color(0.17, 0.13, 0.2, 0.93))
 	var v := _card_inner(b)
-	v.add_child(_label("UPGRADE", 14, GOLD))
-	v.add_child(_label(String(d["name"]), 21, INK, true))
-	var desc := _label(String(d["desc"]), 16, MUTED, true)
+	v.add_child(_pill("UPGRADE", GOLD, 13))
+	var nm := _title_label(String(d["name"]), 22, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(nm)
+	var desc := _label(String(d["desc"]), 17, Color("ddd5ea"), true)
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(desc)
 	var bottom := _hbox()
@@ -1116,7 +1244,7 @@ func _dev_ante() -> void:
 
 func _build_venue() -> void:
 	_header()
-	_root_box.add_child(_stage_gap(170 if is_landscape() else 270))
+	_root_box.add_child(_stage_gap(110 if is_landscape() else 270))
 	var ap := run.appraise()
 	var total := int(ap["total"])
 	var tgt := run.target()
@@ -1201,10 +1329,14 @@ func _open_offer(i: int) -> void:
 		return
 	var o: Dictionary = run.stock[i]
 	var item: Dictionary = o["item"]
-	var lines: Array = _item_lines(item, run.shows_exact())
+	var lines: Array = []
+	var quote := Flavor.seller(String(run.venue["id"]), str(item["uid"]))
+	if quote != "":
+		lines.append([quote, FLAVOR_C])
+	lines.append_array(_item_lines(item, run.shows_exact()))
 	if not run.shows_exact():
 		var est: Array = o["est"]
-		lines.append(["Seller's guess says %s to %s. Who knows?" % [_money(int(est[0])), _money(int(est[1]))], MUTED])
+		lines.append(["Your gut says %s to %s. Could be more. Could be junk." % [_money(int(est[0])), _money(int(est[1]))], MUTED])
 	if bool(o["bin"]) and not run.has_perk("bubble_wrap"):
 		lines.append(["Online: might arrive a condition worse than listed.", MUTED])
 	var actions: Array = [["Buy for %s" % _money(int(o["price"])), func(): _do_buy(i), STICKER]]
@@ -1212,7 +1344,7 @@ func _open_offer(i: int) -> void:
 		actions.append(["Haggle  (1 Time, %d%% odds)" % int(round(_haggle_odds() * 100.0)), func(): _do_haggle(i), PANEL_HI])
 	elif bool(o["haggled"]):
 		lines.append(["Already haggled.", MUTED])
-	_open_sheet(String(item["name"]), lines, actions)
+	_open_sheet(String(item["name"]), lines, actions, item)
 
 
 func _haggle_odds() -> float:
@@ -1274,7 +1406,7 @@ func _open_auction(i: int) -> void:
 		lines.append(["Your max bid: %s (%s)" % [_money(int(a["my_max"])), "winning" if run.winning(i) else "outbid"], GOOD if run.winning(i) else BAD])
 	lines.append(["Your max is held until it ends. Snipers may jump in at the last second.", MUTED])
 	var nb := run.next_bid(i)
-	_open_sheet("Auction", lines, [["Bid up to %s" % _money(nb), func(): _do_bid(i), Color("4fd9a0")]])
+	_open_sheet(String(item["name"]), lines, [["Bid up to %s" % _money(nb), func(): _do_bid(i), Color("4fd9a0")]], item)
 
 
 func _do_bid(i: int) -> void:
@@ -1288,10 +1420,10 @@ func _do_bid(i: int) -> void:
 func _item_lines(item: Dictionary, exact: bool) -> Array:
 	var plat := Catalog.platform(String(item["plat"]))
 	var tier := int(item["tier"])
-	var desc := "%s  |  %s  |  %s" % [plat["name"], item["cond"], Catalog.TIER_NAMES[tier]]
-	if int(item["grade"]) > 0:
-		desc += "  |  Graded %d" % item["grade"]
-	var lines: Array = [[desc, plat["color"]]]
+	var lines: Array = [[Flavor.cond_line(item), INK]]
+	if tier > 0:
+		lines.append([Flavor.tier_line(item), Catalog.TIER_COLORS[tier]])
+	lines.append(["%s  |  %s  |  %s%s" % [plat["name"], item["cond"], Catalog.TIER_NAMES[tier], ("  |  Graded %d" % item["grade"]) if int(item["grade"]) > 0 else ""], (plat["color"] as Color).lightened(0.25)])
 	if exact:
 		lines.append(["Worth %s right now.%s" % [_money(run.market_value(item)), _trend_tag(item)], GOLD])
 	if (item["tags"] as Array).has("fad"):
@@ -1329,7 +1461,7 @@ func _open_shelf_item(uid: int, state: String) -> void:
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
 			actions.append(["Send to grading for %s" % _money(run.grade_cost(item)), func(): _act(run.send_to_grading(uid), "tick"), GOLD])
 	actions.append(["Dump it for %s" % _money(Balance.DUMP_VALUE), func(): _act(run.dump(uid), "buzz"), Color("5a3a3a")])
-	_open_sheet(String(item["name"]), lines, actions)
+	_open_sheet(String(item["name"]), lines, actions, item)
 
 
 # ================================================================ appraisal
@@ -1480,6 +1612,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		_stage.shake(0.5)
 		_coin_burst(layer, total_l)
 		var r: Dictionary = res["rewards"]
+		cv.add_child(_label(Flavor.pick(Flavor.PASS, run.ante * 3 + run.stop), 20, FLAVOR_C, true))
 		cv.add_child(_label("CLEARED! Payout: stop %s + interest %s + leftover Time %s = %s" % [
 			_money(int(r["base"])), _money(int(r["interest"])), _money(int(r["time"])), _money(int(r["total"]))], 20, GOOD, true))
 		var label := "CONTINUE"
@@ -1491,7 +1624,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		_sfx.play("fail")
 		_stage.shake(1.4)
 		_flash(layer, BAD)
-		cv.add_child(_label("Short by %s. The appraiser shakes their head." % _money(tgt - total), 22, BAD, true))
+		cv.add_child(_label("Short by %s. %s" % [_money(tgt - total), Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop)], 22, BAD, true))
 		v.add_child(_button("SEE RESULTS", _after_appraisal, BAD, 28, 96))
 	_busy = false
 
@@ -1691,7 +1824,7 @@ func _end_stats() -> void:
 
 # ================================================================ sheet + toast
 
-func _open_sheet(title: String, lines: Array, actions: Array) -> void:
+func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary = {}) -> void:
 	_close_sheet()
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)
@@ -1729,9 +1862,29 @@ func _open_sheet(title: String, lines: Array, actions: Array) -> void:
 	dim.add_child(panel)
 	var v := _vbox(10)
 	panel.add_child(v)
-	v.add_child(_title_label(title, 30, INK))
+	if item.is_empty():
+		v.add_child(_title_label(title, 32, INK))
+	else:
+		var head := _hbox(14)
+		head.add_child(_icon_well(item, 128))
+		var hv := _vbox(4)
+		hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hv.alignment = BoxContainer.ALIGNMENT_CENTER
+		var t := _title_label(title, 32, INK)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hv.add_child(t)
+		hv.add_child(_tag_row(item, 17))
+		head.add_child(hv)
+		v.add_child(head)
 	for ln in lines:
-		v.add_child(_label(String(ln[0]), 20, ln[1], true))
+		var txt := String(ln[0])
+		if txt.begins_with("\""):
+			# Someone talking: a speech panel.
+			var q := _panel(Color(0.2, 0.16, 0.1, 0.9), Color(FLAVOR_C, 0.4), 2)
+			q.add_child(_label(txt, 20, FLAVOR_C, true))
+			v.add_child(q)
+		else:
+			v.add_child(_label(txt, 20, ln[1], true))
 	for a in actions:
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 24, 88)
