@@ -60,6 +60,10 @@ var last_rewards: Dictionary = {}
 var stats := {"bought": 0, "sold": 0, "best_flip": 0, "best_flip_name": "", "best_appraisal": 0, "profit": 0}
 
 var _uid: int = 0
+## Pull luck: offers since the last rare+ (pity builds), and a cool-down after
+## a grail so they stay special.
+var dry: int = 0
+var grail_cool: int = 0
 
 
 # ================================================================ setup
@@ -214,7 +218,72 @@ func _pick_def(tier: int) -> Dictionary:
 	while pool.is_empty() and tier > 0:
 		tier -= 1
 		pool = _active_pool(tier)
-	return pool[rng.randi_range(0, pool.size() - 1)]
+	var cum := _pool_cum(tier, pool)
+	var held := {}
+	for o in stock:
+		held[String(o["item"]["id"])] = 0.9
+	for it in shelf:
+		held[String(it["id"])] = maxf(float(held.get(String(it["id"]), 0.0)), 0.5)
+	var d: Dictionary
+	# Rarely the same thing twice on one table, less often what you own.
+	for attempt in 4:
+		var r := rng.randf() * float(cum[-1])
+		var lo := 0
+		var hi := cum.size() - 1
+		while lo < hi:
+			var mid := (lo + hi) / 2
+			if float(cum[mid]) <= r:
+				lo = mid + 1
+			else:
+				hi = mid
+		d = pool[lo]
+		if rng.randf() >= float(held.get(String(d["id"]), 0.0)):
+			break
+	return d
+
+
+var _cum_cache: Dictionary = {}
+
+## Running totals of _def_weight over a pool, cached per tier, venue type and
+## market mood (so a pull is a quick binary search).
+func _pool_cum(tier: int, pool: Array) -> Array:
+	var key := "%d|%s|%s|%s|%d" % [tier, String(venue.get("slot", "")), ",".join(hot), ",".join(cold), pool.size()]
+	if _cum_cache.has(key):
+		return _cum_cache[key]
+	var cum: Array = []
+	var t := 0.0
+	for d in pool:
+		t += _def_weight(d)
+		cum.append(t)
+	_cum_cache[key] = cum
+	return cum
+
+
+## How likely a def is to turn up right here, right now (inside its tier).
+func _def_weight(d: Dictionary) -> float:
+	var w := Catalog.scarcity_weight(d)
+	var slot := String(venue.get("slot", ""))
+	var year := int(d.get("year", 0))
+	var kind := String(d.get("kind", "game"))
+	# Garages turn up old stuff, shops stock hardware, online has the newer.
+	if slot == "hunt":
+		if year > 0 and year <= 1996:
+			w *= Balance.HUNT_OLD_BIAS
+		if kind == "acc":
+			w *= 1.3
+	elif slot == "shop":
+		if kind != "game":
+			w *= Balance.SHOP_HW_BIAS
+	elif slot == "online":
+		if year >= 1998:
+			w *= Balance.ONLINE_NEW_BIAS
+	# Hot platforms get picked over; cold ones flood the market.
+	var plat := String(d.get("plat", ""))
+	if hot.has(plat):
+		w *= Balance.HOT_SUPPLY
+	elif cold.has(plat):
+		w *= Balance.COLD_SUPPLY
+	return w
 
 
 func _active_pool(tier: int) -> Array:
@@ -226,8 +295,23 @@ func _active_pool(tier: int) -> Array:
 
 
 func _roll_tier(boost: int) -> int:
-	var w: Array = Balance.tier_weights(ante + boost)
-	return _weighted(w)
+	var w: Array = (Balance.tier_weights(ante + boost) as Array).duplicate()
+	# Pity: every dry pull nudges the rare and grail odds up a little.
+	var p := mini(dry, Balance.PITY_CAP)
+	w[2] = float(w[2]) + p * Balance.PITY_RARE
+	w[3] = float(w[3]) + p * Balance.PITY_GRAIL * (1.0 if ante >= 2 else 0.0)
+	if grail_cool > 0:
+		w[3] = float(w[3]) * Balance.GRAIL_COOL_MULT
+	var t := _weighted(w)
+	if t >= 2:
+		dry = 0
+	else:
+		dry += 1
+	if t == 3:
+		grail_cool = Balance.GRAIL_COOL
+	elif grail_cool > 0:
+		grail_cool -= 1
+	return t
 
 
 func _weighted(weights: Array) -> int:
@@ -248,7 +332,7 @@ func roll_item(boost: int, cond_weights: Array, hunt: bool = false) -> Dictionar
 	if hunt and has_perk("eagle_eye") and rng.randf() < 0.25:
 		ci = mini(ci + 1, Catalog.CONDITIONS.size() - 1)
 	var it := make_item(def, Catalog.CONDITIONS[ci])
-	it["variant"] = Catalog.roll_variant(def, rng)
+	it["variant"] = Catalog.roll_variant(def, rng, {"slot": String(venue.get("slot", ""))})
 	return it
 
 

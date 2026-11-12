@@ -350,3 +350,29 @@ func test_bot_plays_whole_runs_without_errors() -> void:
 		var res: Dictionary = Bot.new(r, i).play_run()
 		assert_true(r.phase == Run.Phase.OVER or r.phase == Run.Phase.WON or r.phase == Run.Phase.HOME,
 			"run %d ended cleanly at ante %d" % [i, res["ante"]])
+
+
+func test_pity_brings_rares() -> void:
+	var r := _new_run(7)
+	var longest := 0
+	for i in 400:
+		var t := r._roll_tier(0)
+		longest = maxi(longest, r.dry)
+		assert_true(t >= 0 and t <= 3)
+	assert_lt(longest, 60, "pity should end long dry streaks")
+
+
+func test_variants_are_believable() -> void:
+	for d in Catalog.ITEMS:
+		var ws := Catalog.variant_weights(d)
+		if int(d.get("year", 0)) > 2006:
+			assert_false(ws.has("Rental Copy"), "no rentals after 2006: %s" % d["id"])
+		assert_gt(ws.size(), 0)
+
+
+func test_history_differs_between_items_and_copies() -> void:
+	var a: Dictionary = Catalog.ITEMS[10]
+	var b: Dictionary = Catalog.ITEMS[11]
+	assert_ne(str(Flavor.history(a, {"uid": 1})), str(Flavor.history(b, {"uid": 1})))
+	assert_ne(Flavor.provenance(a, {"uid": 1}, Flavor.facts(a)), Flavor.provenance(a, {"uid": 2}, Flavor.facts(a)))
+	assert_eq(str(Flavor.facts(a)), str(Flavor.facts(a)), "facts are stable per item")

@@ -72,6 +72,9 @@ func _go() -> void:
 	await _snap("venue_garage_shelf")
 	game._open_shelf_item(int(game.run.shelf[-1]["uid"]), "")
 	await _snap("shelf_item_open")
+	for sc in game.find_children("*", "ScrollContainer", true, false):
+		(sc as ScrollContainer).scroll_vertical = 100000
+	await _snap("shelf_item_history")
 	game._close_sheet()
 	game._set_venue_tab("sale")
 	game._open_offer(0)
@@ -94,6 +97,10 @@ func _go() -> void:
 	await _snap("collection_wall")
 	game._set_coll_tab("binder")
 	await _snap("collection_binder")
+	game._binder_all = true
+	game.request_refresh()
+	await _snap("collection_binder_dev")
+	game._binder_all = false
 	game.screen = "home"
 	game.request_refresh()
 	game.go_to_venue(game.run.venue_choices[-1])

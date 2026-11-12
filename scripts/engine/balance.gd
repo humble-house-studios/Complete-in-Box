@@ -42,6 +42,22 @@ const TIER_WEIGHTS := [
 	[5, 25, 44, 26],
 ]
 
+## Pull luck. Each pull without a rare adds PITY_RARE to the rare weight (and
+## PITY_GRAIL to grails from ante 2), up to PITY_CAP pulls. After a grail,
+## grail odds drop to GRAIL_COOL_MULT for GRAIL_COOL pulls.
+const PITY_RARE := 0.9
+const PITY_GRAIL := 0.12
+const PITY_CAP := 24
+const GRAIL_COOL := 12
+const GRAIL_COOL_MULT := 0.25
+## Venue taste inside a tier.
+const HUNT_OLD_BIAS := 1.35
+const SHOP_HW_BIAS := 1.3
+const ONLINE_NEW_BIAS := 1.25
+## Supply: hot platforms are picked over, cold ones flood in.
+const HOT_SUPPLY := 0.75
+const COLD_SUPPLY := 1.3
+
 ## Market
 const HOT := 1.5
 const COLD := 0.7

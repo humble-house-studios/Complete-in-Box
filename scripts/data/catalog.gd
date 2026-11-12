@@ -193,38 +193,111 @@ static func variant_label(item: Dictionary) -> String:
 	return v
 
 
-## Rolls a variant for a copy of def, weighted by VARIANTS.
-static func roll_variant(def: Dictionary, rng: RandomNumberGenerator) -> String:
-	var kind := String(def["kind"])
+## Variant weights for one item, shaped by what's believable for it: budget
+## re-releases only happen to big sellers, rental copies to the rental era,
+## Japan imports to Japanese families, prototypes get likelier the rarer the
+## item. ctx: {"slot": "hunt"/"shop"/"online"} nudges what each venue turns up.
+static func variant_weights(def: Dictionary, ctx: Dictionary = {}) -> Dictionary:
+	var kind := String(def.get("kind", "game"))
+	var year := int(def.get("year", 0))
+	var printed := int(def.get("run", 0))
+	var tier := int(def.get("tier", 0))
+	var fam := String(platform(String(def.get("plat", "MISC"))).get("family", ""))
+	var slot := String(ctx.get("slot", ""))
+	var out := {}
+	for k in VARIANTS:
+		if not (VARIANTS[k]["kinds"] as Array).has(kind):
+			continue
+		var w := float(VARIANTS[k]["w"])
+		match k:
+			"Player's Pick":
+				if printed > 0:
+					w *= clampf((printed - 250000.0) / 600000.0, 0.0, 2.0)
+				if slot == "hunt":
+					w *= 1.5
+			"Black Label":
+				w *= 1.4 if year > 0 and year < 2000 else 0.5
+			"First Print":
+				if printed > 0:
+					w *= clampf(pow(200000.0 / float(printed), 0.3), 0.5, 2.2)
+			"Japan Import":
+				if not ["funtendo", "statia", "saga", "snc"].has(fam):
+					w *= 0.15
+			"Rental Copy":
+				if year > 0 and (year < 1985 or year > 2006):
+					w = 0.0
+				if slot == "hunt":
+					w *= 2.0
+				elif slot == "online":
+					w *= 0.6
+			"Collector's Edition":
+				if year > 0 and year < 1995:
+					w *= 0.2
+				if slot == "online":
+					w *= 1.5
+			"Signed by Dev":
+				w *= 1.0 + 0.5 * tier
+			"Test Cart", "Prototype":
+				w *= 0.4 + 0.6 * tier
+				if slot == "hunt":
+					w *= 0.6
+			"Store Display":
+				if slot == "shop":
+					w *= 1.8
+			"Launch Edition":
+				if year > 0 and year > 2003:
+					w *= 0.7
+		if w > 0.0:
+			out[k] = w
+	if out.is_empty():
+		out["Standard"] = 1.0
+	return out
+
+
+## Rolls a variant for a copy of def (see variant_weights).
+static func roll_variant(def: Dictionary, rng: RandomNumberGenerator, ctx: Dictionary = {}) -> String:
+	var ws := variant_weights(def, ctx)
 	var total := 0.0
-	for k in VARIANTS:
-		if (VARIANTS[k]["kinds"] as Array).has(kind):
-			total += float(VARIANTS[k]["w"])
+	for k in ws:
+		total += float(ws[k])
 	var r := rng.randf() * total
-	for k in VARIANTS:
-		if (VARIANTS[k]["kinds"] as Array).has(kind):
-			r -= float(VARIANTS[k]["w"])
-			if r <= 0.0:
-				return k
+	for k in ws:
+		r -= float(ws[k])
+		if r <= 0.0:
+			return k
 	return "Standard"
+
+
+## How common a def is inside its rarity tier: big print runs turn up more.
+static func scarcity_weight(def: Dictionary) -> float:
+	var printed := int(def.get("run", 0))
+	if printed <= 0:
+		return 1.0
+	return clampf(pow(printed / 100000.0, 0.35), 0.05, 20.0)
 
 
 static func variant_mult(item: Dictionary) -> float:
 	return float(VARIANTS.get(String(item.get("variant", "Standard")), VARIANTS["Standard"])["mult"])
 
 
-## Rough odds of pulling this exact copy (tier share x variant share), for the card.
+## Rough odds of pulling this exact copy (tier share x share inside the tier
+## x variant share), for the card.
 static func odds(item: Dictionary) -> int:
 	var tier := int(item.get("tier", 0))
 	var tier_share: float = [0.6, 0.3, 0.09, 0.01][tier]
-	var n := float(defs_of_tier(tier).size())
-	var kind := String(item["kind"])
+	var def := get_def(String(item.get("id", "")))
+	if def.is_empty():
+		def = item
+	var sum := 0.0
+	for d in defs_of_tier(tier):
+		sum += scarcity_weight(d)
+	var in_tier := scarcity_weight(def) / maxf(sum, 0.001)
+	var ws := variant_weights(def)
 	var total := 0.0
-	for k in VARIANTS:
-		if (VARIANTS[k]["kinds"] as Array).has(kind):
-			total += float(VARIANTS[k]["w"])
-	var vw := float(VARIANTS.get(String(item.get("variant", "Standard")), VARIANTS["Standard"])["w"]) / maxf(total, 1.0)
-	return maxi(1, int(round(n / tier_share / maxf(vw, 0.0001))))
+	for k in ws:
+		total += float(ws[k])
+	var vw := float(ws.get(String(item.get("variant", "Standard")), 0.0)) / maxf(total, 0.001)
+	return maxi(1, int(round(1.0 / (tier_share * in_tier * maxf(vw, 0.0005)))))
 
 
 static func get_def(id: String) -> Dictionary:

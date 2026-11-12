@@ -4609,6 +4609,7 @@ var _coll_wall: Array = []
 var _coll_dirty := false
 var _coll_tab := "wall"
 var _binder_plat := 0
+var _binder_all := false  # DEV: show every catalog item as if found
 var _wall_picked := false
 var _coll_loaded := false
 ## True while `run` is only a stand-in for viewing items from the title.
@@ -4739,6 +4740,11 @@ func _set_coll_tab(t: String) -> void:
 	request_refresh()
 
 
+func _dev_binder_all() -> void:
+	_binder_all = not _binder_all
+	request_refresh()
+
+
 func _binder_step(d: int) -> void:
 	_binder_plat = posmod(_binder_plat + d, Catalog.PLATFORMS.size())
 	request_refresh()
@@ -4835,6 +4841,8 @@ func _build_binder(col: Control, avail: float) -> void:
 	key.add_child(_pill("SEEN", MUTED, 15))
 	key.add_child(_pill("?  NOT YET", Color(0.35, 0.33, 0.42), 15))
 	col.add_child(key)
+	if DEV:
+		col.add_child(_button("DEV: SHOW ALL  %s" % ("ON" if _binder_all else "OFF"), _dev_binder_all, Color("444055"), 18, 88))
 	var gc: Array = _grid(avail, 120, 8)
 	var g: GridContainer = gc[0]
 	var w: float = gc[1]
@@ -4858,7 +4866,9 @@ func _binder_tile(def: Dictionary, w: float, now: Dictionary) -> Button:
 		state = "owned"
 	elif _coll_seen.has(id):
 		state = "seen"
-	var colr: Color = {"wall": GOLD, "now": GOOD, "owned": Color("7fb8ff"), "seen": MUTED, "unseen": Color(0.3, 0.28, 0.36)}[state]
+	elif DEV and _binder_all:
+		state = "dev"
+	var colr: Color = {"wall": GOLD, "now": GOOD, "owned": Color("7fb8ff"), "seen": MUTED, "dev": Color("b07cff"), "unseen": Color(0.3, 0.28, 0.36)}[state]
 	var item := def.duplicate()
 	item["cond"] = "CIB"
 	var b := _card_shell(w, 176, colr, func(): _coll_inspect(item, state != "unseen"), PANEL if state != "unseen" else Color(0.05, 0.045, 0.07, 0.9))
@@ -4882,7 +4892,7 @@ func _binder_tile(def: Dictionary, w: float, now: Dictionary) -> Button:
 		nm.max_lines_visible = 2
 		nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		v.add_child(nm)
-		v.add_child(_pill({"wall": "WALL", "now": "OWN NOW", "owned": "OWNED", "seen": "SEEN"}[state], colr, 13))
+		v.add_child(_pill({"wall": "WALL", "now": "OWN NOW", "owned": "OWNED", "seen": "SEEN", "dev": "DEV"}[state], colr, 13))
 	_ignore_mouse(b)
 	return b
 
