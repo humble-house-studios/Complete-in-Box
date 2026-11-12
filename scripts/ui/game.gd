@@ -53,7 +53,7 @@ var _last_inset := Vector4(-1, -1, -1, -1)
 var _refresh_queued := false
 var _busy := false
 var _skip := false
-var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1}
+var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1, "guide_off": 0}
 var _stage: Stage
 var _gap: Control
 var _crt: ColorRect
@@ -1388,7 +1388,7 @@ func _build_title() -> void:
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	gap.size_flags_stretch_ratio = 4.0
 	_root_box.add_child(gap)
-	_root_box.add_child(_button("NEW RUN", start_new_run, STICKER, 34 if not land else 28, 110 if not land else 84))
+	_root_box.add_child(_button("NEW RUN", _on_new_run, STICKER, 34 if not land else 28, 110 if not land else 84))
 	var row := _hbox(10)
 	var bh := 80.0 if not land else 64.0
 	for bt in [_button("HOW TO PLAY", _show_how_to, PANEL_HI, 22, bh), _button("SOUND: %s" % ("ON" if _sfx.enabled else "OFF"), _toggle_sound, PANEL_HI, 22, bh), _button("CREDITS", _show_credits, PANEL_HI, 22, bh)]:
@@ -1432,16 +1432,338 @@ func _show_credits() -> void:
 
 
 func _show_how_to() -> void:
-	_open_sheet("How to play", [
-		["Each ante has 3 stops: The Hunt, The Shop, and Online. Buy low, sell high, and stock your shelf.", INK],
-		["When you leave a stop, your shelf is appraised like a Balatro hand: every item adds its value, then sets and perks add Mult. Beat the target or you're out of business.", INK],
-		["THE HUNT: cheap, but you only see guesses. Haggling and digging cost Time. Mystery lots are a gamble.", Color("e0a84a")],
-		["THE SHOP: exact prices. They buy your stuff, grade it, and fix it.", Color("5fb3d9")],
-		["ONLINE: Buy It Now, bid on auctions, list your own stuff. It all settles when you leave, and there's a boss twist.", Color("4fd9a0")],
-		["SETS: 3+ items from one platform = +Mult. Console + game + accessory = x1.5. Every GRAIL = +1 Mult.", GOLD],
-		["LONG GAME: collectibles gain value the longer you hold them; fads lose it. Watch Hot/Cold and the rumor.", MUTED],
-		["Between stops, spend cash on Perks. Leftover Time and savings pay out.", MUTED],
-	], [])
+	_open_guide(Callable())
+
+
+## NEW RUN on the title: the quick guide first (until they turn it off).
+func _on_new_run() -> void:
+	if int(_save.get("guide_off", 0)) == 1:
+		start_new_run()
+	else:
+		_open_guide(start_new_run)
+
+
+## The how-to-play guide: a deck of big, simple cards. Swipe or tap NEXT.
+const GUIDE := [
+	{"title": "HEY, COLLECTOR!", "color": GOLD, "art": "welcome",
+		"lines": ["You flip retro games for a living.", "Your garage is full. Your wallet is not. Let's fix that."]},
+	{"title": "3 STOPS A ROUND", "color": STICKER, "art": "stops",
+		"lines": ["Each round you visit three places to buy and sell stuff."]},
+	{"title": "YOUR SHELF IS YOUR HAND", "color": Color("5fb3d9"), "art": "formula",
+		"lines": ["Everything you buy goes on your shelf.", "Items give CHIPS. Sets and perks give MULT. Multiply them!"]},
+	{"title": "COLLECT SETS", "color": Color("4fd9a0"), "art": "sets",
+		"lines": ["3+ things for one console = more MULT.", "Console + game + accessory = x1.5!", "Found a GRAIL? +1 MULT and a lifetime of bragging."]},
+	{"title": "BEAT THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
+		"lines": ["Leave a stop and the appraiser scores your shelf.", "Beat the target... or it's back to bagging groceries."]},
+	{"title": "PRO TIPS", "color": GOLD, "art": "tips", "lines": []},
+]
+const GUIDE_STOPS := [
+	["THE HUNT", "Yard sales and flea markets. Dirt cheap... probably.", Color("e0a84a")],
+	["THE SHOP", "Real price tags. They buy, grade and fix your stuff.", Color("5fb3d9")],
+	["ONLINE", "Bid, Buy It Now, sell your junk. Watch for the boss twist!", Color("4fd9a0")],
+]
+const GUIDE_TIPS := [
+	["HAGGLE", "Yard sale prices are guesses. Haggle and dig (it costs Time).", Color("e0a84a")],
+	["PERKS", "Spend spare cash on Perks between stops. They're cheat codes.", Color("b07cff")],
+	["HOLD", "Real collectibles grow in value. Fads crash. Watch HOT / COLD.", Color("5fb3d9")],
+	["TAP", "Tap any item to see it up close, spinning, with all its stats.", Color("4fd9a0")],
+]
+var _guide_page := 0
+var _guide_done: Callable
+var _guide_body: Control
+var _guide_dots: HBoxContainer
+var _guide_next: Button
+var _guide_back: Button
+var _guide_drag := Vector2.ZERO
+
+
+func _open_guide(on_done: Callable) -> void:
+	_close_sheet()
+	_guide_done = on_done
+	_guide_page = 0
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.015, 0.04, 0.82)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.add_child(dim)
+	_sheet = dim
+	if _sfx != null and not fast:
+		_sfx.play("open")
+	var panel := PanelContainer.new()
+	var st := _box(Color(0.1, 0.085, 0.13, 0.98), 8, GOLD, 3)
+	st.content_margin_left = 26
+	st.content_margin_right = 26
+	st.content_margin_top = 20
+	st.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", st)
+	if is_landscape():
+		panel.anchor_left = 0.5
+		panel.anchor_right = 0.5
+		panel.offset_left = -440
+		panel.offset_right = 440
+		st.content_margin_top = 12
+		st.content_margin_bottom = 12
+	else:
+		panel.anchor_left = 0.0
+		panel.anchor_right = 1.0
+		panel.offset_left = _margins.x + 6
+		panel.offset_right = -_margins.z - 6
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_top = _margins.y + (24 if not is_landscape() else 8)
+	panel.offset_bottom = -_margins.w - (24 if not is_landscape() else 8)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.gui_input.connect(_guide_swipe)
+	dim.add_child(panel)
+	var v := _vbox(14 if not is_landscape() else 6)
+	panel.add_child(v)
+	# Top row: page counter + skip.
+	var top := _hbox(10)
+	var hdr := _pill("HOW TO PLAY", GOLD, 24)
+	hdr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(hdr)
+	top.add_child(_spacer(false))
+	var land := is_landscape()
+	var skip := _button("SKIP", _guide_finish, PANEL_HI, 20, 72 if not land else 56)
+	skip.custom_minimum_size.x = 130
+	top.add_child(skip)
+	v.add_child(top)
+	_guide_body = _vbox(16 if not land else 8)
+	_guide_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_guide_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(_guide_body)
+	_guide_dots = _hbox(10)
+	_guide_dots.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(_guide_dots)
+	var nav := _hbox(12)
+	_guide_back = _button("BACK", _guide_step.bind(-1), PANEL_HI, 24, 96 if not land else 68)
+	_guide_back.custom_minimum_size.x = 170
+	nav.add_child(_guide_back)
+	_guide_next = _button("NEXT  >", _guide_step.bind(1), STICKER, 28, 96 if not land else 68)
+	_guide_next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav.add_child(_guide_next)
+	v.add_child(nav)
+	_guide_show(0)
+
+
+func _guide_step(d: int) -> void:
+	var p := _guide_page + d
+	if p >= GUIDE.size():
+		_guide_finish()
+		return
+	if p < 0:
+		return
+	_guide_show(p, d)
+
+
+## Swipe left/right on the card to turn the page.
+func _guide_swipe(e: InputEvent) -> void:
+	var down := (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed)
+	var up := (e is InputEventMouseButton and not (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and not (e as InputEventScreenTouch).pressed)
+	if down:
+		_guide_drag = e.position
+	elif up and _guide_drag != Vector2.ZERO:
+		var dx: float = e.position.x - _guide_drag.x
+		_guide_drag = Vector2.ZERO
+		if absf(dx) > 90.0:
+			if dx < 0.0 and _guide_page < GUIDE.size() - 1:
+				_guide_step(1)
+			elif dx > 0.0:
+				_guide_step(-1)
+
+
+func _guide_finish() -> void:
+	_close_sheet()
+	if _sfx != null and not fast:
+		_sfx.play("close")
+	if _guide_done.is_valid():
+		var cb := _guide_done
+		_guide_done = Callable()
+		cb.call()
+
+
+func _guide_toggle_off() -> void:
+	_save["guide_off"] = 1 - int(_save.get("guide_off", 0))
+	_write_save()
+	_guide_show(_guide_page, 0)
+
+
+func _guide_show(p: int, dir: int = 0) -> void:
+	if _guide_body == null or not is_instance_valid(_guide_body):
+		return
+	_guide_page = p
+	if dir != 0 and _sfx != null and not fast:
+		_sfx.play("tick")
+	for c in _guide_body.get_children():
+		_guide_body.remove_child(c)
+		c.queue_free()
+	var pg: Dictionary = GUIDE[p]
+	var col: Color = pg["color"]
+	var t := _title_label(String(pg["title"]), 52 if not is_landscape() else 34, col)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_guide_body.add_child(t)
+	_guide_body.add_child(_spacer())
+	var art := _guide_art(String(pg["art"]), col)
+	_ignore_mouse(art)
+	_guide_body.add_child(art)
+	for line in pg["lines"]:
+		var l := _label(String(line), 30 if not is_landscape() else 21, INK, true)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_guide_body.add_child(l)
+	_guide_body.add_child(_spacer())
+	var last := p == GUIDE.size() - 1
+	if last:
+		var off := int(_save.get("guide_off", 0)) == 1
+		var tg := _button(("[X]" if off else "[  ]") + "  Don't show this before new runs", _guide_toggle_off, Color(0.16, 0.14, 0.2), 20, 80)
+		_guide_body.add_child(tg)
+	# Slide the new page in.
+	if dir != 0 and not fast:
+		_guide_body.modulate.a = 0.0
+		_guide_body.position.x += 40.0 * dir
+		var tw := _guide_body.create_tween().set_parallel(true)
+		tw.tween_property(_guide_body, "modulate:a", 1.0, 0.22)
+		tw.tween_property(_guide_body, "position:x", _guide_body.position.x - 40.0 * dir, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# Dots and buttons.
+	for c in _guide_dots.get_children():
+		_guide_dots.remove_child(c)
+		c.queue_free()
+	for k in GUIDE.size():
+		var d := ColorRect.new()
+		d.custom_minimum_size = Vector2(34 if k == p else 14, 14)
+		d.color = col if k == p else Color(1, 1, 1, 0.25)
+		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_guide_dots.add_child(d)
+	_guide_back.disabled = p == 0
+	if last:
+		_guide_next.text = "LET'S FLIP!" if _guide_done.is_valid() else "GOT IT!"
+	else:
+		_guide_next.text = "NEXT  >"
+
+
+func _guide_item(id: String, cond: String) -> Dictionary:
+	var d: Dictionary = Catalog.get_def(id).duplicate()
+	d["cond"] = cond
+	return d
+
+
+## The picture for each guide page, built from real game pieces.
+func _guide_art(kind: String, col: Color) -> Control:
+	var box := CenterContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var big := 220.0 if not is_landscape() else 130.0
+	match kind:
+		"welcome":
+			var h := _hbox(4)
+			h.add_child(_icon(_guide_item("fes_plumber", "CIB"), big * 0.8))
+			h.add_child(_icon(_guide_item("fes_wcup", "Sealed"), big * 1.2))
+			h.add_child(_icon(_guide_item("fes_console", "Loose"), big * 0.8))
+			box.add_child(h)
+		"stops":
+			var v := _vbox(10 if not is_landscape() else 4)
+			for s2 in GUIDE_STOPS:
+				v.add_child(_guide_row(String(s2[0]), String(s2[1]), s2[2]))
+			box.add_child(v)
+		"formula":
+			var v2 := _vbox(10)
+			var shelf := _hbox(2)
+			shelf.alignment = BoxContainer.ALIGNMENT_CENTER
+			for id in ["fes_zeldo", "fes_robo2", "fes_vein3"]:
+				shelf.add_child(_icon(_guide_item(id, "CIB"), big * 0.62))
+			v2.add_child(shelf)
+			var f := _hbox(8)
+			f.alignment = BoxContainer.ALIGNMENT_CENTER
+			f.add_child(_guide_chip("120", "CHIPS", Color("5fb3d9")))
+			f.add_child(_title_label("x", 52, INK))
+			f.add_child(_guide_chip("3", "MULT", Color("ff6b6b")))
+			f.add_child(_title_label("=", 52, INK))
+			f.add_child(_guide_chip("$360", "SCORE", GOLD))
+			v2.add_child(f)
+			box.add_child(v2)
+		"sets":
+			var v3 := _vbox(8)
+			var row := _hbox(2)
+			row.alignment = BoxContainer.ALIGNMENT_CENTER
+			row.add_child(_icon(_guide_item("fes_console", "Loose"), big * 0.62))
+			row.add_child(_title_label("+", 48, INK))
+			row.add_child(_icon(_guide_item("fes_plumber", "CIB"), big * 0.62))
+			row.add_child(_title_label("+", 48, INK))
+			row.add_child(_icon(_guide_item("fes_zapper", "Loose"), big * 0.62))
+			v3.add_child(row)
+			var r2 := _hbox(10)
+			r2.alignment = BoxContainer.ALIGNMENT_CENTER
+			r2.add_child(_pill("FULL SET  x1.5", col, 30))
+			r2.add_child(_pill("GRAIL  +1 MULT", GOLD, 30))
+			v3.add_child(r2)
+			box.add_child(v3)
+		"target":
+			var v4 := _vbox(10 if not is_landscape() else 2)
+			v4.custom_minimum_size.x = 560 if not is_landscape() else 620
+			v4.add_child(_guide_bar("TARGET", 0.72, "$300", Color(0.55, 0.5, 0.65)))
+			v4.add_child(_guide_bar("YOUR SHELF", 0.9, "$360", GOOD))
+			var ok := _pill("PASSED!  Next round: bigger target.", GOOD, 26)
+			ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			v4.add_child(ok)
+			box.add_child(v4)
+		"tips":
+			var v5 := _vbox(10 if not is_landscape() else 4)
+			for tip in GUIDE_TIPS:
+				v5.add_child(_guide_row(String(tip[0]), String(tip[1]), tip[2]))
+			box.add_child(v5)
+	return box
+
+
+## A coloured tag on the left, a plain sentence on the right.
+func _guide_row(tag: String, text: String, col: Color) -> Control:
+	var p := _panel(Color(col, 0.14), Color(col, 0.6), 2)
+	var h := _hbox(14)
+	p.add_child(h)
+	var tg := _pill(tag, col, 24)
+	(tg.get_child(0) as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tg.custom_minimum_size.x = 170
+	tg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(tg)
+	var l := _label(text, 25 if not is_landscape() else 20, INK, true)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(l)
+	p.custom_minimum_size = Vector2(600 if not is_landscape() else 780, 96 if not is_landscape() else 0)
+	return p
+
+
+## A Balatro-style score chip: big number over a small caption.
+func _guide_chip(num: String, cap: String, col: Color) -> Control:
+	var p := _panel(col.darkened(0.35), col, 3)
+	var v := _vbox(0)
+	p.add_child(v)
+	var n := _title_label(num, 54 if not is_landscape() else 40, INK)
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(n)
+	var c := _label(cap, 20, INK)
+	c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(c)
+	p.custom_minimum_size = Vector2(150, 0)
+	return p
+
+
+func _guide_bar(name: String, fill: float, amount: String, col: Color) -> Control:
+	var v := _vbox(4)
+	var h := _hbox(8)
+	var land := is_landscape()
+	h.add_child(_label(name, 26 if not land else 20, MUTED))
+	h.add_child(_spacer(false))
+	h.add_child(_title_label(amount, 36 if not land else 26, col))
+	v.add_child(h)
+	var back := _panel(Color(1, 1, 1, 0.08))
+	back.custom_minimum_size = Vector2(0, 34 if not land else 24)
+	var fr := ColorRect.new()
+	fr.color = col
+	fr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fr.custom_minimum_size = Vector2(540 * fill, 26 if not land else 16)
+	fr.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.add_child(fr)
+	v.add_child(back)
+	return v
 
 
 # ================================================================ run flow

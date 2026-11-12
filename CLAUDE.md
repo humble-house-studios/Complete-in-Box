@@ -63,6 +63,9 @@ The web build in Safari is the test for every platform.
   trading cards: category colour (`PERK_CATS`), striped art, effect badge.
 - Scrolling: `_scroll_col` remembers its position across rebuilds, fades its
   edges when there's more, and a drag never counts as a tap (`_guarded`).
+- NEW RUN opens the how-to-play guide first (`_open_guide`, pages in `GUIDE`):
+  swipeable cards with big pictures and short funny lines; a toggle on the last
+  page turns it off (`guide_off` in the save). HOW TO PLAY opens it too.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
   flavor and the actions. `_open_sheet(..., item)` routes there.

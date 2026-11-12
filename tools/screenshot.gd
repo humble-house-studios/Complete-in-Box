@@ -32,6 +32,11 @@ func _snap(name: String) -> void:
 
 func _go() -> void:
 	await _snap("title")
+	game._open_guide(Callable())
+	for k in game.GUIDE.size():
+		game._guide_show(k)
+		await _snap("guide_%d" % k)
+	game._close_sheet()
 	game.start_new_run(4242)
 	game.run.cash = 60
 	await _snap("home")

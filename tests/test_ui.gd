@@ -33,6 +33,20 @@ func test_title_screen() -> void:
 	assert_true(_has_text(game, "NEW RUN"))
 
 
+func test_new_run_shows_guide_first() -> void:
+	game._save["guide_off"] = 0
+	game._on_new_run()
+	await wait_frames(2)
+	assert_true(game.sheet_open())
+	assert_true(_has_text(game, "HEY, COLLECTOR"))
+	assert_eq(game.screen, "title")
+	for k in game.GUIDE.size():
+		game._guide_step(1)
+		await wait_frames(1)
+	assert_false(game.sheet_open())
+	assert_eq(game.screen, "home")
+
+
 func test_home_then_venue_then_appraisal() -> void:
 	game.start_new_run(77)
 	await wait_frames(2)
