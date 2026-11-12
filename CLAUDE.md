@@ -62,7 +62,9 @@ The web build in Safari is the test for every platform.
   lamps, your shelf lit, THE WALL case beside it with `Stage.wall_items`);
   the route card's postcard shows where you're headed. VIEW YOUR SHELF (route
   tab, shelf tab, pause menu) hides the menus and moves the camera to the
-  shelves (`Stage.showcase`); BACK / B returns. Perk cards are
+  shelves (`Stage.showcase`) with a strip of your item cards (highlight =
+  trading-card preview, A = full card); BACK / B returns. Items are modelled at
+  real-life size per platform (`ItemModels.REAL_*`, metres of the longest side). Perk cards are
   trading cards: category colour (`PERK_CATS`), striped art, effect badge.
 - Scrolling: `_scroll_col` remembers its position across rebuilds, fades its
   edges when there's more, and a drag never counts as a tap (`_guarded`).

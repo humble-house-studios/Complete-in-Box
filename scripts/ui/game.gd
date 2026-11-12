@@ -2909,6 +2909,17 @@ func _build_showcase() -> void:
 	var gap := _stage_gap(200)
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_root_box.add_child(gap)
+	# Your items in a strip: highlight one for its trading card, A for full.
+	if not run.shelf.is_empty():
+		var sc := ScrollContainer.new()
+		sc.follow_focus = true
+		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.custom_minimum_size = Vector2(0, 210 if is_landscape() else 272)
+		var row := _hbox(8)
+		sc.add_child(row)
+		for it in run.shelf:
+			row.add_child(_shelf_tile(it, 170))
+		_root_box.add_child(sc)
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
 	var h := _hbox(12)
 	bar.add_child(h)

@@ -69,7 +69,26 @@ const NAME_COLORS := [
 ]
 
 ## Real-world-ish sizes (largest side, metres) so a scene reads at a glance.
-const SIZE := {"game": 0.17, "game_box": 0.21, "console": 0.34, "console_box": 0.42, "acc": 0.2, "acc_box": 0.24, "misc": 0.24}
+const SIZE := {"game": 0.17, "game_box": 0.21, "console": 0.34, "console_box": 0.42, "acc": 0.15, "acc_box": 0.22, "misc": 0.24}
+## Real-life largest dimension in metres, per platform, so a handheld cart sits
+## tiny next to a big-box PC-style game and a console dwarfs both.
+const REAL_CART := {"FES": 0.135, "SFES": 0.135, "F64": 0.116, "PBOY": 0.065, "PBA": 0.057, "GEN": 0.14, "A26": 0.085, "NEO": 0.19, "DUO": 0.085, "ODD": 0.13}
+const REAL_DISC := {"PST": 0.142, "PST2": 0.19, "SAT": 0.142, "DC": 0.142, "FCUBE": 0.19, "XBX": 0.19, "PSPK": 0.17}
+const REAL_BOX := {"FES": 0.19, "SFES": 0.19, "F64": 0.22, "PBOY": 0.13, "PBA": 0.14, "GEN": 0.20, "A26": 0.21, "NEO": 0.30, "PST": 0.142, "PST2": 0.19, "SAT": 0.24, "DC": 0.142, "FCUBE": 0.19, "XBX": 0.19, "PSPK": 0.17, "DUO": 0.142, "ODD": 0.19}
+const REAL_CONSOLE := {"FES": 0.26, "SFES": 0.24, "F64": 0.26, "FCUBE": 0.16, "PBOY": 0.148, "PBA": 0.145, "PSPK": 0.17, "GEN": 0.28, "SAT": 0.26, "DC": 0.19, "PST": 0.27, "PST2": 0.30, "XBX": 0.32, "NEO": 0.32, "A26": 0.34, "DUO": 0.14, "ODD": 0.30}
+
+
+static func _real_size(key: String, plat: String, item: Dictionary) -> float:
+	match key:
+		"game":
+			return float((REAL_DISC if is_disc(item) else REAL_CART).get(plat, SIZE["game"]))
+		"game_box":
+			return float(REAL_BOX.get(plat, SIZE["game_box"]))
+		"console":
+			return float(REAL_CONSOLE.get(plat, SIZE["console"]))
+		"console_box":
+			return float(REAL_CONSOLE.get(plat, SIZE["console"])) * 1.35
+	return float(SIZE.get(key, 0.2))
 
 static var _carts: Dictionary = {}
 
@@ -131,7 +150,7 @@ static func build(item: Dictionary, label: Texture2D = null, boxed: int = -1) ->
 		_seal(model)
 	var holder := Node3D.new()
 	holder.add_child(model)
-	_fit(model, float(SIZE.get(size_key, 0.2)))
+	_fit(model, _real_size(size_key, plat, item))
 	if cond == "Damaged":
 		model.rotation_degrees.z += 6.0
 		_tint(model, Color(0.7, 0.62, 0.55))
