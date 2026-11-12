@@ -114,9 +114,9 @@ The web build in Safari is the test for every platform.
   A press, B back / close, Y = the screen's main action (buttons marked with
   `_mark_main`), X = switch halves (sale/shelf, route/shelf, wall/binder),
   LB / RB tabs (guide pages, binder consoles), LT / RT page-scroll, View = how
-  to play, D-pad moves anywhere; in landscape the LEFT stick smoothly scrolls the
-  left panel and the RIGHT stick the right panel (`_pad_sticks`; the highlight
-  follows into view), the D-pad steps between boxes; on the
+  to play; D-pad and LEFT stick move the highlight (`_stick_nav`, hold to repeat),
+  the RIGHT stick smoothly scrolls the list the highlight is in (`_pad_sticks`;
+  the highlight follows into view). Axes are read from any pad (`_axis`); on the
   item card the left stick turns the model and the right stick scrolls the info.
   Godot's ui_* stick events are removed at startup so the sticks are ours.
   Text is bigger in landscape (`FONT_SCALE` 1.36, `_fsz` floor of 15),

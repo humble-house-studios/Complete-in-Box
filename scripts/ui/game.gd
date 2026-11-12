@@ -477,6 +477,7 @@ func _input(event: InputEvent) -> void:
 	if _dbg != null:
 		_dbg_note(event)
 	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.5):
+		_pad_dev = event.device
 		_drag_moved = false
 		if not _pad:
 			_pad = true
@@ -773,9 +774,10 @@ func _nav_bump(c: Control, dir: Vector2) -> void:
 var _scroll_tw := {}
 
 
-func _ensure_visible(c: Control, smooth: bool) -> void:
-	if c == null or not is_instance_valid(c) or not c.is_inside_tree():
+func _ensure_visible(cv: Variant, smooth: bool) -> void:
+	if cv == null or not is_instance_valid(cv) or not (cv as Control).is_inside_tree():
 		return
+	var c := cv as Control
 	var sc := _scroll_of(c)
 	if sc == null:
 		return
@@ -955,9 +957,9 @@ var _trig_r := false
 
 
 func _pad_scroll(delta: float) -> void:
-	var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y) if _inspecting() else 0.0
-	var lt := Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.5
-	var rt := Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.5
+	var ry := _axis(JOY_AXIS_RIGHT_Y) if _inspecting() else 0.0
+	var lt := _axis(JOY_AXIS_TRIGGER_LEFT) > 0.5
+	var rt := _axis(JOY_AXIS_TRIGGER_RIGHT) > 0.5
 	var page := 0
 	if lt and not _trig_l:
 		page = -1
@@ -981,19 +983,65 @@ func _inspecting() -> bool:
 	return sheet_open() and _spin_model != null and is_instance_valid(_spin_model) and _spin_model.is_inside_tree()
 
 
-## Sticks scroll smoothly: in landscape the LEFT stick scrolls the left panel
-## and the RIGHT stick the right panel (phones / sheets: what's on top). The
-## highlight follows into view so the preview stays on something you can see.
-## The D-pad steps between boxes. On the item card the left stick turns the
-## model and the right stick scrolls the info (see _pad_scroll).
+## Left stick moves the highlight like the D-pad; the right stick smoothly
+## scrolls the list the highlight is in (the highlight follows into view).
+## On the item card the left stick turns the model and the right stick
+## scrolls the info (see _pad_scroll).
 var _follow := {"L": 0.0, "R": 0.0}
 
 
+## A stick axis from whichever pad is pushing it (the pad isn't always #0:
+## browsers and TVs can number it 1 or higher).
+func _axis(a: int) -> float:
+	var best := 0.0
+	var devs := Input.get_connected_joypads()
+	if not devs.has(_pad_dev):
+		devs.append(_pad_dev)
+	for d in devs:
+		var v := Input.get_joy_axis(d, a)
+		if absf(v) > absf(best):
+			best = v
+	return best
+
+
+## Left stick steers the highlight like the D-pad (hold to keep going).
+var _stick_dir := Vector2.ZERO
+var _pad_dev := 0
+var _stick_t := 0.0
+
+
+func _stick_nav(delta: float) -> void:
+	if _inspecting():
+		_stick_dir = Vector2.ZERO
+		return
+	var v := Vector2(_axis(JOY_AXIS_LEFT_X), _axis(JOY_AXIS_LEFT_Y))
+	var dir := Vector2.ZERO
+	if v.length() > 0.5:
+		dir = Vector2(signf(v.x), 0) if absf(v.x) > absf(v.y) else Vector2(0, signf(v.y))
+	elif v.length() > 0.35 and _stick_dir != Vector2.ZERO:
+		dir = _stick_dir
+	if dir == Vector2.ZERO:
+		_stick_dir = Vector2.ZERO
+		return
+	if _veil != null and is_instance_valid(_veil):
+		return
+	if dir != _stick_dir:
+		_stick_dir = dir
+		_stick_t = 0.36
+		_pad_move(dir)
+		return
+	_stick_t -= delta
+	if _stick_t <= 0.0:
+		_stick_t = 0.11
+		_pad_move(dir, true)
+
+
 func _pad_sticks(delta: float) -> void:
+	_stick_nav(delta)
 	if _inspecting():
 		return
-	for side in ["L", "R"]:
-		var v := Input.get_joy_axis(0, JOY_AXIS_LEFT_Y if side == "L" else JOY_AXIS_RIGHT_Y)
+	for side in ["R"]:
+		var v := _axis(JOY_AXIS_RIGHT_Y)
 		var sc := _stick_scroll(side)
 		if sc == null:
 			continue
@@ -1006,12 +1054,11 @@ func _pad_sticks(delta: float) -> void:
 				_focus_into_view(sc)
 
 
-func _stick_scroll(side: String) -> ScrollContainer:
-	if _pad_layer() == _root_box and is_landscape():
-		var col: Control = _land_left if side == "L" else _land_right
-		if col != null and is_instance_valid(col) and col.is_inside_tree():
-			return _find_scroll(col)
-	return _active_scroll()
+func _stick_scroll(_side: String) -> ScrollContainer:
+	var sc := _active_scroll()
+	if sc == null and _pad_layer() == _root_box and is_landscape() and _land_right != null and is_instance_valid(_land_right):
+		sc = _find_scroll(_land_right)
+	return sc
 
 
 ## After a stick scroll: if the highlight left the visible part of that list
@@ -4685,8 +4732,8 @@ func _process(delta: float) -> void:
 	else:
 		# Right stick turns it by hand, as fast as you push; the slow auto
 		# spin waits a few seconds after you let go.
-		var rx := Input.get_joy_axis(0, JOY_AXIS_LEFT_X) if _pad else 0.0
-		var ry := Input.get_joy_axis(0, JOY_AXIS_LEFT_Y) if _pad else 0.0
+		var rx := _axis(JOY_AXIS_LEFT_X) if _pad else 0.0
+		var ry := _axis(JOY_AXIS_LEFT_Y) if _pad else 0.0
 		if absf(rx) > 0.15:
 			_manual_t = 3.0
 			_spin_vel = 0.0
