@@ -748,72 +748,61 @@ func _inspecting() -> bool:
 	return sheet_open() and _spin_model != null and is_instance_valid(_spin_model) and _spin_model.is_inside_tree()
 
 
-## Left stick steps through the left panel, right stick through the right one
-## (landscape); on phones and in sheets both step through what's on top.
-## Holding a stick repeats. On the item card the left stick turns the model
-## and the right stick scrolls the info instead.
-var _stick_dir := {"L": Vector2.ZERO, "R": Vector2.ZERO}
-var _stick_t := {"L": 0.0, "R": 0.0}
+## Sticks scroll smoothly: in landscape the LEFT stick scrolls the left panel
+## and the RIGHT stick the right panel (phones / sheets: what's on top). The
+## highlight follows into view so the preview stays on something you can see.
+## The D-pad steps between boxes. On the item card the left stick turns the
+## model and the right stick scrolls the info (see _pad_scroll).
+var _follow := {"L": 0.0, "R": 0.0}
 
 
 func _pad_sticks(delta: float) -> void:
+	if _inspecting():
+		return
 	for side in ["L", "R"]:
-		var v := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X if side == "L" else JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_LEFT_Y if side == "L" else JOY_AXIS_RIGHT_Y))
-		var d := Vector2.ZERO
-		if v.length() > 0.55:
-			d = Vector2(signf(v.x), 0) if absf(v.x) > absf(v.y) else Vector2(0, signf(v.y))
-		if d == Vector2.ZERO or _inspecting():
-			_stick_dir[side] = Vector2.ZERO
+		var v := Input.get_joy_axis(0, JOY_AXIS_LEFT_Y if side == "L" else JOY_AXIS_RIGHT_Y)
+		var sc := _stick_scroll(side)
+		if sc == null:
 			continue
-		if d != _stick_dir[side]:
-			_stick_dir[side] = d
-			_stick_t[side] = 0.32
-			_stick_step(side, d)
-		else:
-			_stick_t[side] -= delta
-			if _stick_t[side] <= 0.0:
-				_stick_t[side] = 0.13
-				_stick_step(side, d)
+		if absf(v) > 0.18:
+			sc.scroll_vertical += int(v * absf(v) * 1600.0 * delta)
+			_follow[side] = 0.12
+		elif _follow[side] > 0.0:
+			_follow[side] -= delta
+			if _follow[side] <= 0.0:
+				_focus_into_view(sc)
 
 
-func _stick_step(side: String, d: Vector2) -> void:
-	var area: Control = _pad_layer()
-	if area == _root_box and is_landscape():
+func _stick_scroll(side: String) -> ScrollContainer:
+	if _pad_layer() == _root_box and is_landscape():
 		var col: Control = _land_left if side == "L" else _land_right
-		if col != null and is_instance_valid(col) and col.is_inside_tree() and not _focusables(col).is_empty():
-			area = col
-	var list := _focusables(area)
-	if list.is_empty():
-		return
+		if col != null and is_instance_valid(col) and col.is_inside_tree():
+			return _find_scroll(col)
+	return _active_scroll()
+
+
+## After a stick scroll: if the highlight left the visible part of that list
+## (or is elsewhere), move it to the box nearest the middle of the view.
+func _focus_into_view(sc: ScrollContainer) -> void:
+	var view := sc.get_global_rect()
 	var fo := get_viewport().gui_get_focus_owner()
-	if fo == null or not area.is_ancestor_of(fo):
-		# Jump into that panel at the button nearest the current height.
-		var y := fo.get_global_rect().get_center().y if fo != null else 0.0
-		var best: Control = list[0]
-		for b in list:
-			if absf((b as Control).get_global_rect().get_center().y - y) < absf(best.get_global_rect().get_center().y - y):
-				best = b
-		best.grab_focus()
-		_click()
+	if fo != null and sc.is_ancestor_of(fo) and view.encloses(fo.get_global_rect().grow(-8)):
 		return
-	var from := fo.get_global_rect().get_center()
-	var pick: Control = null
-	var score := INF
-	for b in list:
-		if b == fo:
+	var best: Control = null
+	var d := INF
+	for b in _focusables(sc):
+		var r := (b as Control).get_global_rect()
+		if not view.intersects(r):
 			continue
-		var off := (b as Control).get_global_rect().get_center() - from
-		var along := off.dot(d)
-		if along < 4.0:
-			continue
-		var side_off := absf(off.dot(Vector2(-d.y, d.x)))
-		var sc := along + side_off * 2.5
-		if sc < score:
-			score = sc
-			pick = b
-	if pick != null:
-		pick.grab_focus()
-		_click()
+		var dd := absf(r.get_center().y - view.get_center().y) + absf(r.get_center().x - view.get_center().x) * 0.3
+		if dd < d:
+			d = dd
+			best = b
+	if best != null and best != fo:
+		var keep := sc.scroll_vertical
+		best.grab_focus()
+		# Don't let follow_focus yank the list back.
+		sc.set_deferred("scroll_vertical", keep)
 
 
 ## The scroll list holding the focused button, else the first one on screen.
@@ -1504,9 +1493,13 @@ func _offer_tile(i: int, w: float) -> Button:
 	var top := _hbox(3)
 	top.add_child(_pill(String(plat["short"]), pcol.lightened(0.2), 12))
 	top.add_child(_spacer(false))
-	if bool(o["bargain"]):
-		top.add_child(_pill("DEAL", GOOD, 12))
+	top.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 12))
 	badges.add_child(top)
+	badges.add_child(_spacer())
+	if bool(o["bargain"]):
+		var deal := _pill("DEAL", GOOD, 12)
+		deal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		badges.add_child(deal)
 	case.add_child(badges)
 	v.add_child(case)
 	var nm := _title_label(String(item["name"]), 17, INK)
@@ -1515,7 +1508,11 @@ func _offer_tile(i: int, w: float) -> Button:
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(nm)
 	var bottom := _hbox(3)
-	bottom.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 12))
+	if run.shows_exact():
+		bottom.add_child(_label(_money(run.market_value(item)), 15, GOLD))
+	else:
+		var est: Array = o["est"]
+		bottom.add_child(_label("%s-%s?" % [_money(int(est[0])), _money(int(est[1]))], 14, Color("e8dcc0")))
 	bottom.add_child(_spacer(false))
 	bottom.add_child(_sticker(_money(int(o["price"])), STICKER, 20))
 	v.add_child(bottom)
@@ -1550,66 +1547,117 @@ func _show_preview(item: Dictionary, kind: String, i: int) -> void:
 	var plat := Catalog.platform(String(item["plat"]))
 	var pcol: Color = plat["color"]
 	var tier := int(item.get("tier", 0))
+	var vs := get_viewport_rect().size
+	# Fill the see-through gap: the middle strip in landscape, the band under
+	# the header on phones.
+	var r := Rect2(Vector2((vs.x - 420.0) * 0.5, _margins.y + 96), Vector2(420, 260))
+	if _gap != null and is_instance_valid(_gap) and _gap.is_inside_tree() and _gap.size.y > 120:
+		r = _gap.get_global_rect().grow(-6)
+	var tall := r.size.y > r.size.x * 1.1
 	var p := PanelContainer.new()
-	var st := _box(Color(0.07, 0.06, 0.09, 0.96).lerp(pcol.darkened(0.7), 0.25), 8, pcol if tier < 2 else Catalog.TIER_COLORS[tier], 3)
+	var frame: Color = pcol if tier < 2 else Catalog.TIER_COLORS[tier]
+	var st := _box(Color(0.07, 0.06, 0.09, 0.97).lerp(pcol.darkened(0.7), 0.3), 10, frame, 4)
+	st.shadow_size = 14 if tier >= 2 else 8
+	st.shadow_color = Color(frame, 0.4) if tier >= 2 else Color(0, 0, 0, 0.6)
 	for side in ["left", "right", "top", "bottom"]:
 		st.set("content_margin_" + side, 10)
 	p.add_theme_stylebox_override("panel", st)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var vs := get_viewport_rect().size
-	var pw := minf(420.0, vs.x - 40.0)
-	if is_landscape():
-		# Over the 3D strip in the middle, near the top.
-		p.position = Vector2((vs.x - pw) * 0.5, _margins.y + 96)
-	else:
-		p.position = Vector2((vs.x - pw) * 0.5, _margins.y + 110)
-	p.custom_minimum_size = Vector2(pw, 0)
+	p.position = r.position
+	p.size = r.size
+	p.custom_minimum_size = r.size
+	p.clip_contents = true
 	var v := _vbox(6)
 	p.add_child(v)
+	# Band: platform + rarity.
+	var bandp := PanelContainer.new()
+	var bs := _box(pcol, 6)
+	bs.shadow_size = 0
+	bs.content_margin_left = 8
+	bs.content_margin_right = 8
+	bandp.add_theme_stylebox_override("panel", bs)
 	var band := _hbox(6)
-	band.add_child(_pill(String(plat["name"]).to_upper(), pcol.lightened(0.2), 14))
+	var pn := _title_label(String(plat["short"] if not tall or r.size.x < 300 else plat["name"]).to_upper(), 18, DARK_TXT)
+	pn.add_theme_constant_override("outline_size", 0)
+	band.add_child(pn)
 	band.add_child(_spacer(false))
-	band.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier].lightened(0.2) if tier > 0 else Color(1, 1, 1, 0.85), 14))
-	v.add_child(band)
-	var row := _hbox(10)
-	row.add_child(_icon(item, 110))
+	band.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier].lightened(0.2) if tier > 0 else Color(1, 1, 1, 0.85), 13))
+	bandp.add_child(band)
+	v.add_child(bandp)
+	# Art window with the item big.
+	var art := PanelContainer.new()
+	var as_ := _box(pcol.darkened(0.6), 6, Color(pcol, 0.4), 2)
+	as_.shadow_size = 0
+	art.add_theme_stylebox_override("panel", as_)
+	var isz := minf(r.size.x - 40.0, r.size.y * (0.42 if tall else 0.62))
+	var ic := _icon(item, isz)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	art.add_child(ic)
 	var info := _vbox(4)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var nm := _title_label(String(item["name"]), 22, INK)
+	var nm := _title_label(String(item["name"]), 24, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.max_lines_visible = 2
+	if tall:
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.add_child(nm)
-	info.add_child(_tag_row(item, 14))
+	var tags := _tag_row(item, 14)
+	if tall:
+		tags.alignment = FlowContainer.ALIGNMENT_CENTER
+	info.add_child(tags)
 	var fl := _label(Flavor.cond_line(item), 15, FLAVOR_C, true)
 	fl.max_lines_visible = 2
+	if tall:
+		fl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.add_child(fl)
+	if tall:
+		v.add_child(art)
+		v.add_child(info)
+		v.add_child(_spacer())
+	else:
+		var row := _hbox(10)
+		row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		row.add_child(art)
+		row.add_child(info)
+		v.add_child(row)
+	# Money row.
 	var money := _hbox(6)
 	if kind == "offer" and i >= 0 and i < run.stock.size():
 		var o: Dictionary = run.stock[i]
+		var mv := _vbox(-2)
 		if run.shows_exact():
-			money.add_child(_label("WORTH %s" % _money(run.market_value(item)), 17, GOLD))
+			mv.add_child(_label("WORTH", 13, MUTED))
+			mv.add_child(_title_label(_money(run.market_value(item)), 22, GOLD))
 		else:
 			var est: Array = o["est"]
-			money.add_child(_label("GUESS %s-%s" % [_money(int(est[0])), _money(int(est[1]))], 17, Color("e8dcc0")))
+			mv.add_child(_label("GUESS", 13, MUTED))
+			mv.add_child(_title_label("%s-%s?" % [_money(int(est[0])), _money(int(est[1]))], 20, Color("e8dcc0")))
+		money.add_child(mv)
 		money.add_child(_spacer(false))
-		money.add_child(_sticker(_money(int(o["price"])), STICKER, 20))
+		if bool(o["bargain"]):
+			money.add_child(_pill("DEAL", GOOD, 13))
+		money.add_child(_sticker(_money(int(o["price"])), STICKER, 24))
 	elif kind == "shelf":
 		var g := run.gain(item)
-		money.add_child(_pill(("UP " if g > 0 else "DOWN " if g < 0 else "EVEN ") + _signed(g), _gain_color(g), 14))
+		var gv := _vbox(2)
+		gv.add_child(_pill(("UP " if g > 0 else "DOWN " if g < 0 else "EVEN ") + _signed(g), _gain_color(g), 14))
 		if run.sell_rate() > 0.0:
-			money.add_child(_label("sell " + _signed(run.flip_now(item)), 15, _gain_color(run.flip_now(item))))
+			gv.add_child(_label("sell " + _signed(run.flip_now(item)), 15, _gain_color(run.flip_now(item))))
+		money.add_child(gv)
 		money.add_child(_spacer(false))
-		money.add_child(_sticker(_money(run.market_value(item)), GOLD, 20))
-	info.add_child(money)
-	row.add_child(info)
-	v.add_child(row)
+		money.add_child(_sticker(_money(run.market_value(item)), GOLD, 24))
+	v.add_child(money)
 	var hint := _hbox(4)
 	hint.alignment = BoxContainer.ALIGNMENT_CENTER
 	if _pad:
 		hint.add_child(_glyph("A", 22.0))
-	hint.add_child(_label("open the full card", 14, MUTED))
+	hint.add_child(_label("full card", 14, MUTED))
 	v.add_child(hint)
 	_overlay.add_child(p)
 	_preview = p
+	if not fast:
+		p.modulate.a = 0.0
+		p.create_tween().tween_property(p, "modulate:a", 1.0, 0.12)
 
 
 func _auction_card(i: int, w: float) -> Button:

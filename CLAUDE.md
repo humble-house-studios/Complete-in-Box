@@ -74,8 +74,9 @@ The web build in Safari is the test for every platform.
   A press, B back / close, Y = the screen's main action (buttons marked with
   `_mark_main`), X = switch halves (sale/shelf, route/shelf, wall/binder),
   LB / RB tabs (guide pages, binder consoles), LT / RT page-scroll, View = how
-  to play, D-pad moves anywhere; in landscape the LEFT stick steps through the
-  left panel and the RIGHT stick through the right panel (`_pad_sticks`); on the
+  to play, D-pad moves anywhere; in landscape the LEFT stick smoothly scrolls the
+  left panel and the RIGHT stick the right panel (`_pad_sticks`; the highlight
+  follows into view), the D-pad steps between boxes; on the
   item card the left stick turns the model and the right stick scrolls the info.
   Godot's ui_* stick events are removed at startup so the sticks are ours.
   Text is bigger in landscape (`FONT_SCALE` 1.36, `_fsz` floor of 15),
@@ -85,7 +86,8 @@ The web build in Safari is the test for every platform.
   by button identity after each rebuild and kept inside the top layer.
 - Landscape shows compact tiles (`_offer_tile`, small `_shelf_tile`) so a whole
   table fits; highlighting a tile (pad focus, or mouse hover on desktop) pops a
-  mini card (`_show_preview`) over the middle strip; A / click opens the full card.
+  trading-card preview (`_show_preview`) that fills the
+  middle gap (`_gap` rect); A / click opens the full card.
   Right stick turns the item card's model by hand (Y tilts); auto spin resumes
   after 3 s.
 - Landscape = three columns (`_land_cols`): tall panels left and right, the 3D
