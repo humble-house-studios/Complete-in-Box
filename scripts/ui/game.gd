@@ -656,8 +656,8 @@ func _pad_repeat(delta: float) -> void:
 			_pad_move(DPAD_DIRS[_rep_btn], true)
 
 
-func _pad_move(dir: Vector2, repeat: bool = false) -> void:
-	var list := _focusables(_pad_layer())
+func _pad_move(dir: Vector2, repeat: bool = false, only: Control = null) -> void:
+	var list := _focusables(_pad_layer() if only == null else only)
 	if list.is_empty():
 		return
 	var fo := get_viewport().gui_get_focus_owner()
@@ -1036,12 +1036,96 @@ func _stick_nav(delta: float) -> void:
 		_pad_move(dir, true)
 
 
+## Landscape screens: each stick drives its own side panel. The first push
+## brings the highlight over to that panel; then the stick scrolls it
+## smoothly (the highlight follows) and steps box to box where it can't scroll.
+var _side_dir := {"L": Vector2.ZERO, "R": Vector2.ZERO}
+var _side_t := {"L": 0.0, "R": 0.0}
+
+
+func _side_panels() -> bool:
+	return is_landscape() and _pad_layer() == _root_box and not _inspecting() \
+		and _land_left != null and is_instance_valid(_land_left) and _land_left.is_inside_tree()
+
+
+func _side_stick(side: String, delta: float) -> void:
+	var col: Control = _land_left if side == "L" else _land_right
+	if col == null or not is_instance_valid(col) or not col.is_inside_tree():
+		return
+	var v := Vector2(_axis(JOY_AXIS_LEFT_X if side == "L" else JOY_AXIS_RIGHT_X), _axis(JOY_AXIS_LEFT_Y if side == "L" else JOY_AXIS_RIGHT_Y))
+	var sc := _find_scroll(col)
+	var dir := Vector2.ZERO
+	if v.length() > 0.5:
+		dir = Vector2(signf(v.x), 0) if absf(v.x) > absf(v.y) else Vector2(0, signf(v.y))
+	elif v.length() > 0.3 and _side_dir[side] != Vector2.ZERO:
+		dir = _side_dir[side]
+	if dir == Vector2.ZERO:
+		_side_dir[side] = Vector2.ZERO
+		if sc != null and _follow[side] > 0.0:
+			_follow[side] -= delta
+			if _follow[side] <= 0.0:
+				_focus_into_view(sc)
+		return
+	if _veil != null and is_instance_valid(_veil):
+		return
+	var fresh: bool = dir != _side_dir[side]
+	_side_dir[side] = dir
+	var fo := get_viewport().gui_get_focus_owner()
+	if fo == null or not col.is_ancestor_of(fo):
+		# Hop over to this panel: the box nearest the middle of what's showing.
+		if fresh:
+			_side_t[side] = 0.36
+			_hop_into(col, sc)
+		return
+	# Up/down: glide the list while it can move, else step.
+	if dir.y != 0.0 and sc != null:
+		var bar := sc.get_v_scroll_bar()
+		var room := (sc.scroll_vertical < bar.max_value - bar.page - 1.0) if dir.y > 0.0 else (sc.scroll_vertical > 0)
+		if room:
+			sc.scroll_vertical += int(v.y * absf(v.y) * 1600.0 * delta)
+			_follow[side] = 0.12
+			return
+	if fresh:
+		_side_t[side] = 0.36
+		_pad_move(dir, false, col)
+		return
+	_side_t[side] -= delta
+	if _side_t[side] <= 0.0:
+		_side_t[side] = 0.11
+		_pad_move(dir, true, col)
+
+
+func _hop_into(col: Control, sc: ScrollContainer) -> void:
+	var view := sc.get_global_rect() if sc != null else col.get_global_rect()
+	var best: Control = null
+	var d := INF
+	for b in _focusables(col):
+		var r := (b as Control).get_global_rect()
+		# Showing boxes first; else the closest one (scrolled back into view).
+		var dd := absf(r.get_center().y - view.get_center().y)
+		if view.intersection(r).get_area() < r.get_area() * 0.5:
+			dd += 100000.0
+		if dd < d:
+			d = dd
+			best = b
+	if best != null:
+		best.grab_focus()
+		_ensure_visible(best, true)
+		if _sfx != null:
+			_sfx.play("move", 1.6)
+
+
 func _pad_sticks(delta: float) -> void:
 	if _room_view and screen == "venue" and _stage != null and not sheet_open():
 		var lx := _axis(JOY_AXIS_LEFT_X)
 		var ly := _axis(JOY_AXIS_LEFT_Y)
 		if absf(lx) > 0.15 or absf(ly) > 0.15:
 			_stage.room_turn(lx * 600.0 * delta, ly * 400.0 * delta)
+		return
+	if _side_panels():
+		_side_stick("L", delta)
+		_side_stick("R", delta)
+		_stick_dir = Vector2.ZERO
 		return
 	_stick_nav(delta)
 	if _inspecting():
