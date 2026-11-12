@@ -17,7 +17,7 @@ func _go(out: String, game: Node) -> void:
 	root.get_texture().get_image().save_png(out.path_join("gate.png"))
 	game._gate_pick(true)
 	var t := 0.0
-	for at in [1.0, 3.2, 4.8, 6.3, 7.0, 8.2, 10.0, 13.0]:
+	for at in [2.5, 7.0, 10.0, 13.0, 16.5, 20.0, 23.0, 26.0, 31.0]:
 		await create_timer(at - t).timeout
 		t = at
 		await RenderingServer.frame_post_draw

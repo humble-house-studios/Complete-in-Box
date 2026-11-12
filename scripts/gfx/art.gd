@@ -18,6 +18,8 @@ static var _host: Art
 static var _tex: Dictionary = {}
 static var _order: Array = []
 static var _done: Dictionary = {}
+## While a cinematic plays, render fewer per batch so frames stay smooth.
+static var throttle := false
 
 var _queue: Array = []
 var _busy := false
@@ -120,7 +122,7 @@ func _run_batch() -> void:
 		var ready := true
 		if String(j["kind"]).begins_with("icon"):
 			ready = _done.has("F|" + _key(j["item"]))
-		if batch.size() < PER_FRAME and ready:
+		if batch.size() < (2 if throttle else PER_FRAME) and ready:
 			batch.append(j)
 		else:
 			rest.append(j)

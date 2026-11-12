@@ -38,6 +38,7 @@ var cine_pos := Vector3.ZERO
 var cine_look := Vector3.ZERO
 var cine_fov := 50.0
 var _sweep: Array = []
+var _cine_look_s := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -153,8 +154,8 @@ func _process(delta: float) -> void:
 	for k in _sweep.size():
 		var sp: Node3D = _sweep[k]
 		if is_instance_valid(sp):
-			sp.rotation.y = sin(_t * 0.7 + k * 2.1) * 0.6
-			sp.rotation.x = -1.0 + sin(_t * 0.9 + k) * 0.25
+			sp.rotation.y = sin(_t * 0.25 + k * 2.1) * 0.6
+			sp.rotation.x = -1.0 + sin(_t * 0.33 + k) * 0.25
 	_shake = maxf(0.0, _shake - delta * 3.0)
 	_apply_cam()
 
@@ -172,8 +173,9 @@ func _apply_cam() -> void:
 	var raise := Vector3(0, 0.28, -0.1) if portrait else Vector3.ZERO
 	var fov := minf((_fov + (14.0 if portrait else 0.0)) * _zoom, 100.0)
 	if cine_on:
-		cam.position = cine_pos
-		cam.look_at(cine_look)
+		cam.position = cam.position.lerp(cine_pos, 0.35)
+		_cine_look_s = _cine_look_s.lerp(cine_look, 0.2)
+		cam.look_at(_cine_look_s)
 		fov = cine_fov + (16.0 if portrait else 0.0)
 	else:
 		cam.position = _cam_pos + sway + raise
@@ -549,6 +551,7 @@ func _build(id: String, items: Array) -> void:
 
 func _title(items: Array) -> void:
 	_setup(Color(0.1, 0.07, 0.12), Color(0.6, 0.5, 0.65), 1.0, 5.0, 16.0)
+	Psx.snap = 900.0  # no vertex wobble here: the intro camera glides through it
 	_room(8, 8, 3.4, "marble012", Color(0.55, 0.5, 0.55), "bricks105", Color(0.6, 0.45, 0.45), 1.0, Rect2(), Color(0.25, 0.2, 0.25))
 	var ped := Psx.mat(Color(0.55, 0.15, 0.18), Psx.tex("fabric086"))
 	Psx.cyl(0.4, 0.7, ped, Vector3(0, 0.35, 0), world, 16)

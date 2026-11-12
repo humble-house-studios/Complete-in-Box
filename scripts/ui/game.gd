@@ -1153,47 +1153,68 @@ func _start_intro() -> void:
 		hero_y = hero.position.y
 		hero.position.y = 5.0
 	# Camera path: along the shelves, swing round, settle on the pedestal.
+	# A slow, low glide along the shelves, round the room, onto the pedestal.
 	var path := [
-		[Vector3(-3.0, 1.9, -3.2), Vector3(-2.6, 1.2, -4.9)],
-		[Vector3(-1.0, 1.6, -3.4), Vector3(-0.5, 1.1, -4.9)],
-		[Vector3(1.4, 1.5, -3.3), Vector3(2.4, 1.0, -4.9)],
-		[Vector3(2.6, 2.1, -0.5), Vector3(0.0, 1.0, -1.5)],
-		[Vector3(0.6, 1.6, 2.6), Vector3(0.0, 1.0, 0.0)],
+		[Vector3(-3.2, 1.5, -3.0), Vector3(-3.0, 1.2, -4.9)],
+		[Vector3(-2.2, 1.45, -3.35), Vector3(-1.6, 1.15, -4.9)],
+		[Vector3(-0.6, 1.4, -3.45), Vector3(0.2, 1.1, -4.9)],
+		[Vector3(1.0, 1.45, -3.4), Vector3(1.9, 1.05, -4.9)],
+		[Vector3(2.5, 1.7, -2.2), Vector3(1.6, 1.0, -3.6)],
+		[Vector3(2.7, 1.9, 0.2), Vector3(0.4, 1.0, -0.8)],
+		[Vector3(1.4, 1.7, 2.4), Vector3(0.0, 1.0, 0.0)],
 		[Vector3(0.0, 1.4, 2.3), Vector3(0.0, 1.0, 0.0)],
 	]
 	_cine_at(path, 0.0)
+	Art.throttle = true
+	# Letterbox bars for the film look.
+	var bars: Array = []
+	for top in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = Color(0, 0, 0, 1)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.anchor_left = 0.0
+		bar.anchor_right = 1.0
+		bar.anchor_top = 0.0 if top else 1.0
+		bar.anchor_bottom = 0.0 if top else 1.0
+		bar.offset_top = 0.0 if top else -vs.y * 0.11
+		bar.offset_bottom = vs.y * 0.11 if top else 0.0
+		_intro.add_child(bar)
+		bars.append(bar)
 	var tw := create_tween()
-	tw.tween_property(studio, "modulate:a", 1.0, 0.7)
-	tw.tween_interval(1.3)
-	tw.tween_property(studio, "modulate:a", 0.0, 0.6)
+	tw.tween_property(studio, "modulate:a", 1.0, 1.6).set_trans(Tween.TRANS_SINE)
+	tw.tween_interval(2.2)
+	tw.tween_property(studio, "modulate:a", 0.0, 1.4).set_trans(Tween.TRANS_SINE)
 	await tw.finished
 	if _intro_skip:
 		return
-	_sfx.play("glass", 0.7)
-	# 2. Fly-through.
+	# 2. The long glide (black lifts slowly as it starts).
+	var fly_time := 16.0
 	var fly := create_tween().set_parallel(true)
-	fly.tween_property(black, "color:a", 0.0, 1.2)
-	fly.tween_method(func(t: float) -> void: _cine_at(path, t), 0.0, 1.0, 5.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	await get_tree().create_timer(4.6).timeout
+	fly.tween_property(black, "color:a", 0.0, 3.0).set_trans(Tween.TRANS_SINE)
+	fly.tween_method(func(t: float) -> void: _cine_at(path, t), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await get_tree().create_timer(fly_time * 0.62).timeout
 	if _intro_skip:
 		return
-	# 3. The box drops.
+	# 3. The box descends from the dark and settles on its pedestal.
 	if hero != null and is_instance_valid(hero):
 		var drop := create_tween()
-		drop.tween_property(hero, "position:y", hero_y, 0.55).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-	await get_tree().create_timer(0.35).timeout
+		drop.tween_property(hero, "position:y", hero_y + 0.04, fly_time * 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		drop.tween_property(hero, "position:y", hero_y, 0.5).set_trans(Tween.TRANS_SINE)
+	await get_tree().create_timer(fly_time * 0.38 + 0.4).timeout
 	if _intro_skip:
 		return
-	_sfx.play("thud")
-	_sfx.play("stamp")
-	_stage.shake(1.4)
-	_flash(_intro, Color(1, 0.95, 0.85))
-	await get_tree().create_timer(0.9).timeout
+	_sfx.play("thud", 0.8)
+	_stage.shake(0.35)
+	_flash(_intro, Color(1, 0.95, 0.85, 0.5))
+	await get_tree().create_timer(1.2).timeout
 	if _intro_skip:
 		return
-	# 4. Logo over light rays and sparkles.
+	# 4. Bars open, the logo fades up over slow light rays.
+	for b in bars:
+		var bt := create_tween()
+		bt.tween_property(b, "modulate:a", 0.0, 2.5).set_trans(Tween.TRANS_SINE)
 	_intro_logo(vs)
-	await get_tree().create_timer(3.2).timeout
+	await get_tree().create_timer(6.5).timeout
 	_finish_intro()
 
 
@@ -1230,7 +1251,9 @@ func _intro_logo(vs: Vector2) -> void:
 		poly.color = Color(1.0, 0.8, 0.45, 0.09) if k % 2 == 0 else Color(0.8, 0.5, 1.0, 0.07)
 		rays.add_child(poly)
 	var rt := rays.create_tween().set_loops()
-	rt.tween_property(rays, "rotation", TAU, 24.0).from(0.0)
+	rt.tween_property(rays, "rotation", TAU, 60.0).from(0.0)
+	rays.modulate.a = 0.0
+	rays.create_tween().tween_property(rays, "modulate:a", 1.0, 3.0)
 	# Soft glow.
 	var g := Gradient.new()
 	g.set_color(0, Color(1.0, 0.8, 0.5, 0.55))
@@ -1251,31 +1274,30 @@ func _intro_logo(vs: Vector2) -> void:
 	layer.add_child(glow)
 	# Logo words slam in one after another.
 	var words := [["COMPLETE", INK, -60.0], ["IN BOX", GOLD, 40.0]]
-	var delay := 0.0
+	var delay := 0.6
 	for w in words:
 		var l := _title_label(String(w[0]), 104 if not is_landscape() else 80, w[1])
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.size = Vector2(vs.x, 140)
 		l.position = Vector2(0, ctr.y + float(w[2]) - 70)
 		l.pivot_offset = Vector2(vs.x * 0.5, 70)
-		l.scale = Vector2(3.0, 3.0)
+		l.scale = Vector2(1.18, 1.18)
 		l.modulate.a = 0.0
+		l.position.y += 24.0
 		layer.add_child(l)
 		var t := l.create_tween().set_parallel(true)
-		t.tween_property(l, "scale", Vector2.ONE, 0.28).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		t.tween_property(l, "modulate:a", 1.0, 0.12).set_delay(delay)
-		t.tween_callback(func() -> void:
-			_sfx.play("stamp")
-			_stage.shake(0.6)).set_delay(delay + 0.2)
-		delay += 0.45
-	_sfx.play("grail")
+		t.tween_property(l, "scale", Vector2.ONE, 2.4).set_delay(delay).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		t.tween_property(l, "modulate:a", 1.0, 1.8).set_delay(delay).set_trans(Tween.TRANS_SINE)
+		t.tween_property(l, "position:y", l.position.y - 24.0, 2.4).set_delay(delay).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		delay += 1.1
+	_sfx.play("grail", 0.85)
 	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 24, Color("ffe7b0"))
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.size = Vector2(vs.x, 40)
 	tag.position = Vector2(0, ctr.y + 110)
 	tag.modulate.a = 0.0
 	layer.add_child(tag)
-	tag.create_tween().tween_property(tag, "modulate:a", 1.0, 0.8).set_delay(1.1)
+	tag.create_tween().tween_property(tag, "modulate:a", 1.0, 2.0).set_delay(2.8)
 	_intro.gui_input.connect(func(e: InputEvent) -> void:
 		if (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed):
 			_finish_intro())
@@ -1287,8 +1309,8 @@ func _intro_logo(vs: Vector2) -> void:
 	tap.modulate.a = 0.0
 	layer.add_child(tap)
 	var tp := tap.create_tween().set_loops()
-	tp.tween_property(tap, "modulate:a", 1.0, 0.6).set_delay(0.4)
-	tp.tween_property(tap, "modulate:a", 0.25, 0.6)
+	tp.tween_property(tap, "modulate:a", 1.0, 1.2).set_delay(1.0)
+	tp.tween_property(tap, "modulate:a", 0.2, 1.2)
 	# Gold sparkles drifting up.
 	var p := CPUParticles2D.new()
 	p.position = Vector2(vs.x * 0.5, ctr.y + 160)
@@ -1331,10 +1353,11 @@ func _finish_intro() -> void:
 	if hero != null and is_instance_valid(hero):
 		hero.position.y = 0.75
 	_stage.cine_on = false
+	Art.throttle = false
 	_update_focus()
 	var tw := create_tween().set_parallel(true)
-	tw.tween_property(layer, "modulate:a", 0.0, 0.5)
-	tw.tween_property(_root_box, "modulate:a", 1.0, 0.6)
+	tw.tween_property(layer, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_root_box, "modulate:a", 1.0, 1.4).set_trans(Tween.TRANS_SINE)
 	await tw.finished
 	if is_instance_valid(layer):
 		layer.queue_free()
