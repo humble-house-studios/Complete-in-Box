@@ -34,6 +34,8 @@ const SOUNDS := {
 	"win": [["win"], -1.0],
 	"shake": [["shake"], -4.0],
 	"door": [["drop", "metal"], -6.0],
+	"shimmer": [["shimmer"], -8.0],
+	"settle": [["settle"], -10.0],
 }
 
 ## Music per screen/venue slot, plus optional ambience bed per venue.

@@ -1180,6 +1180,8 @@ func _start_intro() -> void:
 		bar.offset_bottom = vs.y * 0.11 if top else 0.0
 		_intro.add_child(bar)
 		bars.append(bar)
+	# Keep SKIP above the letterbox bars.
+	_intro.move_child(skip, -1)
 	var tw := create_tween()
 	tw.tween_property(studio, "modulate:a", 1.0, 1.6).set_trans(Tween.TRANS_SINE)
 	tw.tween_interval(2.2)
@@ -1203,9 +1205,9 @@ func _start_intro() -> void:
 	await get_tree().create_timer(fly_time * 0.38 + 0.4).timeout
 	if _intro_skip:
 		return
-	_sfx.play("thud", 0.8)
-	_stage.shake(0.35)
-	_flash(_intro, Color(1, 0.95, 0.85, 0.5))
+	# A soft landing: a low swell and the faintest nudge, no bang.
+	_sfx.play("settle")
+	_stage.shake(0.08)
 	await get_tree().create_timer(1.2).timeout
 	if _intro_skip:
 		return
@@ -1290,7 +1292,11 @@ func _intro_logo(vs: Vector2) -> void:
 		t.tween_property(l, "modulate:a", 1.0, 1.8).set_delay(delay).set_trans(Tween.TRANS_SINE)
 		t.tween_property(l, "position:y", l.position.y - 24.0, 2.4).set_delay(delay).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		delay += 1.1
-	_sfx.play("grail", 0.85)
+	_sfx.play("shimmer")
+	# SKIP stays on top of the logo layer too.
+	for ch in _intro.get_children():
+		if ch is Button:
+			_intro.move_child(ch, -1)
 	var tag := _label("Dig. Haggle. Flip. Hoard. Get appraised.", 24, Color("ffe7b0"))
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tag.size = Vector2(vs.x, 40)
@@ -1410,6 +1416,7 @@ const CREDITS := [
 	"3D props: Kenney Furniture Kit, 3D Interior Home Assets, Escape Room Pack, Crate model (OpenGameArt).",
 	"Cartridge models: Late 1980s Game Cartridges (OpenGameArt, CC-BY 3.0).",
 	"Textures: ambientCG (CC0). Fonts: Jersey 10/15, VT323 (OFL).",
+	"Cover art sprites: Kenney (CC0); Gothicvania, Warped City, Sunny Land, Magic Cliffs, Megabot, Legend of Faune, Fort of Illusion by ansimuz (CC0); Cyberpunk Street, Hell Hound, Chibi Monsters by Luis Zuno / ansimuz (CC-BY 3.0); 200 Starships; Ninja Adventure; Bosses and 3 Cyberpunk Characters by CraftPix (OGA-BY 3.0). Cover fonts: Google Fonts (OFL).",
 	"Sounds: Kenney Casino, Interface Sounds and Music Jingles; 80 CC0 RPG SFX; 75 CC0 breaking/falling SFX.",
 	"Music: Kim Lightyear (Saw You In My Dreams, And Then We Left), The Cynic Project (Synthwave 4k, 421k), Dreamstate, Lights at Night (OpenGameArt). Ambience: Free General Ambience Sounds.",
 	"Full list with links: assets/sources.txt",

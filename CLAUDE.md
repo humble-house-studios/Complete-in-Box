@@ -88,8 +88,9 @@ The web build in Safari is the test for every platform.
 - Item art is made at runtime by `scripts/gfx/art.gd` (`Art.front/back/icon`),
   painted by `box_art.gd` (platform box templates, variant overlays, back with
   screenshots/blurb/rating/barcode) with illustrations from `cover_comp.gd`:
-  CC0 Kenney sprites (`assets/sprites/cover/`, manifest `cover_sprites.gd`,
-  built by `python3 tools/gen_cover_sprites.py SRC`), seeded palettes, ~16
+  sprites (`assets/sprites/cover/`: Kenney plus pixel-art packs — gothic, cyberpunk,
+  ninja, bosses, starships, painted backdrops; manifest `cover_sprites.gd`,
+  built by `python3 tools/gen_cover_sprites.py SRC SRC2`), seeded palettes, ~16
   layouts per genre, genre title fonts (`assets/fonts/cover/`, OFL), a logo
   badge + stripe per publisher. Hardware boxes show a render of the product. Check it with
   `xvfb-run ... -s res://tools/art_sheet.gd -- OUT.png [seed]`.
@@ -112,6 +113,8 @@ The web build in Safari is the test for every platform.
   raw.githubusercontent.com/google/fonts) work.
 
 ## Testing pipeline
+- Use Godot 4.3 (as CI does). If the container's `godot` is newer, grab the
+  4.3-stable binary; a newer one breaks GUT and adds `.uid` files (don't commit them).
 - Tests: `godot --headless -s addons/gut/gut_cmdln.gd` (run in CI before every
   build; a failing test or script error blocks the deploy).
 - Balance: `godot --headless -s res://tools/sim.gd` — a greedy bot plays 300

@@ -39,3 +39,20 @@ assets/sprites/cover (Kenney Alien UFO pack) | https://opengameart.org/content/a
 assets/sprites/cover (Kenney Jumper Pack) | https://opengameart.org/content/jumper-pack | 2026-11-12
 assets/sprites/cover (Kenney Abstract Platformer) | https://opengameart.org/content/abstract-platformer | 2026-11-12
 assets/fonts/cover (Bungee, Bangers, Luckiest Guy, Cinzel Decorative, Creepster, Orbitron, Russo One, Monoton, Righteous, Press Start 2P, Black Ops One, Pacifico, Permanent Marker, Audiowide, Rubik Mono One) | https://fonts.google.com | 2026-11-12
+assets/sprites/cover (gothicvania_patreon_collection) | https://opengameart.org/sites/default/files/gothicvania_patreon_collection.zip | 2026-11-12
+assets/sprites/cover (gothicvania-cemetery-files_1) | https://opengameart.org/sites/default/files/gothicvania-cemetery-files_1.zip | 2026-11-12
+assets/sprites/cover (warped_city_files) | https://opengameart.org/sites/default/files/warped_city_files.zip | 2026-11-12
+assets/sprites/cover (sunny-land-files) | https://opengameart.org/sites/default/files/sunny-land-files.zip | 2026-11-12
+assets/sprites/cover (Magic-Cliffs-Environment) | https://opengameart.org/sites/default/files/Magic-Cliffs-Environment.zip | 2026-11-12
+assets/sprites/cover (megabot_assets_files) | https://opengameart.org/sites/default/files/megabot_assets_files.zip | 2026-11-12
+assets/sprites/cover (legend_of_faune_files) | https://opengameart.org/sites/default/files/legend_of_faune_files.zip | 2026-11-12
+assets/sprites/cover (fort_of_illusion_files) | https://opengameart.org/sites/default/files/fort_of_illusion_files.zip | 2026-11-12
+assets/sprites/cover (cyberpunk-street-files) | https://opengameart.org/sites/default/files/cyberpunk-street-files.zip | 2026-11-12
+assets/sprites/cover (Hell-Hound-Files) | https://opengameart.org/sites/default/files/Hell-Hound-Files.zip | 2026-11-12
+assets/sprites/cover (chibi-monsters-files) | https://opengameart.org/sites/default/files/chibi-monsters-files.zip | 2026-11-12
+assets/sprites/cover (200Starships) | https://opengameart.org/sites/default/files/200Starships.zip | 2026-11-12
+assets/sprites/cover (NinjaAdventure) | https://opengameart.org/sites/default/files/NinjaAdventure.zip | 2026-11-12
+assets/sprites/cover (monsters_1) | https://opengameart.org/sites/default/files/monsters_1.zip | 2026-11-12
+assets/sprites/cover (bosses-pixel-art-sprite-sheet-pack) | https://opengameart.org/sites/default/files/bosses-pixel-art-sprite-sheet-pack.zip | 2026-11-12
+assets/sprites/cover (3_cyberpunk_characters) | https://opengameart.org/sites/default/files/3_cyberpunk_characters.zip | 2026-11-12
+assets/audio/sfx/shimmer.ogg, settle.ogg | synthesized in-house (numpy) | 2026-11-12

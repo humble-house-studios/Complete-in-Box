@@ -1,7 +1,8 @@
 class_name CoverComp
 extends RefCounted
-## Builds a unique cover illustration for any game from CC0 sprite packs
-## (CoverSprites): a seeded colour palette, a backdrop, scenery, one of ~16
+## Builds a unique cover illustration for any game from sprite packs
+## (CoverSprites: Kenney, Gothicvania, Warped City, Sunny Land, Cyberpunk
+## Street, 200 Starships, Ninja Adventure...): a seeded colour palette, a backdrop, scenery, one of ~16
 ## layouts (hero close-up, versus, line-up, framed portrait, space battle,
 ## speed shot, creature close-up, landscape, pop-art grid, spotlight, badge,
 ## comic panels...) chosen from the genre, and characters/props from pools
@@ -29,31 +30,43 @@ const GENRE_FONTS := {
 }
 ## Layouts each genre can use.
 const LAYOUTS := {
-	"Platformer": ["hero_center", "action_diag", "landscape", "group", "pop_grid", "panels"],
-	"Action": ["hero_center", "action_diag", "versus", "spotlight", "panels", "group"],
-	"Adventure": ["landscape", "hero_left", "portrait_frame", "hero_center"],
-	"RPG": ["portrait_frame", "landscape", "group", "hero_left", "painted"],
+	"Platformer": ["hero_center", "action_diag", "landscape", "group", "pop_grid", "panels", "boss_fight"],
+	"Action": ["hero_center", "action_diag", "versus", "spotlight", "panels", "group", "night_city", "night_city", "boss_fight"],
+	"Adventure": ["landscape", "hero_left", "portrait_frame", "hero_center", "graveyard"],
+	"RPG": ["portrait_frame", "landscape", "group", "hero_left", "painted", "graveyard", "boss_fight"],
 	"Strategy": ["painted", "group", "landscape", "badge"],
-	"Shooter": ["space", "space", "space_duo", "spotlight"],
-	"Racing": ["speed", "speed", "badge", "pop_grid"],
-	"Fighting": ["versus", "versus", "spotlight", "hero_center"],
+	"Shooter": ["space", "space", "space_duo", "spotlight", "night_city"],
+	"Racing": ["speed", "speed", "badge", "pop_grid", "night_city"],
+	"Fighting": ["versus", "versus", "spotlight", "hero_center", "night_city", "boss_fight"],
 	"Puzzle": ["pop_grid", "badge", "creature", "panels"],
 	"Sports": ["hero_center", "badge", "action_diag", "group"],
-	"Horror": ["spotlight", "landscape", "creature", "hero_left"],
-	"Music": ["spotlight", "pop_grid", "group", "hero_center"],
+	"Horror": ["spotlight", "landscape", "creature", "hero_left", "graveyard", "graveyard", "boss_fight"],
+	"Music": ["spotlight", "pop_grid", "group", "hero_center", "night_city"],
 	"Life Sim": ["landscape", "creature", "group", "hero_left"],
 }
 const HEROES := {
-	"Platformer": ["hero_cute", "hero_person", "hero_cute"], "Action": ["hero_adventurer", "hero_person", "hero_robot"],
-	"Adventure": ["hero_adventurer"], "RPG": ["hero_adventurer", "hero_adventurer", "hero_robot"],
-	"Strategy": ["hero_adventurer"], "Shooter": ["ship"], "Racing": ["vehicle"], "Fighting": ["hero_person", "hero_adventurer", "hero_robot", "hero_zombie"],
-	"Puzzle": ["animal", "hero_cute", "fish"], "Sports": ["hero_person"], "Horror": ["hero_zombie", "hero_person"],
-	"Music": ["hero_person", "hero_robot"], "Life Sim": ["hero_person", "animal"],
+	"Platformer": ["hero_cute", "hero_person", "hero_cute", "hero_pixel", "hero_ninja", "hero_pixel"],
+	"Action": ["hero_adventurer", "hero_person", "hero_robot", "hero_cyber", "hero_cyber", "hero_ninja", "hero_gothic"],
+	"Adventure": ["hero_adventurer", "hero_pixel", "hero_gothic"], "RPG": ["hero_adventurer", "hero_adventurer", "hero_robot", "hero_gothic", "hero_pixel"],
+	"Strategy": ["hero_adventurer", "hero_gothic"], "Shooter": ["ship"], "Racing": ["vehicle"],
+	"Fighting": ["hero_person", "hero_adventurer", "hero_robot", "hero_zombie", "hero_cyber", "hero_ninja", "hero_cyber"],
+	"Puzzle": ["animal", "hero_cute", "fish", "monster_chibi", "critter"], "Sports": ["hero_person"],
+	"Horror": ["hero_zombie", "hero_person", "hero_gothic", "hero_gothic"],
+	"Music": ["hero_person", "hero_robot", "hero_cyber"], "Life Sim": ["hero_person", "animal", "critter"],
 }
 const FOES := {
-	"Platformer": ["enemy"], "Action": ["enemy", "hero_zombie", "hero_robot"], "Adventure": ["enemy", "animal"], "RPG": ["enemy", "hero_zombie"],
-	"Strategy": ["hero_adventurer"], "Shooter": ["enemy_ship", "meteor"], "Racing": ["vehicle"], "Fighting": ["hero_person", "hero_robot", "hero_zombie"],
-	"Puzzle": ["item", "animal"], "Sports": ["hero_person"], "Horror": ["hero_zombie", "enemy"], "Music": ["hero_person"], "Life Sim": ["animal"],
+	"Platformer": ["enemy", "critter", "monster_chibi", "enemy"], "Action": ["enemy", "hero_zombie", "hero_robot", "foe_cyber", "boss", "monster_gothic"],
+	"Adventure": ["enemy", "animal", "critter", "monster_chibi"], "RPG": ["enemy", "hero_zombie", "monster_gothic", "monster_gothic", "boss"],
+	"Strategy": ["hero_adventurer", "monster_gothic"], "Shooter": ["enemy_ship", "meteor"], "Racing": ["vehicle"],
+	"Fighting": ["hero_person", "hero_robot", "hero_zombie", "hero_cyber", "boss"],
+	"Puzzle": ["item", "animal", "monster_chibi"], "Sports": ["hero_person"], "Horror": ["hero_zombie", "enemy", "monster_gothic", "monster_gothic", "monster_chibi"],
+	"Music": ["hero_person", "hero_cyber"], "Life Sim": ["animal", "critter"],
+}
+## Painted pixel-art scenes that suit each genre.
+const SCENES := {
+	"Horror": "backdrop_gothic", "RPG": "backdrop_gothic", "Action": "backdrop_cyber", "Shooter": "backdrop_cyber",
+	"Racing": "backdrop_cyber", "Music": "backdrop_cyber", "Fighting": "backdrop_cyber",
+	"Platformer": "backdrop_nature", "Adventure": "backdrop_nature", "Life Sim": "backdrop_nature", "Puzzle": "backdrop_nature",
 }
 
 static var _tex: Dictionary = {}
@@ -236,13 +249,13 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 			sprite(holder, pick(g, "vehicle"), Vector2(w * 0.5, h * 0.98), h * 0.6, false, Color.WHITE, 180.0)
 			sprite(holder, pick(g, "vehicle"), Vector2(w * 0.25, h * 0.62), h * 0.25, false, Color.WHITE, 180.0)
 		"creature":
-			var t2 := pick(g, hc if hc in ["animal", "fish", "enemy"] else "animal")
+			var t2 := pick(g, hc if hc in ["animal", "fish", "enemy", "critter", "monster_chibi"] else ("monster_gothic" if genre == "Horror" else "animal"))
 			sprite(holder, t2, Vector2(w * 0.55, h * 1.15), h * 0.95, g.randf() < 0.5, tint, g.randf_range(-10, 10))
 			sprite(holder, pick(g, "item"), Vector2(w * 0.18, h * 0.4), h * 0.14)
 		"landscape":
 			sprite(holder, pick(g, "building_fantasy" if genre in ["RPG", "Adventure", "Strategy"] else "building_town"), Vector2(w * g.randf_range(0.55, 0.8), h * 0.82), h * 0.42)
 			for k in 3:
-				sprite(holder, pick(g, "tree"), Vector2(g.randf() * w, h * 0.86), h * g.randf_range(0.18, 0.32))
+				sprite(holder, pick(g, "scenery_gothic" if genre == "Horror" else "tree"), Vector2(g.randf() * w, h * 0.86), h * g.randf_range(0.18, 0.32))
 			sprite(holder, pick(g, hc), Vector2(w * 0.25, h * 0.98), h * 0.36, false, tint)
 		"pop_grid":
 			var t3 := pick(g, hc)
@@ -265,6 +278,26 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 				BoxArt.rect(holder, pr.grow(1.5), Color(0.05, 0.05, 0.05))
 				BoxArt.rect(holder, pr, Color.from_hsv(fmod(pal[3].h + k * 0.2, 1.0), 0.45, 0.85))
 				sprite(holder, pick(g, hc if k != 1 else fc), Vector2(pr.get_center().x, pr.end.y), pr.size.y * 0.85, k == 1)
+		"night_city":
+			# Neon street: signs on the walls, a drone overhead, the hero in front.
+			sprite(holder, pick(g, "scenery_cyber"), Vector2(w * 0.12, h * 0.62), h * 0.42)
+			sprite(holder, pick(g, "scenery_cyber"), Vector2(w * 0.9, h * 0.55), h * 0.36, true)
+			if hc == "vehicle" or hc == "ship":
+				sprite(holder, pick(g, hc), Vector2(w * 0.5, h * 0.98), h * 0.5, false, Color.WHITE, 180.0 if hc == "vehicle" else 0.0)
+			else:
+				sprite(holder, pick(g, "foe_cyber"), Vector2(w * 0.72, h * 0.42), h * 0.2, true)
+				var who := hc if hc in ["hero_cyber", "hero_ninja", "hero_robot"] else "hero_cyber"
+				sprite(holder, pick(g, who), Vector2(w * 0.45, h * 1.0), h * 0.68, g.randf() < 0.3)
+			BoxArt.rect(holder, Rect2(0, h * 0.94, w, h * 0.06), Color(pal[3], 0.5))
+		"graveyard":
+			for k in 3:
+				sprite(holder, pick(g, "scenery_gothic"), Vector2(w * (0.1 + k * 0.4) + g.randf_range(-8, 8), h * 0.92), h * g.randf_range(0.18, 0.4), g.randf() < 0.5)
+			sprite(holder, pick(g, "monster_gothic"), Vector2(w * 0.74, h * 0.94), h * 0.42, true)
+			sprite(holder, pick(g, "hero_gothic"), Vector2(w * 0.3, h * 1.0), h * 0.6, false)
+		"boss_fight":
+			gradient(holder, rr, Color(pal[4], 0.0), Color(0.4, 0.0, 0.05, 0.45))
+			sprite(holder, pick(g, "boss" if g.randf() < 0.5 else ("monster_gothic" if genre in ["Horror", "RPG"] else fc)), Vector2(w * 0.62, h * 0.96), h * 0.8, true)
+			sprite(holder, pick(g, hc), Vector2(w * 0.2, h * 1.0), h * 0.34, false, tint)
 	# Small foreground sparkle / coins on some covers.
 	if g.randf() < 0.35 and h > 60:
 		for k in 3:
@@ -275,6 +308,9 @@ static func _backdrop(c: Control, r: Rect2, g: RandomNumberGenerator, pal: Array
 	var w := r.size.x
 	var h := r.size.y
 	gradient(c, r, pal[0], pal[1])
+	if layout == "night_city" or layout == "graveyard":
+		_scene(c, r, pick(g, "backdrop_cyber" if layout == "night_city" else "backdrop_gothic"), Color.WHITE)
+		return
 	if genre in ["Shooter"] or layout.begins_with("space"):
 		for k in 30:
 			var s := g.randf_range(0.6, 2.0)
@@ -287,6 +323,10 @@ static func _backdrop(c: Control, r: Rect2, g: RandomNumberGenerator, pal: Array
 			for k in 12:
 				var a0 := TAU * k / 12.0
 				BoxArt.poly(c, PackedVector2Array([ctr, ctr + Vector2(cos(a0), sin(a0)) * w * 1.5, ctr + Vector2(cos(a0 + 0.26), sin(a0 + 0.26)) * w * 1.5]), Color(pal[4], 0.12))
+		return
+	# A painted pixel-art scene that fits the genre on some covers.
+	if SCENES.has(genre) and layout in ["landscape", "hero_left", "hero_center", "action_diag", "group", "portrait_frame", "boss_fight"] and g.randf() < 0.4:
+		_scene(c, r, pick(g, String(SCENES[genre])), Color.WHITE.lerp(pal[1], 0.15))
 		return
 	# Scenery: optional painted backdrop, sky body, clouds, horizon, ground.
 	if g.randf() < 0.3:
@@ -309,6 +349,19 @@ static func _backdrop(c: Control, r: Rect2, g: RandomNumberGenerator, pal: Array
 		BoxArt.rect(c, Rect2(0, h * 0.8, w, h * 0.2), pal[2])
 	if genre == "Horror":
 		sprite(c, tex("res://assets/sprites/cover/tree/treeDead.png"), Vector2(w * 0.85, h * 0.85), h * 0.5, false, Color(0.05, 0.03, 0.05))
+
+
+static func _scene(c: Control, r: Rect2, t: Texture2D, mod: Color) -> void:
+	if t == null:
+		return
+	var tr := TextureRect.new()
+	tr.texture = t
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.size = r.size
+	tr.modulate = mod
+	c.add_child(tr)
 
 
 ## Hardware box art: the real 3D render of the product on one of several
