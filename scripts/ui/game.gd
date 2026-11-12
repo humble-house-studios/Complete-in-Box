@@ -4427,7 +4427,9 @@ func _stat_block(item: Dictionary) -> Control:
 	g.columns = 2
 	g.add_theme_constant_override("h_separation", 14)
 	g.add_theme_constant_override("v_separation", 6)
-	p.add_child(g)
+	var pv := _vbox(10)
+	p.add_child(pv)
+	pv.add_child(g)
 	var cond := String(item["cond"])
 	var exact: bool = run.shows_exact() or screen != "venue" or run.find_item(int(item["uid"])).size() > 0
 	if exact:
@@ -4481,6 +4483,14 @@ func _stat_block(item: Dictionary) -> Control:
 		else:
 			msg += " - %d more for a set" % need
 		_stat_row(g, "SET", _label(msg, 17, GOOD if need == 0 else INK, true))
+	# History: where it came from, how it was made, this copy's past.
+	for h in Flavor.history(def, item):
+		var hb := _vbox(2)
+		hb.add_child(_label(String(h[0]), 15, Color("ffcc66")))
+		var t := _label(String(h[1]), 17, FLAVOR_C, true)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hb.add_child(t)
+		pv.add_child(hb)
 	return p
 
 
