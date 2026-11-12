@@ -17,7 +17,7 @@ const LIST := [
 	{"id": "sticker_gun", "name": "Price Sticker Gun", "cost": 4, "desc": "+$8 appraisal per item on your shelf."},
 	{"id": "funtendo_kid", "name": "Funtendo Kid", "cost": 6, "desc": "+0.3 Mult per Funtendo item (FES, SFES, F64, PBOY)."},
 	{"id": "saga_does", "name": "Saga Does", "cost": 6, "desc": "+0.5 Mult per Saga item (GEN, DC)."},
-	{"id": "disc_jockey", "name": "Disc Jockey", "cost": 6, "desc": "Disc games (PST, DC) appraise for x2."},
+	{"id": "disc_jockey", "name": "Disc Jockey", "cost": 6, "desc": "Disc games (PST, PST2, DC, SAT, CUBE, XBUX) appraise for x2."},
 	{"id": "completionist", "name": "Completionist", "cost": 8, "desc": "Platform Set bonuses count double."},
 	{"id": "piggy_bank", "name": "Piggy Bank", "cost": 5, "desc": "Interest cap raised from $5 to $12."},
 	{"id": "lucky_lots", "name": "Lucky Lots", "cost": 6, "desc": "Mystery lots hold +1 item and roll a tier higher."},

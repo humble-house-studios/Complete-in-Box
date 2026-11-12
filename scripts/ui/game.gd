@@ -567,13 +567,11 @@ func _card_inner_icon(b: Button, item: Dictionary, px: float) -> VBoxContainer:
 	return v
 
 
-## The baked 3D render of an item (assets/items/icons), pixel-crisp.
+## 3D render of the item (made on demand by Art), pixel-crisp.
 func _icon(item: Dictionary, px: float) -> TextureRect:
-	var form := "box" if ItemModels.is_boxed(item) and String(item["kind"]) != "misc" else "loose"
-	var path := "res://assets/items/icons/%s_%s.png" % [item["id"], form]
+	var boxed := ItemModels.is_boxed(item) and String(item["kind"]) != "misc"
 	var tr := TextureRect.new()
-	if ResourceLoader.exists(path):
-		tr.texture = load(path)
+	tr.texture = Art.icon(item, boxed)
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -633,6 +631,10 @@ func _tag_row(item: Dictionary, fs: int = 16) -> HFlowContainer:
 	var t := _trend_tag(item).strip_edges()
 	if t != "":
 		row.add_child(_pill(t, HOT_C if t == "HOT" else COLD_C, fs))
+	var v := String(item.get("variant", "Standard"))
+	if v != "Standard":
+		var vc: Color = Catalog.VARIANTS[v]["color"]
+		row.add_child(_pill(Catalog.variant_label(item).to_upper(), vc, fs, DARK_TXT if vc.get_luminance() > 0.45 else INK))
 	return row
 
 
@@ -1973,8 +1975,38 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	bh.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier].lightened(0.2) if tier > 0 else Color(1, 1, 1, 0.85), 16))
 	band.add_child(bh)
 	v.add_child(band)
-	# Turntable.
+	# Turntable + box covers (tap a cover to turn the model to it).
 	v.add_child(_turntable(item, pcol))
+	if String(item["kind"]) != "misc":
+		var covers := _hbox(10)
+		covers.alignment = BoxContainer.ALIGNMENT_CENTER
+		for side in [["FRONT", Art.front(item), 0.0], ["BACK", Art.back(item), PI]]:
+			var cb := Button.new()
+			cb.custom_minimum_size = Vector2(96, 120) if not is_landscape() else Vector2(64, 80)
+			cb.icon = side[1]
+			cb.expand_icon = true
+			cb.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			cb.add_theme_stylebox_override("normal", _box(Color(0, 0, 0, 0.3), 4, Color(1, 1, 1, 0.15), 2))
+			cb.add_theme_stylebox_override("hover", _box(Color(1, 1, 1, 0.08), 4, GOLD, 2))
+			cb.add_theme_stylebox_override("pressed", _box(Color(1, 1, 1, 0.08), 4, GOLD, 2))
+			cb.tooltip_text = String(side[0])
+			cb.pressed.connect(_spin_to.bind(float(side[2])))
+			var col := _vbox(0)
+			col.add_child(cb)
+			var cl := _label("BOX " + String(side[0]), 13, MUTED)
+			cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			col.add_child(cl)
+			covers.add_child(col)
+		var vname := String(item.get("variant", "Standard"))
+		var vd := _vbox(2)
+		vd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vd.custom_minimum_size = Vector2(160, 0)
+		vd.add_child(_label("VARIANT", 13, MUTED))
+		var vcol: Color = Catalog.VARIANTS[vname]["color"]
+		vd.add_child(_title_label(Catalog.variant_label(item).to_upper(), 24, vcol.lightened(0.25) if vcol.get_luminance() < 0.3 else vcol))
+		vd.add_child(_label(String(Catalog.VARIANTS[vname]["desc"]), 16, Color("ddd5ea"), true))
+		covers.add_child(vd)
+		v.add_child(covers)
 	# Name + pills.
 	var nm := _title_label(title, 40, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2100,6 +2132,17 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 	return frame
 
 
+var _spin_hold := 0.0
+var _spin_goal := 0.0
+
+
+## Turn the model to face front (0) or back (PI), then resume spinning.
+func _spin_to(angle: float) -> void:
+	_spin_goal = angle
+	_spin_hold = 2.5
+	_click()
+
+
 func _on_spin_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		_spin_drag = (event as InputEventMouseButton).pressed
@@ -2114,7 +2157,11 @@ func _on_spin_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if _spin_model == null or not is_instance_valid(_spin_model):
 		return
-	if _spin_drag:
+	if _spin_hold > 0.0:
+		_spin_hold -= delta
+		var cur := fmod(_spin_model.rotation.y, TAU)
+		_spin_model.rotation.y = lerp_angle(cur, _spin_goal, minf(1.0, delta * 8.0))
+	elif _spin_drag:
 		_spin_model.rotation.y += _spin_vel * delta
 		_spin_vel = lerpf(_spin_vel, 0.0, 0.3)
 	else:
@@ -2139,6 +2186,24 @@ func _stat_block(item: Dictionary) -> Control:
 	_stat_row(g, "CONDITION", _pips(Catalog.CONDITIONS.find(cond) + 1, 5, Catalog.COND_COLORS[cond], cond))
 	var tier := int(item["tier"])
 	_stat_row(g, "RARITY", _pips(tier + 1, 4, Catalog.TIER_COLORS[tier], String(Catalog.TIER_NAMES[tier])))
+	var def := Catalog.get_def(String(item["id"]))
+	var rank := int(def.get("rank", 0))
+	if rank > 0:
+		var lst := "top 500 games" if String(def.get("list", "")) == "games" else "top 250 hardware"
+		_stat_row(g, "RANK", _label("#%d of the %s" % [rank, lst], 18, GOLD))
+	var who := String(def.get("pub", ""))
+	if who != "":
+		_stat_row(g, "MADE BY", _label("%s, %d" % [who, int(def.get("year", 0))], 18, INK))
+	if String(item["kind"]) == "game":
+		_stat_row(g, "GENRE", _label("%s  |  Rated %s" % [def.get("genre", "?"), def.get("rating", "E")], 18, INK))
+	var printed := int(def.get("run", 0))
+	if printed > 0:
+		_stat_row(g, "PRINT RUN", _label("~%s copies" % _commas(printed), 18, INK))
+		var pop := maxi(1, int(printed / 900.0 * Catalog.VARIANTS[String(item.get("variant", "Standard"))]["w"] / 70.0))
+		_stat_row(g, "GRADED POP", _label("%s graded by GCA" % _commas(pop), 18, INK))
+	_stat_row(g, "FIND ODDS", _label("about 1 in %s finds" % _commas(Catalog.odds(item)), 18, Color("ffcc66")))
+	if int(item.get("serial", 0)) > 0:
+		_stat_row(g, "SERIAL", _label("#%06d" % int(item["serial"]), 18, MUTED))
 	if int(item.get("grade", 0)) > 0:
 		_stat_row(g, "GRADE", _pips(int(item["grade"]), 10, GOLD, "%d / 10" % item["grade"]))
 	var mult := run.trend_mult(String(item["plat"]))
@@ -2159,6 +2224,10 @@ func _stat_block(item: Dictionary) -> Control:
 			msg += " - %d more for a set" % need
 		_stat_row(g, "SET", _label(msg, 17, GOOD if need == 0 else INK, true))
 	return p
+
+
+func _commas(n: int) -> String:
+	return _money(n).substr(1)
 
 
 func _stat_row(g: GridContainer, name: String, value: Control) -> void:

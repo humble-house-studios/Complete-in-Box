@@ -280,7 +280,7 @@ func _poster(pos: Vector3, rot_y: float, size: Vector2, id: String) -> void:
 	n.rotation_degrees.y = rot_y
 	world.add_child(n)
 	Psx.box(Vector3(size.x + 0.08, size.y + 0.08, 0.03), Psx.mat(Color(0.12, 0.1, 0.1)), Vector3.ZERO, n)
-	Psx.quad(size, Psx.mat(Color(1.1, 1.1, 1.1), ItemModels.label_for(id)), Vector3(0, 0, 0.018), n)
+	Psx.quad(size, Psx.mat(Color(1.1, 1.1, 1.1), Art.front(Catalog.get_def(id))), Vector3(0, 0, 0.018), n)
 
 
 func _poster_ids(seed_value: int, n: int) -> Array:

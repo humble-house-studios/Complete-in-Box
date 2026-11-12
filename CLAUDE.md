@@ -60,11 +60,19 @@ The web build in Safari is the test for every platform.
   flavor and the actions. `_open_sheet(..., item)` routes there.
 - The UI leaves a see-through gap under the header (`_stage_gap`) and aims the
   3D camera at it (`_update_focus`). Panels are smoked glass (alpha ~0.9).
-- Item art is baked, not drawn at runtime: after changing `catalog.gd` or
-  `item_models.gd`, run
-  `xvfb-run -a -s "-screen 0 1024x1024x24" godot --rendering-driver opengl3 -s res://tools/bake_items.gd`
-  then `godot --headless --import`. It writes `assets/items/labels/` (box art)
-  and `assets/items/icons/` (card renders).
+- Catalog: ~770 items. `catalog.gd` HANDMADE items + `catalog_items.gd`, a
+  GENERATED one-to-one parody of `docs/research/retro_gaming_top_500.txt` and
+  `retro_hardware_top_250.txt` (`python3 tools/gen_catalog.py`; edit the
+  generator, never the output). Parody names only, original art only (no real
+  cover art). Each def has rank, year, publisher, genre, blurb, rating, print run.
+- Variants (`Catalog.VARIANTS`): each copy rolls one (Player's Pick, Black Label,
+  First Print, Misprint, Test Cart, Rental, Collector's, Signed, Launch,
+  Prototype...), multiplying value. Hunt sellers price as if Standard.
+  Each run deals in `Balance.ACTIVE_PLATFORMS` random platforms (+ wildcards).
+- Item art is made at runtime by `scripts/gfx/art.gd` (`Art.front/back/icon`),
+  painted by `box_art.gd` (platform box templates, genre scenes, variant
+  overlays, back with screenshots/blurb/rating/barcode). Check it with
+  `xvfb-run ... -s res://tools/art_sheet.gd -- OUT.png [seed]`.
 - Check rooms: `xvfb-run ... -s res://tools/stage_shots.gd -- OUT_DIR [landscape]`.
 - Headless runs skip building the 3D stage (no renderer), so tests stay fast.
 

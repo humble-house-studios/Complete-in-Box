@@ -38,6 +38,8 @@ var listings: Array = []  # your items up for auction this stop
 var hot: Array = []
 var cold: Array = []
 var rumor: String = ""
+## The platforms this run's market deals in (a different scene every run).
+var active_plats: Array = []
 var boss_id: String = ""
 
 ## Home
@@ -68,6 +70,7 @@ func start(p_seed: int = 0) -> void:
 	phase = Phase.HOME
 	ante = 1
 	stop = 0
+	_pick_active_platforms()
 	for i in Balance.STARTER_ITEMS:
 		var it := make_item(_pick_def(0), "Loose")
 		it["paid"] = 0
@@ -84,6 +87,7 @@ func make_item(def: Dictionary, cond: String) -> Dictionary:
 		"uid": _uid, "id": def["id"], "name": def["name"], "plat": def["plat"],
 		"kind": def["kind"], "tier": int(def["tier"]), "base": int(def["base"]),
 		"tags": def["tags"], "cond": cond, "grade": 0, "held": 0, "paid": 0,
+		"variant": "Standard", "serial": 100000 + (_uid * 7919) % 900000,
 	}
 
 
@@ -123,6 +127,7 @@ func market_value(item: Dictionary) -> int:
 		v *= _grade_mult(int(item["grade"]))
 	v *= trend_mult(String(item["plat"]))
 	v *= age_mult(item)
+	v *= Catalog.variant_mult(item)
 	return maxi(1, int(round(v)))
 
 
@@ -166,9 +171,33 @@ func _roll_trends() -> void:
 	rumor = _random_platform()
 
 
+## Platforms that show up as wildcards in every run (few items, no sets).
+const WILDCARD_PLATS := ["MISC", "ODD", "DUO", "PSPK"]
+
+
+## Each run deals in its own mix of platforms, so the finds feel different.
+func _pick_active_platforms() -> void:
+	var counts := {}
+	for d in Catalog.ITEMS:
+		counts[d["plat"]] = int(counts.get(d["plat"], 0)) + 1
+	var pool: Array = []
+	for p in Catalog.PLATFORMS.keys():
+		if not WILDCARD_PLATS.has(p) and int(counts.get(p, 0)) >= 8:
+			pool.append(p)
+	active_plats.clear()
+	while active_plats.size() < mini(Balance.ACTIVE_PLATFORMS, pool.size()):
+		var p: String = pool[rng.randi_range(0, pool.size() - 1)]
+		if not active_plats.has(p):
+			active_plats.append(p)
+
+
+func is_active_plat(p: String) -> bool:
+	return active_plats.is_empty() or active_plats.has(p) or WILDCARD_PLATS.has(p)
+
+
 func _random_platform(exclude: Array = []) -> String:
 	var options: Array = []
-	for p in Catalog.PLATFORMS.keys():
+	for p in (active_plats if not active_plats.is_empty() else Catalog.PLATFORMS.keys()):
 		if p != "MISC" and not exclude.has(p):
 			options.append(p)
 	return String(options[rng.randi_range(0, options.size() - 1)])
@@ -181,11 +210,19 @@ func _roll_boss() -> void:
 # ================================================================ rolling stock
 
 func _pick_def(tier: int) -> Dictionary:
-	var pool := Catalog.defs_of_tier(tier)
+	var pool := _active_pool(tier)
 	while pool.is_empty() and tier > 0:
 		tier -= 1
-		pool = Catalog.defs_of_tier(tier)
+		pool = _active_pool(tier)
 	return pool[rng.randi_range(0, pool.size() - 1)]
+
+
+func _active_pool(tier: int) -> Array:
+	var out: Array = []
+	for d in Catalog.defs_of_tier(tier):
+		if is_active_plat(String(d["plat"])):
+			out.append(d)
+	return out
 
 
 func _roll_tier(boost: int) -> int:
@@ -210,7 +247,9 @@ func roll_item(boost: int, cond_weights: Array, hunt: bool = false) -> Dictionar
 	var ci := _weighted(cond_weights)
 	if hunt and has_perk("eagle_eye") and rng.randf() < 0.25:
 		ci = mini(ci + 1, Catalog.CONDITIONS.size() - 1)
-	return make_item(def, Catalog.CONDITIONS[ci])
+	var it := make_item(def, Catalog.CONDITIONS[ci])
+	it["variant"] = Catalog.roll_variant(def, rng)
+	return it
 
 
 func _price_for(item: Dictionary, lo: float, hi: float) -> int:
@@ -225,12 +264,15 @@ func _make_offer(boost_extra: int = 0) -> Dictionary:
 	var item := roll_item(int(venue["tier_boost"]) + boost_extra, venue["cond"], hunt)
 	var pr: Array = venue["price"]
 	var price := _price_for(item, float(pr[0]), float(pr[1]))
+	if hunt:
+		# Yard-sale sellers don't know a misprint from a rental copy.
+		price = maxi(1, int(round(price / Catalog.variant_mult(item))))
 	var is_bin: bool = venue.get("bin", false)
 	if is_bin and boss_active("shipping"):
 		price = int(round(price * 1.3))
 	var offer := {"item": item, "price": price, "haggled": false, "bargain": false, "bin": is_bin, "est": []}
 	if not shows_exact():
-		var mv := float(market_value(item))
+		var mv := float(market_value(item)) / (Catalog.variant_mult(item) if hunt else 1.0)
 		offer["est"] = [
 			maxi(1, int(round(mv * rng.randf_range(Balance.EST_LOW[0], Balance.EST_LOW[1])))),
 			maxi(2, int(round(mv * rng.randf_range(Balance.EST_HIGH[0], Balance.EST_HIGH[1])))),
@@ -842,6 +884,8 @@ func appraise() -> Dictionary:
 		if has_perk("sticker_gun"):
 			v += 8.0
 			notes.append("Sticker +$8")
+		if String(it.get("variant", "Standard")) != "Standard":
+			notes.append("%s x%s" % [Catalog.variant_label(it), str(snappedf(Catalog.variant_mult(it), 0.01))])
 		var iv := maxi(0, int(round(v)))
 		chips += iv
 		items.append({"uid": it["uid"], "name": it["name"], "value": iv, "notes": notes})

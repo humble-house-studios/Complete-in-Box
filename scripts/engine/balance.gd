@@ -14,6 +14,9 @@ const START_PERK_SLOTS := 4
 const START_INTEREST_CAP := 5
 const STARTER_ITEMS := 3
 
+## How many platforms a run's market deals in (picked at random each run).
+const ACTIVE_PLATFORMS := 8
+
 ## Cash for clearing a stop: base by stop, plus the ante number.
 const STOP_REWARD := [5, 7, 10]
 const TIME_LEFT_REWARD := 1
