@@ -137,7 +137,11 @@ The web build in Safari is the test for every platform.
   ..., OPENING UP THE GARAGE, HEADING HOME): the room is built and every box
   cover painted (`Art.loading` = full speed, `Art.pending()` drives the bar)
   before the reveal; tips/jokes in `LOADING_TIPS`. `tools/pad_probe.gd` plays the start with simulated pad presses and prints
-  the focus after each; `tools/perf_probe.gd` prints frame times and
+  the focus after each; `tools/pad_play.gd` plays whole runs with only pad presses and lists
+  PROBLEMS (unreachable buttons, lost focus, dead presses); `tools/nav_dump.gd` prints
+  where each D-pad direction goes from every button. D-pad steering is our own
+  (`_pad_move`/`_nav_pick`: stays in the top layer, finishes a list before leaving it,
+  hold to repeat, smooth scroll); focus returns to the opener when a sheet closes; `tools/perf_probe.gd` prints frame times and
   the CPU cost of room builds, UI rebuilds and cover painting.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,

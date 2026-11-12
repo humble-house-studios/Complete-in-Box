@@ -24,6 +24,8 @@ const SOUNDS := {
 	"land": [["place1", "place2"], -2.0],
 	"grail": [["grail"], -1.0],
 	"click": [["click"], -10.0],
+	"move": [["click"], -21.0],
+	"bump": [["click"], -17.0],
 	"open": [["slide_in"], -6.0],
 	"close": [["slide_out"], -8.0],
 	"dig": [["rummage", "paper"], -3.0],

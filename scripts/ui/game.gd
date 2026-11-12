@@ -206,6 +206,8 @@ func _do_refresh() -> void:
 		_last_screen = screen
 		focus_idx = 0
 		_focus_key = ""
+		_root_key = ""
+		_root_idx = 0
 	_tab_bar = []
 	for k in _scroll_reg:
 		var sc: ScrollContainer = _scroll_reg[k]
@@ -481,9 +483,31 @@ func _input(event: InputEvent) -> void:
 			request_refresh()
 			_pad_focus.call_deferred(0)
 		if event is InputEventJoypadButton and (event as InputEventJoypadButton).pressed:
-			if _pad_button((event as InputEventJoypadButton).button_index):
+			# Mid screen-change: the old screen is fading out, don't press it.
+			if _veil != null and is_instance_valid(_veil):
 				get_viewport().set_input_as_handled()
 				return
+			# Count-ups (appraisal, lot reveal): any face button rushes them.
+			if _busy and (event as InputEventJoypadButton).button_index in [JOY_BUTTON_A, JOY_BUTTON_B, JOY_BUTTON_X, JOY_BUTTON_Y]:
+				_skip = true
+				get_viewport().set_input_as_handled()
+				return
+			var bi := (event as InputEventJoypadButton).button_index
+			if DPAD_DIRS.has(bi):
+				_rep_btn = bi
+				_rep_dev = event.device
+				_rep_t = 0.36
+				_pad_move(DPAD_DIRS[bi])
+				get_viewport().set_input_as_handled()
+				return
+			if _pad_button(bi):
+				get_viewport().set_input_as_handled()
+				return
+		if event is InputEventJoypadButton and DPAD_DIRS.has((event as InputEventJoypadButton).button_index):
+			if (event as InputEventJoypadButton).button_index == _rep_btn:
+				_rep_btn = -1
+			get_viewport().set_input_as_handled()
+			return
 		var fo := get_viewport().gui_get_focus_owner()
 		var layer := _pad_layer()
 		if fo == null or not fo.is_visible_in_tree() or not layer.is_ancestor_of(fo):
@@ -502,6 +526,14 @@ func _input(event: InputEvent) -> void:
 		if _pad_back():
 			get_viewport().set_input_as_handled()
 			return
+	# Arrow keys / TV remote arrows: the same layer-aware steering as the D-pad.
+	if _pad and event is InputEventKey and (event as InputEventKey).pressed:
+		for k in KEY_DIRS:
+			if event.is_action(k):
+				if _veil == null or not is_instance_valid(_veil):
+					_pad_move(KEY_DIRS[k])
+				get_viewport().set_input_as_handled()
+				return
 	if _pad and (event is InputEventMouseButton or event is InputEventScreenTouch):
 		_pad = false
 		var f := get_viewport().gui_get_focus_owner()
@@ -564,33 +596,219 @@ func _focusables(n: Node, out: Array = []) -> Array:
 
 func _focus_index() -> int:
 	var fo := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
-	if fo == null:
-		_focus_key = ""
-		return 0
+	if fo == null or not fo.is_inside_tree():
+		# A sheet just closed (Buy, Sell...): come back to the button that
+		# opened it, not the top of the screen.
+		_focus_key = _root_key
+		return _root_idx
 	_focus_key = _key_of(fo)
 	return maxi(0, _focusables(_pad_layer()).find(fo))
 
 
 var _focus_key := ""
 var _last_screen := ""
+## Last highlighted button on the screen itself (under any sheet).
+var _root_key := ""
+var _root_idx := 0
 
 
 ## What a button "is", so focus can find the same one after a rebuild.
 func _key_of(c: Control) -> String:
 	if c is Button and (c as Button).text != "":
 		return "B:" + (c as Button).text.get_slice("\n", 0).get_slice("  ", 0)
-	var l := _first_label(c)
-	return "C:" + (l.text if l != null else c.name)
+	var bits: Array = []
+	_label_texts(c, bits)
+	return "C:" + (" | ".join(bits) if not bits.is_empty() else String(c.name))
 
 
-func _first_label(n: Node) -> Label:
+## The first few label texts inside a card (name, pills...).
+func _label_texts(n: Node, out: Array) -> void:
 	for ch in n.get_children():
-		if ch is Label and (ch as Label).text.length() > 2:
-			return ch
-		var r := _first_label(ch)
-		if r != null:
-			return r
+		if out.size() >= 3:
+			return
+		if ch is Label and (ch as Label).text.length() > 1:
+			out.append((ch as Label).text)
+		_label_texts(ch, out)
+
+
+# --- D-pad steering --------------------------------------------------------
+## Our own neighbour search, kept inside the top layer (Godot's would wander
+## under a sheet or into the hidden part of another list), plus hold-to-repeat.
+
+const DPAD_DIRS := {JOY_BUTTON_DPAD_UP: Vector2.UP, JOY_BUTTON_DPAD_DOWN: Vector2.DOWN, JOY_BUTTON_DPAD_LEFT: Vector2.LEFT, JOY_BUTTON_DPAD_RIGHT: Vector2.RIGHT}
+const KEY_DIRS := {"ui_up": Vector2.UP, "ui_down": Vector2.DOWN, "ui_left": Vector2.LEFT, "ui_right": Vector2.RIGHT}
+var _rep_btn := -1
+var _rep_dev := 0
+var _rep_t := 0.0
+
+
+func _pad_repeat(delta: float) -> void:
+	if _rep_btn < 0:
+		return
+	if not Input.is_joy_button_pressed(_rep_dev, _rep_btn):
+		_rep_btn = -1
+		return
+	_rep_t -= delta
+	if _rep_t <= 0.0:
+		_rep_t = 0.085
+		if _veil == null or not is_instance_valid(_veil):
+			_pad_move(DPAD_DIRS[_rep_btn], true)
+
+
+func _pad_move(dir: Vector2, repeat: bool = false) -> void:
+	var list := _focusables(_pad_layer())
+	if list.is_empty():
+		return
+	var fo := get_viewport().gui_get_focus_owner()
+	if fo == null or not list.has(fo):
+		_pad_focus(0)
+		return
+	var best := _nav_pick(fo, dir, list)
+	if best == null:
+		if not repeat:
+			_nav_bump(fo, dir)
+		return
+	best.grab_focus()
+	_ensure_visible(best, true)
+	if _sfx != null:
+		_sfx.play("move", 1.6)
+
+
+## The part of a button you can actually see (clipped by its scroll list).
+func _seen_rect(c: Control, home: ScrollContainer) -> Rect2:
+	var r := c.get_global_rect()
+	var sc := _scroll_of(c)
+	if sc != null and sc != home:
+		r = r.intersection(sc.get_global_rect())
+	return r
+
+
+func _scroll_of(c: Node) -> ScrollContainer:
+	var n := c.get_parent()
+	while n != null:
+		if n is ScrollContainer:
+			return n
+		n = n.get_parent()
 	return null
+
+
+## Nearest button in that direction: distance along it, plus a heavy cost
+## for being off to the side (so grids go straight down their column).
+## Inside a scroll list, the rest of that list (even scrolled out of sight)
+## comes first: you leave a list only from its end.
+func _nav_pick(fo: Control, dir: Vector2, list: Array) -> Control:
+	var home := _scroll_of(fo)
+	if home != null:
+		var same := list.filter(func(b): return b == fo or _scroll_of(b) == home)
+		var p := _nav_best(fo, dir, same, home, false)
+		if p != null:
+			return p
+	return _nav_best(fo, dir, list, home, true)
+
+
+func _nav_best(fo: Control, dir: Vector2, list: Array, home: ScrollContainer, fallback: bool) -> Control:
+	var a := fo.get_global_rect()
+	var ac := a.get_center()
+	var best: Control = null
+	var best_s := INF
+	# Off to the side (outside a 45 degree cone) only counts when nothing is
+	# straight ahead: up/down then takes the nearest row, and in landscape
+	# left/right can still hop between the side panels and the middle.
+	var wide: Control = null
+	var wide_s := INF
+	for b in list:
+		if b == fo:
+			continue
+		var r := _seen_rect(b, home)
+		if r.size.x < 4.0 or r.size.y < 4.0:
+			continue  # scrolled out of sight in another list
+		var rc := r.get_center()
+		var gap: float
+		var side: float
+		var off: float
+		if dir.y != 0.0:
+			if (rc.y - ac.y) * dir.y <= 6.0:
+				continue
+			gap = (r.position.y - a.end.y) if dir.y > 0.0 else (a.position.y - r.end.y)
+			side = maxf(0.0, maxf(r.position.x - a.end.x, a.position.x - r.end.x))
+			off = absf(rc.x - ac.x)
+		else:
+			if (rc.x - ac.x) * dir.x <= 6.0:
+				continue
+			gap = (r.position.x - a.end.x) if dir.x > 0.0 else (a.position.x - r.end.x)
+			side = maxf(0.0, maxf(r.position.y - a.end.y, a.position.y - r.end.y))
+			off = absf(rc.y - ac.y)
+		var s := maxf(gap, 0.0) + side * 3.0 + off * 0.08
+		if side <= maxf(gap, 0.0) + (24.0 if dir.y != 0.0 else 0.0):
+			if s < best_s:
+				best_s = s
+				best = b
+		elif s < wide_s and not b.has_meta("pad_skip"):
+			# Side hops: phones up/down; landscape left/right into the next
+			# panel only (fully past this button).
+			var past := (r.position.x >= a.end.x - 1.0) if dir.x > 0.0 else (r.end.x <= a.position.x + 1.0)
+			if (dir.y != 0.0 and not is_landscape()) or (dir.x != 0.0 and is_landscape() and past):
+				wide_s = s
+				wide = b
+	if best == null and fallback:
+		return wide
+	return best
+
+
+## Nothing that way: a small nudge so the press still feels answered.
+func _nav_bump(c: Control, dir: Vector2) -> void:
+	if _sfx != null:
+		_sfx.play("bump", 0.7)
+	if fast or c.has_meta("bumping"):
+		return
+	c.set_meta("bumping", true)
+	var base := c.position
+	var tw := c.create_tween()
+	tw.tween_property(c, "position", base + dir * 6.0, 0.05)
+	tw.tween_property(c, "position", base, 0.08)
+	tw.tween_callback(func(): if is_instance_valid(c): c.remove_meta("bumping"))
+
+
+## Scroll so a button (and a little margin round it) is in view.
+var _scroll_tw := {}
+
+
+func _ensure_visible(c: Control, smooth: bool) -> void:
+	if c == null or not is_instance_valid(c) or not c.is_inside_tree():
+		return
+	var sc := _scroll_of(c)
+	if sc == null:
+		return
+	var view := sc.get_global_rect()
+	var r := c.get_global_rect()
+	var m := 18.0
+	var to_v := float(sc.scroll_vertical)
+	var to_h := float(sc.scroll_horizontal)
+	if r.size.y + m * 2.0 > view.size.y or r.position.y < view.position.y + m:
+		to_v += r.position.y - view.position.y - m
+	elif r.end.y > view.end.y - m:
+		to_v += r.end.y - view.end.y + m
+	if r.size.x + m * 2.0 > view.size.x or r.position.x < view.position.x + m:
+		to_h += r.position.x - view.position.x - m
+	elif r.end.x > view.end.x - m:
+		to_h += r.end.x - view.end.x + m
+	var vb := sc.get_v_scroll_bar()
+	var hb := sc.get_h_scroll_bar()
+	to_v = clampf(to_v, 0.0, maxf(0.0, vb.max_value - vb.page))
+	to_h = clampf(to_h, 0.0, maxf(0.0, hb.max_value - hb.page))
+	if absf(to_v - sc.scroll_vertical) < 1.0 and absf(to_h - sc.scroll_horizontal) < 1.0:
+		return
+	var old: Tween = _scroll_tw.get(sc.get_instance_id())
+	if old != null and old.is_valid():
+		old.kill()
+	if not smooth or fast:
+		sc.scroll_vertical = int(to_v)
+		sc.scroll_horizontal = int(to_h)
+		return
+	var tw := sc.create_tween().set_parallel(true)
+	tw.tween_property(sc, "scroll_vertical", int(to_v), 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(sc, "scroll_horizontal", int(to_h), 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_scroll_tw[sc.get_instance_id()] = tw
 
 
 func _pad_focus(idx: int = 0) -> void:
@@ -602,13 +820,16 @@ func _pad_focus(idx: int = 0) -> void:
 		return
 	for b in list:
 		_focus_style(b)
+	var layer := _pad_layer()
 	var pick: Control = null
 	if _focus_key != "":
 		for b in list:
 			if _key_of(b) == _focus_key:
 				pick = b
 				break
-	if pick == null and idx <= 0:
+	if pick == null and idx > 0 and layer == _root_box:
+		pick = list[clampi(idx, 0, list.size() - 1)]
+	if pick == null:
 		# Sheets and overlays start on their main button (NEXT, Buy...);
 		# screens on their first real one (not SKIP or the pause button).
 		if _pad_layer() != _root_box:
@@ -616,14 +837,25 @@ func _pad_focus(idx: int = 0) -> void:
 				if (b as Control).has_meta("pad_main"):
 					pick = b
 					break
+		# A screen starts on its marked spot (the picked destination...),
+		# else the first real button (not a tab, SKIP or the pause button).
 		if pick == null:
 			for b in list:
-				if not (b as Control).has_meta("pad_skip"):
+				if (b as Control).has_meta("pad_first"):
+					pick = b
+					break
+		if pick == null:
+			for b in list:
+				if not (b as Control).has_meta("pad_skip") and not (b as Control).has_meta("pad_tab"):
 					pick = b
 					break
 	if pick == null:
-		pick = list[clampi(idx, 0, list.size() - 1)]
+		pick = list[0]
 	pick.grab_focus()
+	# After the list has its remembered scroll back, make sure it shows.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_ensure_visible(pick, false)
 
 
 ## The TV app's self-update (scripts/boot/boot.gd) waits for this to know
@@ -671,9 +903,9 @@ func _pad_button(btn: int) -> bool:
 			if screen in ["home", "venue"] and not sheet_open():
 				_open_menu()
 				return true
-			if screen == "title" and not sheet_open():
-				_on_new_run()
-				return true
+			# Elsewhere Start is the screen's main action (CONTINUE RUN on the
+			# title, NEXT in the guide, CONTINUE after the appraisal...).
+			return _press_main()
 		JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER:
 			_pad_tab(-1 if btn == JOY_BUTTON_LEFT_SHOULDER else 1)
 			return true
@@ -787,13 +1019,16 @@ func _stick_scroll(side: String) -> ScrollContainer:
 func _focus_into_view(sc: ScrollContainer) -> void:
 	var view := sc.get_global_rect()
 	var fo := get_viewport().gui_get_focus_owner()
+	# Scrolling the other panel just lets you look; D-pad over to pick there.
+	if fo != null and not sc.is_ancestor_of(fo) and _pad_layer().is_ancestor_of(fo):
+		return
 	if fo != null and sc.is_ancestor_of(fo) and view.encloses(fo.get_global_rect().grow(-8)):
 		return
 	var best: Control = null
 	var d := INF
 	for b in _focusables(sc):
 		var r := (b as Control).get_global_rect()
-		if not view.intersects(r):
+		if view.intersection(r).get_area() < r.get_area() * 0.6:
 			continue
 		var dd := absf(r.get_center().y - view.get_center().y) + absf(r.get_center().x - view.get_center().x) * 0.3
 		if dd < d:
@@ -831,6 +1066,9 @@ func _find_scroll(n: Node) -> ScrollContainer:
 func _on_focus_changed(c: Control) -> void:
 	if not _pad or c == null:
 		return
+	if _root_box.is_ancestor_of(c):
+		_root_key = _key_of(c)
+		_root_idx = maxi(0, _focusables(_root_box).find(c))
 	var layer := _pad_layer()
 	if layer != c and not layer.is_ancestor_of(c):
 		_pad_focus.call_deferred(0)
@@ -838,7 +1076,7 @@ func _on_focus_changed(c: Control) -> void:
 
 # --- Xbox button glyphs (only shown while a pad is in use) -----------------
 
-const GLYPH_COL := {"A": Color("5fbf3c"), "B": Color("e0483a"), "X": Color("3b86e0"), "Y": Color("e8b923"), "LB": Color("8a8698"), "RB": Color("8a8698"), "LT": Color("8a8698"), "RT": Color("8a8698"), "R": Color("8a8698"), "VIEW": Color("8a8698"), "START": Color("8a8698")}
+const GLYPH_COL := {"A": Color("5fbf3c"), "B": Color("e0483a"), "X": Color("3b86e0"), "Y": Color("e8b923"), "LB": Color("8a8698"), "RB": Color("8a8698"), "LT": Color("8a8698"), "RT": Color("8a8698"), "R": Color("8a8698"), "LS": Color("8a8698"), "RS": Color("8a8698"), "VIEW": Color("8a8698"), "START": Color("8a8698")}
 
 
 func _glyph(k: String, px: float = 26.0) -> PanelContainer:
@@ -886,9 +1124,10 @@ func _hint_bar() -> Control:
 	bar.add_theme_constant_override("separation", 6)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.modulate.a = 0.85
-	var items := [["A", "Select"], ["B", "Back"], ["Y", "Go"], ["X", "Switch"], ["LB", "Tabs"], ["R", "Scroll"]]
-	for it in items:
+	for it in _hints():
 		bar.add_child(_glyph(String(it[0]), 24.0))
+		if it.size() > 2:
+			bar.add_child(_glyph(String(it[2]), 24.0))
 		var l := Label.new()
 		l.text = String(it[1]) + "   "
 		l.add_theme_font_size_override("font_size", 16)
@@ -897,6 +1136,35 @@ func _hint_bar() -> Control:
 		l.add_theme_constant_override("outline_size", 4)
 		bar.add_child(l)
 	return bar
+
+
+## What each button does on this screen right now (only real ones shown).
+func _hints() -> Array:
+	var land := is_landscape()
+	var out: Array = [["A", "Select"]]
+	match screen:
+		"home":
+			out.append(["B", "Back" if _showcase else "Menu"])
+			if not _showcase:
+				out.append(["Y", "Go"])
+				out.append(["X", "Perks" if land and _home_tab == "shelf" else ("Shelf" if _home_tab != "shelf" else "Route")])
+		"venue":
+			out.append(["B", "Menu"])
+			out.append(["Y", "Appraise"])
+			if not land:
+				out.append(["X", "Shelf" if _venue_tab != "shelf" else "For sale"])
+		"collection":
+			out.append(["B", "Title"])
+			out.append(["X", "Binder" if _coll_tab == "wall" else "Wall"])
+		"title":
+			out.append(["Y", "Continue" if _run_live() else "New run"])
+		_:
+			out.append(["Y", "Go"])
+	if not _tab_bar.is_empty() or (screen == "collection" and _coll_tab == "binder"):
+		out.append(["LB", "Tabs" if screen != "collection" else "Pages", "RB"])
+	if screen in ["home", "venue", "collection"] and not _showcase:
+		out.append(["LS", "Scroll", "RS"] if land else ["LS", "Scroll"])
+	return out
 
 
 func _pad_back() -> bool:
@@ -921,7 +1189,6 @@ func _pad_back() -> bool:
 		else:
 			_sfx.play("close")
 			_close_sheet()
-		_pad_focus.call_deferred(0)
 		return true
 	if screen == "collection":
 		show_title()
@@ -1059,7 +1326,7 @@ func _scroll_col(parent: Control, ratio: float) -> VBoxContainer:
 	stack.clip_contents = true
 	back.add_child(stack)
 	var sc := ScrollContainer.new()
-	sc.follow_focus = true
+	sc.follow_focus = false
 	sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.scroll_deadzone = 10
@@ -1129,6 +1396,7 @@ func _tabs(options: Array, current: String, cb: Callable) -> HBoxContainer:
 		var on: bool = String(o[0]) == current
 		var b := _button(String(o[1]), cb.bind(String(o[0])), GOLD if on else Color(0.16, 0.13, 0.22), 22, 88)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.set_meta("pad_tab", true)
 		h.add_child(b)
 	if _pad:
 		h.add_child(_glyph("RB", 32.0))
@@ -2253,6 +2521,8 @@ func _gate_pick(sound: bool) -> void:
 func _skip_intro() -> void:
 	_intro_skip = true
 	Art.loading = false
+	# Skipped at the sound gate (Start / B): let the waiting intro wind down.
+	intro_gate_done.emit()
 	_finish_intro()
 
 
@@ -2903,7 +3173,7 @@ func _build_showcase() -> void:
 	# Your items in a strip: highlight one for its trading card, A for full.
 	if not run.shelf.is_empty():
 		var sc := ScrollContainer.new()
-		sc.follow_focus = true
+		sc.follow_focus = false
 		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		sc.custom_minimum_size = Vector2(0, 210 if is_landscape() else 272)
 		var row := _hbox(8)
@@ -3031,6 +3301,8 @@ func _venue_button(id: String) -> Button:
 	var sel := id == _dest
 	var b := _card_shell(0, 262, GOLD if sel else col, func(): _pick_dest(id), PANEL)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if sel:
+		b.set_meta("pad_first", true)
 	var v := _card_inner(b)
 	var pic := PanelContainer.new()
 	var ps := StyleBoxFlat.new()
@@ -3711,7 +3983,7 @@ func _play_appraisal(res: Dictionary) -> void:
 	for e in res["events"]:
 		cv.add_child(_label(String(e), 18, Color("4fd9a0"), true))
 	var sc := ScrollContainer.new()
-	sc.follow_focus = true
+	sc.follow_focus = false
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -3798,6 +4070,8 @@ func _play_appraisal(res: Dictionary) -> void:
 		cv.add_child(_label("Short by %s. %s" % [_money(tgt - total), Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop)], 22, BAD, true))
 		v.add_child(_mark_main(_button("SEE RESULTS", _after_appraisal, BAD, 28, 96)))
 	_busy = false
+	if _pad:
+		_pad_focus.call_deferred(0)
 
 
 func _focus_on(c: Control) -> void:
@@ -4076,11 +4350,15 @@ func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary =
 			v.add_child(q)
 		else:
 			v.add_child(_label(txt, 20, ln[1], true))
+	var first := true
 	for a in actions:
 		if a.size() > 3 and a[3]:
 			continue
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 24, 88)
+		if first:
+			_mark_main(btn)
+			first = false
 		v.add_child(btn)
 	v.add_child(_close_row(actions, 22, 72))
 	if not fast:
@@ -4093,6 +4371,8 @@ func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary =
 func _close_row(actions: Array, fs: int, h: int) -> Control:
 	var minor := actions.filter(func(a): return a.size() > 3 and a[3])
 	var close := _button("Close", _close_sheet_sfx, Color("3a3548"), fs, h)
+	if _pad:
+		_glyph_on(close, "B")
 	if minor.is_empty():
 		return close
 	var row := _hbox(8)
@@ -4241,7 +4521,7 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	right.add_child(tags)
 	# Info: stats + lines, scrolls if the screen is short.
 	var sc := ScrollContainer.new()
-	sc.follow_focus = true
+	sc.follow_focus = false
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.custom_minimum_size = Vector2(0, 120 if is_landscape() else 290)
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL if is_landscape() else Control.SIZE_SHRINK_END
@@ -4270,7 +4550,7 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 20, 80)
 		if first:
-			btn.set_meta("pad_main", true)
+			_mark_main(btn)
 			first = false
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -4390,6 +4670,7 @@ func _on_spin_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_lazy_update(delta)
 	if _pad:
+		_pad_repeat(delta)
 		_pad_scroll(delta)
 		_pad_sticks(delta)
 	if _spin_model == null or not is_instance_valid(_spin_model):
@@ -4554,6 +4835,10 @@ func _close_sheet() -> void:
 	if _sheet != null and is_instance_valid(_sheet):
 		_sheet.get_parent().remove_child(_sheet)
 		_sheet.queue_free()
+		if _pad:
+			# Back to the button that opened it.
+			_focus_key = _root_key
+			_pad_focus.call_deferred(_root_idx)
 	_sheet = null
 
 
