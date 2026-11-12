@@ -190,6 +190,11 @@ func _do_refresh() -> void:
 	if _root_box == null:
 		return
 	var focus_idx := _focus_index()
+	if screen != _last_screen:
+		# New screen: start on its main button, not "the same slot" as before.
+		_last_screen = screen
+		focus_idx = 0
+		_focus_key = ""
 	_tab_bar = []
 	for k in _scroll_reg:
 		var sc: ScrollContainer = _scroll_reg[k]
@@ -548,6 +553,7 @@ func _focus_index() -> int:
 
 
 var _focus_key := ""
+var _last_screen := ""
 
 
 ## What a button "is", so focus can find the same one after a rebuild.

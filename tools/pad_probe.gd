@@ -68,10 +68,16 @@ func _go() -> void:
 	await _press(JOY_BUTTON_A)
 	await create_timer(0.5).timeout
 	_show("A buy?")
-	await _press(JOY_BUTTON_START)
-	await create_timer(0.5).timeout
-	_show("start menu")
 	await _press(JOY_BUTTON_B)
 	await create_timer(0.5).timeout
 	_show("B close")
+	await _press(JOY_BUTTON_START)
+	await create_timer(0.5).timeout
+	_show("start menu")
+	for k in 4:
+		await _press(JOY_BUTTON_DPAD_DOWN)
+		_show("menu down")
+	await _press(JOY_BUTTON_A)
+	await create_timer(1.0).timeout
+	_show("A quit?")
 	quit()
