@@ -1,0 +1,10 @@
+# Godot 4 cache (regenerated on import)
+.godot/
+/android/
+
+# Keep Godot import settings
+!*.import
+
+# OS junk
+.DS_Store
+Thumbs.db

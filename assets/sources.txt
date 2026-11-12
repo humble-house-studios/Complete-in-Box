@@ -1,0 +1,4 @@
+# path | source URL | date
+assets/ui/kenney_ui | https://opengameart.org/content/ui-pack | 2026-11-12
+assets/audio/sfx/ui_clicks | https://opengameart.org/content/51-ui-sound-effects-buttons-switches-and-clicks | 2026-11-12
+assets/models/crate | https://opengameart.org/sites/default/files/Crate_0.zip | 2026-11-12
