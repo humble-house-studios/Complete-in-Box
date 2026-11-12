@@ -25,6 +25,21 @@ func _press(btn: int) -> void:
 		await process_frame
 
 
+func _stick(axis: int, val: float) -> void:
+	var e := InputEventJoypadMotion.new()
+	e.axis = axis
+	e.axis_value = val
+	Input.parse_input_event(e)
+	for i in 3:
+		await process_frame
+	var z := InputEventJoypadMotion.new()
+	z.axis = axis
+	z.axis_value = 0.0
+	Input.parse_input_event(z)
+	for i in 8:
+		await process_frame
+
+
 func _show(tag: String) -> void:
 	var fo := root.gui_get_focus_owner()
 	var t := "none"
@@ -53,6 +68,14 @@ func _go() -> void:
 		await _press(JOY_BUTTON_A)
 	await create_timer(1.0).timeout
 	_show("after guide")
+	await _stick(JOY_AXIS_RIGHT_Y, 1.0)
+	_show("R stick down")
+	await _stick(JOY_AXIS_RIGHT_Y, 1.0)
+	_show("R stick down")
+	await _stick(JOY_AXIS_LEFT_Y, 1.0)
+	_show("L stick down")
+	await _stick(JOY_AXIS_LEFT_X, 1.0)
+	_show("L stick right")
 	await _press(JOY_BUTTON_DPAD_DOWN)
 	_show("dpad down")
 	await _press(JOY_BUTTON_A)

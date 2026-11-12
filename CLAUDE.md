@@ -73,8 +73,12 @@ The web build in Safari is the test for every platform.
 - Xbox-style controller (`# controller` in game.gd): stick / D-pad move focus,
   A press, B back / close, Y = the screen's main action (buttons marked with
   `_mark_main`), X = switch halves (sale/shelf, route/shelf, wall/binder),
-  LB / RB tabs (guide pages, binder consoles), LT / RT page-scroll, right stick
-  scrolls the focused list (and spins the turntable), View = how to play,
+  LB / RB tabs (guide pages, binder consoles), LT / RT page-scroll, View = how
+  to play, D-pad moves anywhere; in landscape the LEFT stick steps through the
+  left panel and the RIGHT stick through the right panel (`_pad_sticks`); on the
+  item card the left stick turns the model and the right stick scrolls the info.
+  Godot's ui_* stick events are removed at startup so the sticks are ours.
+  Text is bigger in landscape (`FONT_SCALE` 1.36, `_fsz` floor of 15),
   Start skips the intro or starts a run. Pad mode shows a cyan focus frame,
   subtle Xbox glyphs (`_glyph`: Y on main buttons, LB/RB on tab bars) and a
   hint strip at the bottom; touch or mouse turns it all off. Focus is restored

@@ -15,7 +15,9 @@ const FONT_BODY := preload("res://assets/fonts/Jersey15-Regular.ttf")
 const FONT_DISPLAY := preload("res://assets/fonts/Jersey10-Regular.ttf")
 const CRT_SHADER := preload("res://assets/shaders/crt.gdshader")
 ## Jersey runs small, so every font size is scaled up by this.
-const FONT_SCALE := 1.18
+## Text size multiplier: bigger in landscape (TVs, desktops) for reading from
+## the couch; see _on_resized.
+var FONT_SCALE := 1.18
 
 ## Dev shortcuts (+$100, +1 ante) at Home. Set false before shipping.
 const DEV := true
@@ -125,6 +127,12 @@ func _ready() -> void:
 	_sfx.music_enabled = _sfx.enabled
 	get_viewport().size_changed.connect(_on_resized)
 	get_viewport().gui_focus_changed.connect(_on_focus_changed)
+	# The sticks are ours (left stick = left panel, right stick = right
+	# panel); Godot's ui_* keep the D-pad and keys.
+	for a in ["ui_up", "ui_down", "ui_left", "ui_right"]:
+		for ev in InputMap.action_get_events(a):
+			if ev is InputEventJoypadMotion:
+				InputMap.action_erase_event(a, ev)
 	var poll := Timer.new()
 	poll.wait_time = 1.0
 	poll.autostart = true
@@ -142,6 +150,8 @@ func is_landscape() -> bool:
 
 
 func _on_resized() -> void:
+	FONT_SCALE = 1.36 if is_landscape() else 1.18
+	theme.default_font_size = int(24 * FONT_SCALE)
 	var base := Vector2i(1280, 720) if is_landscape() else Vector2i(720, 1280)
 	if get_viewport() == get_window() and get_window().content_scale_size != base:
 		get_window().content_scale_size = base
@@ -207,6 +217,8 @@ func _do_refresh() -> void:
 		c.queue_free()
 	_gap = null
 	_land_center = null
+	_land_left = null
+	_land_right = null
 	_cash_label = null
 	_track_collection()
 	match screen:
@@ -386,10 +398,15 @@ func _box(color: Color, radius: int = 6, border: Color = Color(0, 0, 0, 0), widt
 	return s
 
 
+## Landscape (TV) floor so small print stays readable from the couch.
+func _fsz(fs: int) -> float:
+	return maxf(fs, 15.0) if FONT_SCALE > 1.2 else float(fs)
+
+
 func _label(text: String, fs: int = 24, color: Color = INK, wrap: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", int(fs * FONT_SCALE))
+	l.add_theme_font_size_override("font_size", int(_fsz(fs) * FONT_SCALE))
 	l.add_theme_color_override("font_color", color)
 	if wrap:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -402,7 +419,7 @@ func _label(text: String, fs: int = 24, color: Color = INK, wrap: bool = false) 
 func _title_label(text: String, fs: int, color: Color) -> Label:
 	var l := _label(text, fs, color)
 	l.add_theme_font_override("font", FONT_DISPLAY)
-	l.add_theme_font_size_override("font_size", int(fs * FONT_SCALE * 1.12))
+	l.add_theme_font_size_override("font_size", int(_fsz(fs) * FONT_SCALE * 1.12))
 	l.add_theme_color_override("font_outline_color", Color("0b0a10"))
 	l.add_theme_constant_override("outline_size", maxi(5, int(fs / 5.0)))
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
@@ -705,7 +722,7 @@ var _trig_r := false
 
 
 func _pad_scroll(delta: float) -> void:
-	var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y)
+	var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y) if _inspecting() else 0.0
 	var lt := Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.5
 	var rt := Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.5
 	var page := 0
@@ -725,6 +742,78 @@ func _pad_scroll(delta: float) -> void:
 		tw.tween_property(sc, "scroll_vertical", sc.scroll_vertical + int(page * sc.size.y * 0.8), 0.18).set_trans(Tween.TRANS_SINE)
 	else:
 		sc.scroll_vertical += int(ry * absf(ry) * 1400.0 * delta)
+
+
+func _inspecting() -> bool:
+	return sheet_open() and _spin_model != null and is_instance_valid(_spin_model) and _spin_model.is_inside_tree()
+
+
+## Left stick steps through the left panel, right stick through the right one
+## (landscape); on phones and in sheets both step through what's on top.
+## Holding a stick repeats. On the item card the left stick turns the model
+## and the right stick scrolls the info instead.
+var _stick_dir := {"L": Vector2.ZERO, "R": Vector2.ZERO}
+var _stick_t := {"L": 0.0, "R": 0.0}
+
+
+func _pad_sticks(delta: float) -> void:
+	for side in ["L", "R"]:
+		var v := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X if side == "L" else JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_LEFT_Y if side == "L" else JOY_AXIS_RIGHT_Y))
+		var d := Vector2.ZERO
+		if v.length() > 0.55:
+			d = Vector2(signf(v.x), 0) if absf(v.x) > absf(v.y) else Vector2(0, signf(v.y))
+		if d == Vector2.ZERO or _inspecting():
+			_stick_dir[side] = Vector2.ZERO
+			continue
+		if d != _stick_dir[side]:
+			_stick_dir[side] = d
+			_stick_t[side] = 0.32
+			_stick_step(side, d)
+		else:
+			_stick_t[side] -= delta
+			if _stick_t[side] <= 0.0:
+				_stick_t[side] = 0.13
+				_stick_step(side, d)
+
+
+func _stick_step(side: String, d: Vector2) -> void:
+	var area: Control = _pad_layer()
+	if area == _root_box and is_landscape():
+		var col: Control = _land_left if side == "L" else _land_right
+		if col != null and is_instance_valid(col) and col.is_inside_tree() and not _focusables(col).is_empty():
+			area = col
+	var list := _focusables(area)
+	if list.is_empty():
+		return
+	var fo := get_viewport().gui_get_focus_owner()
+	if fo == null or not area.is_ancestor_of(fo):
+		# Jump into that panel at the button nearest the current height.
+		var y := fo.get_global_rect().get_center().y if fo != null else 0.0
+		var best: Control = list[0]
+		for b in list:
+			if absf((b as Control).get_global_rect().get_center().y - y) < absf(best.get_global_rect().get_center().y - y):
+				best = b
+		best.grab_focus()
+		_click()
+		return
+	var from := fo.get_global_rect().get_center()
+	var pick: Control = null
+	var score := INF
+	for b in list:
+		if b == fo:
+			continue
+		var off := (b as Control).get_global_rect().get_center() - from
+		var along := off.dot(d)
+		if along < 4.0:
+			continue
+		var side_off := absf(off.dot(Vector2(-d.y, d.x)))
+		var sc := along + side_off * 2.5
+		if sc < score:
+			score = sc
+			pick = b
+	if pick != null:
+		pick.grab_focus()
+		_click()
 
 
 ## The scroll list holding the focused button, else the first one on screen.
@@ -949,7 +1038,7 @@ func _pill(text: String, bg: Color, fs: int = 15, fg: Color = DARK_TXT) -> Panel
 	p.add_theme_stylebox_override("panel", st)
 	var l := _label(text, fs, fg)
 	l.add_theme_font_override("font", FONT_DISPLAY)
-	l.add_theme_font_size_override("font_size", int(fs * FONT_SCALE * 1.12))
+	l.add_theme_font_size_override("font_size", int(_fsz(fs) * FONT_SCALE * 1.12))
 	p.add_child(l)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1076,6 +1165,8 @@ func _columns() -> Array:
 ## Returns [left, right, center] VBoxes; the center already holds the gap.
 const LAND_SIDE := 0.37
 var _land_center: VBoxContainer
+var _land_left: VBoxContainer
+var _land_right: VBoxContainer
 
 
 func _land_cols() -> Array:
@@ -1098,6 +1189,8 @@ func _land_cols() -> Array:
 	right.size_flags_stretch_ratio = LAND_SIDE
 	hb.add_child(right)
 	_land_center = center
+	_land_left = left
+	_land_right = right
 	return [left, right, center]
 
 
@@ -4141,8 +4234,9 @@ func _on_spin_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if _pad and not (_spin_model != null and is_instance_valid(_spin_model) and sheet_open()):
+	if _pad:
 		_pad_scroll(delta)
+		_pad_sticks(delta)
 	if _spin_model == null or not is_instance_valid(_spin_model):
 		return
 	if _spin_hold > 0.0:
@@ -4155,8 +4249,8 @@ func _process(delta: float) -> void:
 	else:
 		# Right stick turns it by hand, as fast as you push; the slow auto
 		# spin waits a few seconds after you let go.
-		var rx := Input.get_joy_axis(0, JOY_AXIS_RIGHT_X) if _pad else 0.0
-		var ry := Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y) if _pad else 0.0
+		var rx := Input.get_joy_axis(0, JOY_AXIS_LEFT_X) if _pad else 0.0
+		var ry := Input.get_joy_axis(0, JOY_AXIS_LEFT_Y) if _pad else 0.0
 		if absf(rx) > 0.15:
 			_manual_t = 3.0
 			_spin_vel = 0.0
