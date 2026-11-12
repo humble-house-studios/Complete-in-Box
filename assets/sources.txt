@@ -56,3 +56,9 @@ assets/sprites/cover (monsters_1) | https://opengameart.org/sites/default/files/
 assets/sprites/cover (bosses-pixel-art-sprite-sheet-pack) | https://opengameart.org/sites/default/files/bosses-pixel-art-sprite-sheet-pack.zip | 2026-11-12
 assets/sprites/cover (3_cyberpunk_characters) | https://opengameart.org/sites/default/files/3_cyberpunk_characters.zip | 2026-11-12
 assets/audio/sfx/shimmer.ogg, settle.ogg | synthesized in-house (numpy) | 2026-11-12
+assets/sprites/cover (Superpowers asset packs: prehistoric, rpg-battle-system, western, ninja-adventure, space-shooter; CC0) | https://github.com/sparklinlabs/superpowers-asset-packs | 2026-11-12
+assets/sprites/cover (Battle for Wesnoth unit sprites, team colour recoloured; GPL) | https://github.com/wesnoth/wesnoth/tree/master/data/core/images/units | 2026-11-12
+assets/sprites/cover (Tuxemon monster battle sprites and player characters; CC-BY-SA) | https://github.com/Tuxemon/Tuxemon/tree/development/mods/tuxemon/gfx/sprites | 2026-11-12
+assets/sprites/cover (SuperTux creatures; GPL / CC-BY-SA) | https://github.com/SuperTux/supertux/tree/master/data/images/creatures | 2026-11-12
+assets/sprites/cover (Freedoom monster sprites; BSD) | https://github.com/freedoom/freedoom/tree/master/sprites | 2026-11-12
+assets/sprites/cover (Shattered Pixel Dungeon mob sprites; GPL) | https://github.com/00-Evan/shattered-pixel-dungeon/tree/master/core/src/main/assets/sprites | 2026-11-12

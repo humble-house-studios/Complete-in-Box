@@ -31,36 +31,40 @@ const GENRE_FONTS := {
 ## Layouts each genre can use.
 const LAYOUTS := {
 	"Platformer": ["hero_center", "action_diag", "landscape", "group", "pop_grid", "panels", "boss_fight"],
-	"Action": ["hero_center", "action_diag", "versus", "spotlight", "panels", "group", "night_city", "night_city", "boss_fight"],
-	"Adventure": ["landscape", "hero_left", "portrait_frame", "hero_center", "graveyard"],
-	"RPG": ["portrait_frame", "landscape", "group", "hero_left", "painted", "graveyard", "boss_fight"],
-	"Strategy": ["painted", "group", "landscape", "badge"],
+	"Action": ["hero_center", "action_diag", "versus", "spotlight", "panels", "group", "night_city", "night_city", "boss_fight", "duel"],
+	"Adventure": ["landscape", "hero_left", "portrait_frame", "hero_center", "graveyard", "army"],
+	"RPG": ["portrait_frame", "landscape", "group", "hero_left", "painted", "graveyard", "boss_fight", "army", "army"],
+	"Strategy": ["painted", "group", "landscape", "badge", "army", "army"],
 	"Shooter": ["space", "space", "space_duo", "spotlight", "night_city"],
 	"Racing": ["speed", "speed", "badge", "pop_grid", "night_city"],
-	"Fighting": ["versus", "versus", "spotlight", "hero_center", "night_city", "boss_fight"],
-	"Puzzle": ["pop_grid", "badge", "creature", "panels"],
+	"Fighting": ["versus", "versus", "spotlight", "hero_center", "night_city", "boss_fight", "duel"],
+	"Puzzle": ["pop_grid", "badge", "creature", "panels", "portrait_frame"],
 	"Sports": ["hero_center", "badge", "action_diag", "group"],
 	"Horror": ["spotlight", "landscape", "creature", "hero_left", "graveyard", "graveyard", "boss_fight"],
-	"Music": ["spotlight", "pop_grid", "group", "hero_center", "night_city"],
-	"Life Sim": ["landscape", "creature", "group", "hero_left"],
+	"Music": ["spotlight", "pop_grid", "group", "hero_center", "night_city", "portrait_frame"],
+	"Life Sim": ["landscape", "creature", "group", "hero_left", "portrait_frame"],
 }
 const HEROES := {
-	"Platformer": ["hero_cute", "hero_person", "hero_cute", "hero_pixel", "hero_ninja", "hero_pixel"],
-	"Action": ["hero_adventurer", "hero_person", "hero_robot", "hero_cyber", "hero_cyber", "hero_ninja", "hero_gothic"],
-	"Adventure": ["hero_adventurer", "hero_pixel", "hero_gothic"], "RPG": ["hero_adventurer", "hero_adventurer", "hero_robot", "hero_gothic", "hero_pixel"],
-	"Strategy": ["hero_adventurer", "hero_gothic"], "Shooter": ["ship"], "Racing": ["vehicle"],
-	"Fighting": ["hero_person", "hero_adventurer", "hero_robot", "hero_zombie", "hero_cyber", "hero_ninja", "hero_cyber"],
-	"Puzzle": ["animal", "hero_cute", "fish", "monster_chibi", "critter"], "Sports": ["hero_person"],
-	"Horror": ["hero_zombie", "hero_person", "hero_gothic", "hero_gothic"],
-	"Music": ["hero_person", "hero_robot", "hero_cyber"], "Life Sim": ["hero_person", "animal", "critter"],
+	"Platformer": ["hero_cute", "hero_person", "hero_cute", "hero_pixel", "hero_ninja", "hero_pixel", "hero_toon", "hero_toon", "hero_tiny"],
+	"Action": ["hero_adventurer", "hero_person", "hero_robot", "hero_cyber", "hero_cyber", "hero_ninja", "hero_gothic", "hero_western", "hero_fantasy", "hero_toon"],
+	"Adventure": ["hero_adventurer", "hero_pixel", "hero_gothic", "hero_fantasy", "hero_toon", "hero_tiny"],
+	"RPG": ["hero_adventurer", "hero_robot", "hero_gothic", "hero_pixel", "hero_fantasy", "hero_fantasy", "hero_fantasy", "hero_tiny"],
+	"Strategy": ["hero_adventurer", "hero_gothic", "hero_fantasy", "hero_fantasy"], "Shooter": ["ship"], "Racing": ["vehicle"],
+	"Fighting": ["hero_person", "hero_adventurer", "hero_robot", "hero_zombie", "hero_cyber", "hero_ninja", "hero_cyber", "hero_fantasy", "hero_western"],
+	"Puzzle": ["animal", "hero_cute", "fish", "monster_chibi", "critter", "monster_cute", "monster_cute"], "Sports": ["hero_person", "hero_toon"],
+	"Horror": ["hero_zombie", "hero_person", "hero_gothic", "hero_gothic", "hero_fantasy"],
+	"Music": ["hero_person", "hero_robot", "hero_cyber", "hero_toon"], "Life Sim": ["hero_person", "animal", "critter", "hero_toon", "hero_tiny", "monster_cute"],
 }
 const FOES := {
-	"Platformer": ["enemy", "critter", "monster_chibi", "enemy"], "Action": ["enemy", "hero_zombie", "hero_robot", "foe_cyber", "boss", "monster_gothic"],
-	"Adventure": ["enemy", "animal", "critter", "monster_chibi"], "RPG": ["enemy", "hero_zombie", "monster_gothic", "monster_gothic", "boss"],
-	"Strategy": ["hero_adventurer", "monster_gothic"], "Shooter": ["enemy_ship", "meteor"], "Racing": ["vehicle"],
-	"Fighting": ["hero_person", "hero_robot", "hero_zombie", "hero_cyber", "boss"],
-	"Puzzle": ["item", "animal", "monster_chibi"], "Sports": ["hero_person"], "Horror": ["hero_zombie", "enemy", "monster_gothic", "monster_gothic", "monster_chibi"],
-	"Music": ["hero_person", "hero_cyber"], "Life Sim": ["animal", "critter"],
+	"Platformer": ["enemy", "critter", "monster_chibi", "enemy", "monster_cute", "monster_cute", "monster_big"],
+	"Action": ["enemy", "hero_zombie", "hero_robot", "foe_cyber", "boss", "monster_gothic", "foe_doom", "foe_fantasy"],
+	"Adventure": ["enemy", "animal", "critter", "monster_chibi", "monster_big", "foe_fantasy", "monster_cute"],
+	"RPG": ["enemy", "hero_zombie", "monster_gothic", "boss", "foe_fantasy", "foe_fantasy", "monster_big", "monster_big"],
+	"Strategy": ["hero_adventurer", "monster_gothic", "foe_fantasy", "foe_fantasy"], "Shooter": ["enemy_ship", "meteor"], "Racing": ["vehicle"],
+	"Fighting": ["hero_person", "hero_robot", "hero_zombie", "hero_cyber", "boss", "foe_fantasy", "hero_western"],
+	"Puzzle": ["item", "animal", "monster_chibi", "monster_cute"], "Sports": ["hero_person", "hero_toon"],
+	"Horror": ["hero_zombie", "enemy", "monster_gothic", "monster_gothic", "monster_chibi", "foe_doom", "foe_doom", "foe_fantasy"],
+	"Music": ["hero_person", "hero_cyber", "hero_toon"], "Life Sim": ["animal", "critter", "monster_cute"],
 }
 ## Painted pixel-art scenes that suit each genre.
 const SCENES := {
@@ -222,7 +226,11 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 		"portrait_frame":
 			BoxArt.circle(holder, Vector2(w * 0.5, h * 0.48), minf(w, h) * 0.42, pal[3], 28)
 			BoxArt.circle(holder, Vector2(w * 0.5, h * 0.48), minf(w, h) * 0.38, pal[0], 28)
-			sprite(holder, pick(g, hc), Vector2(w * 0.5, h * 0.82), h * 0.6, g.randf() < 0.5, tint)
+			if g.randf() < 0.45:
+				# A character portrait fills the frame.
+				sprite(holder, pick(g, "portrait"), Vector2(w * 0.5, h * 0.48 + minf(w, h) * 0.3), minf(w, h) * 0.6)
+			else:
+				sprite(holder, pick(g, hc), Vector2(w * 0.5, h * 0.82), h * 0.6, g.randf() < 0.5, tint)
 			for k in 4:
 				var a := TAU * k / 4.0 + PI / 4.0
 				sprite(holder, pick(g, "item"), Vector2(w * 0.5, h * 0.52) + Vector2(cos(a), sin(a)) * minf(w, h) * 0.42, h * 0.1)
@@ -249,7 +257,14 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 			sprite(holder, pick(g, "vehicle"), Vector2(w * 0.5, h * 0.98), h * 0.6, false, Color.WHITE, 180.0)
 			sprite(holder, pick(g, "vehicle"), Vector2(w * 0.25, h * 0.62), h * 0.25, false, Color.WHITE, 180.0)
 		"creature":
-			var t2 := pick(g, hc if hc in ["animal", "fish", "enemy", "critter", "monster_chibi"] else ("monster_gothic" if genre == "Horror" else "animal"))
+			var close := "animal"
+			if hc in ["animal", "fish", "enemy", "critter", "monster_chibi", "monster_cute"]:
+				close = hc
+			elif genre == "Horror":
+				close = "foe_doom" if g.randf() < 0.5 else "monster_gothic"
+			elif g.randf() < 0.6:
+				close = "monster_cute" if genre in ["Puzzle", "Life Sim"] else "monster_big"
+			var t2 := pick(g, close)
 			sprite(holder, t2, Vector2(w * 0.55, h * 1.15), h * 0.95, g.randf() < 0.5, tint, g.randf_range(-10, 10))
 			sprite(holder, pick(g, "item"), Vector2(w * 0.18, h * 0.4), h * 0.14)
 		"landscape":
@@ -296,8 +311,29 @@ static func compose(c: Control, r: Rect2, genre: String, key: String, base: Colo
 			sprite(holder, pick(g, "hero_gothic"), Vector2(w * 0.3, h * 1.0), h * 0.6, false)
 		"boss_fight":
 			gradient(holder, rr, Color(pal[4], 0.0), Color(0.4, 0.0, 0.05, 0.45))
-			sprite(holder, pick(g, "boss" if g.randf() < 0.5 else ("monster_gothic" if genre in ["Horror", "RPG"] else fc)), Vector2(w * 0.62, h * 0.96), h * 0.8, true)
+			var big := "boss"
+			var roll := g.randf()
+			if genre == "Horror":
+				big = "foe_doom" if roll < 0.5 else "monster_gothic"
+			elif roll < 0.4:
+				big = "monster_big"
+			elif roll < 0.6:
+				big = fc
+			sprite(holder, pick(g, big), Vector2(w * 0.62, h * 0.96), h * 0.8, true)
 			sprite(holder, pick(g, hc), Vector2(w * 0.2, h * 1.0), h * 0.34, false, tint)
+		"duel":
+			# High-noon standoff: two figures facing off against a big sun.
+			BoxArt.circle(holder, Vector2(w * 0.5, h * 0.55), minf(w, h) * 0.34, Color(1.0, 0.85, 0.45, 0.9), 26)
+			BoxArt.rect(holder, Rect2(0, h * 0.82, w, h * 0.18), pal[2].darkened(0.3))
+			var dc := "hero_western" if g.randf() < 0.6 else hc
+			sprite(holder, pick(g, dc), Vector2(w * 0.22, h * 0.96), h * 0.5, false)
+			sprite(holder, pick(g, "hero_western" if dc == "hero_western" else fc), Vector2(w * 0.8, h * 0.96), h * 0.5, true)
+		"army":
+			# Two lines meet: the foe's horde behind, the heroes up front.
+			for k in 4:
+				sprite(holder, pick(g, "foe_fantasy"), Vector2(w * (0.55 + k * 0.14), h * (0.62 + (k % 2) * 0.06)), h * 0.28, true)
+			for k in 3:
+				sprite(holder, pick(g, "hero_fantasy"), Vector2(w * (0.12 + k * 0.2), h * (0.98 - (k % 2) * 0.05)), h * (0.42 if k == 1 else 0.36), false)
 	# Small foreground sparkle / coins on some covers.
 	if g.randf() < 0.35 and h > 60:
 		for k in 3:

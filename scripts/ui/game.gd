@@ -1417,6 +1417,7 @@ const CREDITS := [
 	"Cartridge models: Late 1980s Game Cartridges (OpenGameArt, CC-BY 3.0).",
 	"Textures: ambientCG (CC0). Fonts: Jersey 10/15, VT323 (OFL).",
 	"Cover art sprites: Kenney (CC0); Gothicvania, Warped City, Sunny Land, Magic Cliffs, Megabot, Legend of Faune, Fort of Illusion by ansimuz (CC0); Cyberpunk Street, Hell Hound, Chibi Monsters by Luis Zuno / ansimuz (CC-BY 3.0); 200 Starships; Ninja Adventure; Bosses and 3 Cyberpunk Characters by CraftPix (OGA-BY 3.0). Cover fonts: Google Fonts (OFL).",
+	"Cover characters: Superpowers asset packs (Sparklin Labs, CC0); Battle for Wesnoth units (GPL); Tuxemon monsters (CC-BY-SA); SuperTux creatures (GPL / CC-BY-SA); Freedoom (BSD); Shattered Pixel Dungeon by Evan Debenham (GPL).",
 	"Sounds: Kenney Casino, Interface Sounds and Music Jingles; 80 CC0 RPG SFX; 75 CC0 breaking/falling SFX.",
 	"Music: Kim Lightyear (Saw You In My Dreams, And Then We Left), The Cynic Project (Synthwave 4k, 421k), Dreamstate, Lights at Night (OpenGameArt). Ambience: Free General Ambience Sounds.",
 	"Full list with links: assets/sources.txt",
