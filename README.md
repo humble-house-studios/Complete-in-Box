@@ -3,7 +3,7 @@
 A Balatro/CloverPit-style roguelike about hunting, flipping and hoarding retro games.
 Built in Godot 4.3.
 
-**Play the latest build:** https://humble-house-studios.github.io/complete-in-box/
+**Play the latest build:** https://humble-house-studios.github.io/Complete-in-Box/
 
 Hold your phone upright for the mobile layout; turn it sideways for the Steam layout.
 Every push to `main` rebuilds that link (see `.github/workflows/deploy.yml`).
