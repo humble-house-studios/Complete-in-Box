@@ -1,0 +1,56 @@
+MORE N64 GAMES (a second pass on the Funtendo 64 library, roughly most to least collectible)
+Compiled Nov 2026 from general collector knowledge, not live price data. Read by tools/gen_catalog.py as its own section so the main top-500 ranks stay put.
+
+== N64 MORE ==
+1001. Clay Fighter: Sculptor's Cut
+1002. Stunt Racer 64
+1003. Bomberman 64: The Second Attack
+1004. Pokémon Puzzle League
+1005. Ogre Battle 64
+1006. Worms Armageddon
+1007. Indiana Jones and the Infernal Machine
+1008. Doom 64
+1009. Mega Man 64
+1010. Mystical Ninja Starring Goemon
+1011. Goemon's Great Adventure
+1012. Rocket: Robot on Wheels
+1013. Snowboard Kids 2
+1014. Star Wars: Rogue Squadron
+1015. Star Wars Episode I: Racer
+1016. Body Harvest
+1017. Glover
+1018. Bomberman Hero
+1019. Chameleon Twist
+1020. Buck Bumble
+1021. Gex 64: Enter the Gecko
+1022. Hey You, Pikachu!
+1023. Killer Instinct Gold
+1024. WWF No Mercy
+1025. Mario Party 2
+1026. Mario Party
+1027. Dr. Mario 64
+1028. Beetle Adventure Racing
+1029. San Francisco Rush 2049
+1030. Ridge Racer 64
+1031. Duke Nukem 64
+1032. Quake II
+1033. Hexen
+1034. Mortal Kombat Trilogy
+1035. Bio F.R.E.A.K.S.
+1036. Fighters Destiny
+1037. Gauntlet Legends
+1038. Rampage World Tour
+1039. Shadows of the Empire
+1040. Wipeout 64
+1041. Extreme-G
+1042. Top Gear Rally
+1043. Cruis'n World
+1044. Cruis'n USA
+1045. Road Rash 64
+1046. NFL Blitz
+1047. Ken Griffey Jr.'s Slugfest
+1048. Waialae Country Club Golf
+1049. Army Men: Sarge's Heroes
+1050. Tetrisphere
+1051. Toy Story 2
+1052. Superman 64

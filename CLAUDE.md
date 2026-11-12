@@ -40,6 +40,14 @@ The web build in Safari is the test for every platform.
   dither post shader); `item_models.gd` = a 3D model for every catalog item
   (real cart models + per-game labels, jewel cases, boxes, consoles, pads);
   `psx.gd` = shared PSX material + prop loader. Shaders in `assets/shaders/`.
+- `perk_art.gd` = perk/upgrade card art: a themed background per perk (`THEMES`:
+  sunrise, basement bricks, ocean, price list, synthwave...) + its 3D picture (`Subjects.PERKS`).
+  `subjects.gd` and `perk_art.gd` have no class_name (TV self-update): preload them.
+- Discs show their data side with a diffraction rainbow (`assets/shaders/disc_back.gdshader`,
+  black on PST/PST2). F64 carts use a real N64-shell model (`n64Cartridge.glb`, from a
+  Printables STL via `tools/stl_to_glb.py`; Printables' GraphQL API downloads STLs).
+- Extra games come from `docs/research/retro_gaming_n64_more.txt` (own section, so the
+  top-500 ranks stay put); `GENRE_EXACT` in gen_catalog.py sets their genres.
 - Ask before adding any addon beyond GUT.
 
 ## Art + sound
@@ -137,7 +145,12 @@ The web build in Safari is the test for every platform.
   `python3 tools/gen_cover_sprites.py SRC SRC2 SRC3`; it wipes the folder, so
   `git checkout` the old `.import` files after to keep their uids), seeded palettes, ~16
   layouts per genre, genre title fonts (`assets/fonts/cover/`, OFL), a logo
-  badge + stripe per publisher. Hardware boxes show a render of the product. Check it with
+  badge + stripe per publisher. Covers also show what the title is about: glossy CG
+  renders (`assets/sprites/subject/`, Microsoft Fluent 3D emoji, MIT) picked from title
+  words (`Subjects.WORDS`, then generic `WEAK`, then `GENRE`), drawn by `CoverComp._compose_cg`
+  (or as a corner prop on pixel covers). Edit `tools/gen_subjects.py` (needs a sparse clone
+  of github.com/microsoft/fluentui-emoji), never `scripts/gfx/subjects.gd`; it writes lossy
+  imports. Hardware boxes show a render of the product. Check it with
   `xvfb-run ... -s res://tools/art_sheet.gd -- OUT.png [seed]`.
 - Check rooms: `xvfb-run ... -s res://tools/stage_shots.gd -- OUT_DIR [landscape]`.
 - Headless runs skip building the 3D stage (no renderer), so tests stay fast.

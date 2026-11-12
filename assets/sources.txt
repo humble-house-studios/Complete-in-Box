@@ -62,3 +62,9 @@ assets/sprites/cover (Tuxemon monster battle sprites and player characters; CC-B
 assets/sprites/cover (SuperTux creatures; GPL / CC-BY-SA) | https://github.com/SuperTux/supertux/tree/master/data/images/creatures | 2026-11-12
 assets/sprites/cover (Freedoom monster sprites; BSD) | https://github.com/freedoom/freedoom/tree/master/sprites | 2026-11-12
 assets/sprites/cover (Shattered Pixel Dungeon mob sprites; GPL) | https://github.com/00-Evan/shattered-pixel-dungeon/tree/master/core/src/main/assets/sprites | 2026-11-12
+assets/models/items/n64Cartridge.glb | https://www.printables.com/model/166312-n64-cartridge (STL, converted by tools/stl_to_glb.py) | 2026-11-12
+assets/textures/paper006.png | https://ambientcg.com/view?id=Paper006 | 2026-11-12
+assets/textures/paper001.png | https://ambientcg.com/view?id=Paper001 | 2026-11-12
+assets/textures/metal032.png | https://ambientcg.com/view?id=Metal032 | 2026-11-12
+assets/textures/fabric061.png | https://ambientcg.com/view?id=Fabric061 | 2026-11-12
+assets/sprites/subject (Microsoft Fluent 3D emoji, MIT; curated by tools/gen_subjects.py) | https://github.com/microsoft/fluentui-emoji | 2026-11-12

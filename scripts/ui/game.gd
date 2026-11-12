@@ -3127,6 +3127,8 @@ func _venue_facts(d: Dictionary) -> String:
 	return " | ".join(bits)
 
 
+const PERK_ART := preload("res://scripts/gfx/perk_art.gd")
+
 ## Perk families: colour + label for the card frame.
 const PERK_CATS := {
 	"hunt": ["THE HUNT", Color("ff9a3d")], "appraisal": ["APPRAISAL", Color("c77dff")],
@@ -3147,7 +3149,9 @@ func _perk_badge(desc: String, name: String) -> String:
 	var m := re.search(desc)
 	if m != null:
 		return m.get_string()
-	return name.left(1)
+	if "double" in desc.to_lower() or "twice" in desc.to_lower():
+		return "x2"
+	return ""
 
 
 ## Trading-card style perk: category header, striped art panel with a big
@@ -3156,7 +3160,7 @@ func _perk_card(id: String, w: float, owned: bool) -> Button:
 	var d := Perks.get_def(id)
 	var cat: Array = PERK_CATS[PERK_CAT_OF.get(id, "appraisal")]
 	var col: Color = cat[1]
-	var b := _card_shell(w, 250, col if not owned else GOOD, func(): _open_perk(id, owned), PANEL)
+	var b := _card_shell(w, 290, col if not owned else GOOD, func(): _open_perk(id, owned), PANEL)
 	var v := _card_inner(b)
 	var head := _hbox(6)
 	head.add_child(_pill(String(cat[0]), col, 13))
@@ -3164,7 +3168,7 @@ func _perk_card(id: String, w: float, owned: bool) -> Button:
 	if owned:
 		head.add_child(_pill("OWNED", GOOD, 13))
 	v.add_child(head)
-	v.add_child(_perk_art(_perk_badge(String(d["desc"]), String(d["name"])), col))
+	v.add_child(PERK_ART.make(id, col, _perk_badge(String(d["desc"]), String(d["name"])), 118))
 	var nm := _title_label(String(d["name"]), 22, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(nm)
@@ -3183,62 +3187,12 @@ func _perk_card(id: String, w: float, owned: bool) -> Button:
 	return b
 
 
-static var _stripe_cache: Dictionary = {}
-
-
-## Diagonal-striped art window with a round badge in the middle.
-func _perk_art(badge: String, col: Color) -> Control:
-	var key := col.to_html()
-	if not _stripe_cache.has(key):
-		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-		for y in 32:
-			for x in 32:
-				var on := ((x + y) / 6) % 2 == 0
-				img.set_pixel(x, y, col.darkened(0.55) if on else col.darkened(0.7))
-		_stripe_cache[key] = ImageTexture.create_from_image(img)
-	var pc := PanelContainer.new()
-	var ps := StyleBoxFlat.new()
-	ps.bg_color = col.darkened(0.7)
-	ps.set_corner_radius_all(6)
-	ps.set_border_width_all(2)
-	ps.border_color = Color(col, 0.6)
-	pc.add_theme_stylebox_override("panel", ps)
-	pc.custom_minimum_size = Vector2(0, 72)
-	var tr := TextureRect.new()
-	tr.texture = _stripe_cache[key]
-	tr.stretch_mode = TextureRect.STRETCH_TILE
-	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	pc.add_child(tr)
-	var cc := CenterContainer.new()
-	pc.add_child(cc)
-	var disc := PanelContainer.new()
-	var ds := StyleBoxFlat.new()
-	ds.bg_color = col
-	ds.set_corner_radius_all(40)
-	ds.set_border_width_all(3)
-	ds.border_color = Color(1, 1, 1, 0.85)
-	ds.content_margin_left = 14
-	ds.content_margin_right = 14
-	ds.shadow_color = Color(0, 0, 0, 0.5)
-	ds.shadow_size = 3
-	ds.shadow_offset = Vector2(0, 3)
-	disc.add_theme_stylebox_override("panel", ds)
-	var l := _title_label(badge, 30, DARK_TXT)
-	l.add_theme_constant_override("outline_size", 0)
-	l.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.3))
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	disc.add_child(l)
-	cc.add_child(disc)
-	return pc
-
-
 func _upgrade_card(w: float) -> Button:
 	var d := run.upgrade_offer
-	var b := _card_shell(w, 250, GOLD, func(): _open_upgrade(), Color(0.17, 0.13, 0.2, 0.93))
+	var b := _card_shell(w, 290, GOLD, func(): _open_upgrade(), Color(0.17, 0.13, 0.2, 0.93))
 	var v := _card_inner(b)
 	v.add_child(_pill("UPGRADE - LASTS ALL RUN", GOLD, 13))
-	v.add_child(_perk_art(_perk_badge(String(d["desc"]), String(d["name"])), GOLD))
+	v.add_child(PERK_ART.make("up_" + String(d.get("id", "")), GOLD, _perk_badge(String(d["desc"]), String(d["name"])), 118))
 	var nm := _title_label(String(d["name"]), 22, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(nm)
