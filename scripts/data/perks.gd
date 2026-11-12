@@ -15,9 +15,9 @@ const LIST := [
 	{"id": "moms_basement", "name": "Mom's Basement", "cost": 6, "desc": "+2 shelf slots."},
 	{"id": "power_seller", "name": "Power Seller", "cost": 6, "desc": "Online: no seller fees, your auctions sell 15% higher."},
 	{"id": "sticker_gun", "name": "Price Sticker Gun", "cost": 4, "desc": "+$8 appraisal per item on your shelf."},
-	{"id": "funtendo_kid", "name": "Funtendo Kid", "cost": 6, "desc": "+0.3 Mult per Funtendo item (FES, SFES, F64, PBOY, PBA, CUBE, DUO)."},
-	{"id": "saga_does", "name": "Saga Does", "cost": 6, "desc": "+0.5 Mult per Saga item (GEN, DC, SAT)."},
-	{"id": "disc_jockey", "name": "Disc Jockey", "cost": 6, "desc": "Disc games (PST, PST2, DC, SAT, CUBE, XBUX) appraise for x2."},
+	{"id": "funtendo_kid", "market": "games", "name": "Funtendo Kid", "cost": 6, "desc": "+0.3 Mult per Funtendo item (FES, SFES, F64, PBOY, PBA, CUBE, DUO)."},
+	{"id": "saga_does", "market": "games", "name": "Saga Does", "cost": 6, "desc": "+0.5 Mult per Saga item (GEN, DC, SAT)."},
+	{"id": "disc_jockey", "market": "games", "name": "Disc Jockey", "cost": 6, "desc": "Disc games (PST, PST2, DC, SAT, CUBE, XBUX) appraise for x2."},
 	{"id": "completionist", "name": "Completionist", "cost": 8, "desc": "Platform Set bonuses count double."},
 	{"id": "piggy_bank", "name": "Piggy Bank", "cost": 5, "desc": "Interest cap raised from $5 to $12."},
 	{"id": "lucky_lots", "name": "Lucky Lots", "cost": 6, "desc": "Mystery lots hold +1 item and roll a tier higher."},
@@ -31,8 +31,11 @@ const LIST := [
 	{"id": "coupon", "name": "Coupon Clipper", "cost": 5, "desc": "Everything you buy is 15% cheaper."},
 	{"id": "eagle_eye", "name": "Eagle Eye", "cost": 6, "desc": "Hunt items have a 25% chance to be a condition better."},
 	{"id": "whale", "name": "Whale Watcher", "cost": 8, "desc": "+2 Mult per GRAIL on your shelf."},
-	{"id": "lunchbox", "name": "Lunchbox Display", "cost": 5, "desc": "Accessories appraise for x3."},
-	{"id": "console_wars", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
+	{"id": "lunchbox", "market": "games", "name": "Lunchbox Display", "cost": 5, "desc": "Accessories appraise for x3."},
+	{"id": "pack_rat", "market": "cards", "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
+	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
+	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
+	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
 ]
 
 ## One-off upgrades offered at Home (Balatro's vouchers).

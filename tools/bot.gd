@@ -5,6 +5,8 @@ extends RefCounted
 
 var run: Run
 var rng := RandomNumberGenerator.new()
+## Take the card / coin market flips when they're offered.
+var pivots := true
 
 
 func _init(r: Run, seed_value: int = 1) -> void:
@@ -21,6 +23,8 @@ func _guess(o: Dictionary) -> float:
 
 ## Plays from Home through the stop's appraisal. Returns end_stop()'s result.
 func play_stop() -> Dictionary:
+	if pivots and run.pivot_offer() != "":
+		run.pivot(run.pivot_offer())
 	_shop_home()
 	var choice: String = run.venue_choices[rng.randi_range(0, run.venue_choices.size() - 1)]
 	run.enter_venue(choice)

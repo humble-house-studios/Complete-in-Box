@@ -33,7 +33,29 @@ const PLATFORMS := {
 	"PST": {"name": "PlayStatia", "short": "PST", "color": Color("8c96a8"), "family": "statia"},
 	"A26": {"name": "Ataro 2600", "short": "A26", "color": Color("a8703a"), "family": "ataro"},
 	"MISC": {"name": "Memorabilia", "short": "MISC", "color": Color("c9a227"), "family": "misc"},
+	# Trading cards (the card-shop market, from ante 5 if you flip into it).
+	"CRIT": {"name": "Pocket Critters TCG", "short": "CRIT", "color": Color("f2c230"), "family": "critco", "market": "cards"},
+	"MAGI": {"name": "Magick: The Gatherening", "short": "MAGI", "color": Color("b5683a"), "family": "lizards", "market": "cards"},
+	"YUGI": {"name": "Yu-Gi-Whoa!", "short": "YUGI", "color": Color("9a4fd6"), "family": "konamo", "market": "cards"},
+	"ALT": {"name": "Other TCGs", "short": "ALT", "color": Color("3fb3a8"), "family": "tcg", "market": "cards"},
+	# Rare coins (the coin market, from ante 7 if you flip into it).
+	"CENT": {"name": "Copper & Nickel", "short": "CENT", "color": Color("c8743c"), "family": "usmint", "market": "coins"},
+	"SILV": {"name": "US Silver", "short": "SILV", "color": Color("b9c3d1"), "family": "usmint", "market": "coins"},
+	"GOLD": {"name": "US Gold", "short": "GOLD", "color": Color("e8b923"), "family": "usmint", "market": "coins"},
+	"WRLD": {"name": "World Coins", "short": "WRLD", "color": Color("4f9ad9"), "family": "world", "market": "coins"},
+	"ANCT": {"name": "Ancient Coins", "short": "ANCT", "color": Color("8f7a4a"), "family": "ancient", "market": "coins"},
 }
+
+## What the run deals in. Every platform belongs to one (games unless it says).
+## After ante 4 you may flip your whole shelf into cards; after ante 6 into coins.
+const MARKETS := {
+	"games": {"name": "Retro Games", "short": "GAMES", "color": Color("ffcc33")},
+	"cards": {"name": "Trading Cards", "short": "CARDS", "color": Color("f2c230")},
+	"coins": {"name": "Rare Coins", "short": "COINS", "color": Color("e8b923")},
+}
+## Kinds per market: games use game/console/acc/misc, cards card/pack, coins coin.
+const CC_KINDS := ["card", "pack", "coin"]
+const CC := preload("res://scripts/data/catalog_cc.gd")
 
 const TIER_NAMES := ["Common", "Uncommon", "Rare", "GRAIL"]
 const TIER_COLORS := [Color("b8b8b8"), Color("5ec46a"), Color("4fa3ff"), Color("ffcc33")]
@@ -129,19 +151,25 @@ const CONDITIONS := ["Damaged", "Loose", "CIB", "Mint", "Sealed"]
 const COND_MULT := {"Damaged": 0.4, "Loose": 1.0, "CIB": 2.2, "Mint": 3.5, "Sealed": 7.0}
 const COND_SHORT := {"Damaged": "DMG", "Loose": "LOOSE", "CIB": "CIB", "Mint": "MINT", "Sealed": "SEALED"}
 const COND_COLORS := {"Damaged": Color("b04a4a"), "Loose": Color("9a9a9a"), "CIB": Color("4fa3ff"), "Mint": Color("5ee0b0"), "Sealed": Color("ffcc33")}
+## The same five steps in each hobby's own words: [full name, short tag].
+const COND_WORDS := {
+	"card": {"Damaged": ["Creased", "CREASED"], "Loose": ["Played", "PLAYED"], "CIB": ["Near Mint", "NM"], "Mint": ["Gem Mint", "GEM"], "Sealed": ["Pack Fresh", "FRESH"]},
+	"pack": {"Damaged": ["Crushed", "CRUSHED"], "Loose": ["Shelf Worn", "WORN"], "CIB": ["Sealed", "SEALED"], "Mint": ["Factory Sealed", "FACTORY"], "Sealed": ["Case Fresh", "CASE"]},
+	"coin": {"Damaged": ["Holed", "HOLED"], "Loose": ["Circulated", "CIRC"], "CIB": ["About Unc", "AU"], "Mint": ["Mint State", "MS"], "Sealed": ["Proof", "PROOF"]},
+}
 
 ## Variants a copy can roll. mult = value multiplier, w = roll weight,
 ## kinds = which item kinds can get it. See variant_label() for family names.
 const VARIANTS := {
-	"Standard": {"mult": 1.0, "w": 70.0, "kinds": ["game", "console", "acc", "misc"], "color": Color("9a93ab"), "desc": "The regular retail release."},
+	"Standard": {"mult": 1.0, "w": 70.0, "kinds": ["game", "console", "acc", "misc", "card", "pack", "coin"], "color": Color("9a93ab"), "desc": "The regular retail release."},
 	"Player's Pick": {"mult": 0.8, "w": 9.0, "kinds": ["game"], "color": Color("e6d34a"), "desc": "Budget re-release with the coloured banner. Collectors shrug."},
 	"Black Label": {"mult": 1.25, "w": 7.0, "kinds": ["game"], "color": Color("2b2b2b"), "desc": "Original print, before the budget re-releases."},
 	"First Print": {"mult": 1.6, "w": 5.0, "kinds": ["game"], "color": Color("4fa3ff"), "desc": "From the very first production run."},
-	"Japan Import": {"mult": 0.9, "w": 6.0, "kinds": ["game", "console"], "color": Color("ff6b6b"), "desc": "Japanese release. Different art, same game."},
+	"Japan Import": {"mult": 0.9, "w": 6.0, "kinds": ["game", "console", "card", "pack"], "color": Color("ff6b6b"), "desc": "Japanese release. Different art, same game."},
 	"Rental Copy": {"mult": 0.6, "w": 4.0, "kinds": ["game"], "color": Color("3a6fd6"), "desc": "Blockbluster Video sticker on the front. Well loved."},
 	"Collector's Edition": {"mult": 2.2, "w": 1.2, "kinds": ["game"], "color": Color("d4af37"), "desc": "Big box, art book, pin. The works."},
 	"Signed by Dev": {"mult": 2.4, "w": 0.6, "kinds": ["game"], "color": Color("ff8a3d"), "desc": "Signed in silver marker by someone who made it."},
-	"Misprint": {"mult": 3.5, "w": 0.8, "kinds": ["game"], "color": Color("ff5577"), "desc": "Label printed wrong at the factory. Very few escaped."},
+	"Misprint": {"mult": 3.5, "w": 0.8, "kinds": ["game", "card"], "color": Color("ff5577"), "desc": "Label printed wrong at the factory. Very few escaped."},
 	"Test Cart": {"mult": 6.0, "w": 0.25, "kinds": ["game"], "color": Color("5ee08a"), "desc": "Pre-release test copy with a handwritten label."},
 	"Launch Edition": {"mult": 1.4, "w": 8.0, "kinds": ["console"], "color": Color("4fa3ff"), "desc": "From the launch-day shipment."},
 	"Boxed Bundle": {"mult": 1.3, "w": 8.0, "kinds": ["console", "acc"], "color": Color("e6d34a"), "desc": "Still with the bundle box and inserts."},
@@ -149,6 +177,25 @@ const VARIANTS := {
 	"Limited Color": {"mult": 1.8, "w": 2.0, "kinds": ["console", "acc"], "color": Color("b07cff"), "desc": "Short-run colourway."},
 	"Store Display": {"mult": 2.6, "w": 0.8, "kinds": ["console", "acc", "misc"], "color": Color("ff8a3d"), "desc": "Pulled from a store kiosk. Bolted down once."},
 	"Prototype": {"mult": 7.0, "w": 0.15, "kinds": ["console", "acc"], "color": Color("5ee08a"), "desc": "Pre-production hardware. Probably shouldn't exist."},
+	# Cards
+	"1st Edition": {"mult": 2.2, "w": 6.0, "kinds": ["card", "pack"], "color": Color("2b2b2b"), "desc": "The black 1st Edition stamp. The first print run, and everyone knows it."},
+	"Shadowless": {"mult": 1.6, "w": 4.0, "kinds": ["card"], "color": Color("9a93ab"), "desc": "Early print with no drop shadow on the art box."},
+	"Holo Foil": {"mult": 1.5, "w": 9.0, "kinds": ["card"], "color": Color("b07cff"), "desc": "Foil art that throws rainbows under a lamp."},
+	"Reverse Holo": {"mult": 1.15, "w": 9.0, "kinds": ["card"], "color": Color("4fa3ff"), "desc": "Shiny everywhere except the art. Nice, not wild."},
+	"Promo Stamp": {"mult": 1.4, "w": 3.0, "kinds": ["card"], "color": Color("e6d34a"), "desc": "Event stamp in the corner. Handed out once, never again."},
+	"Signed by Artist": {"mult": 2.4, "w": 0.6, "kinds": ["card"], "color": Color("ff8a3d"), "desc": "Signed in silver by the illustrator at a con."},
+	"Playtest Card": {"mult": 6.0, "w": 0.25, "kinds": ["card"], "color": Color("5ee08a"), "desc": "Pre-release playtest print. Plain border, handwritten notes."},
+	"Heavy Pack": {"mult": 1.6, "w": 4.0, "kinds": ["pack"], "color": Color("e6d34a"), "desc": "Weighs a gram heavier than the rest. Probably a holo inside."},
+	"Resealed?": {"mult": 0.45, "w": 2.5, "kinds": ["pack"], "color": Color("b04a4a"), "desc": "The crimps look... glued. Buyer beware."},
+	# Coins
+	"Proof-Like": {"mult": 1.6, "w": 5.0, "kinds": ["coin"], "color": Color("dfe8ff"), "desc": "Mirror fields from fresh dies. Shines like a proof."},
+	"Rainbow Toned": {"mult": 1.5, "w": 6.0, "kinds": ["coin"], "color": Color("b07cff"), "desc": "Decades in an album gave it a rainbow. Collectors swoon."},
+	"Deep Cameo": {"mult": 1.9, "w": 2.5, "kinds": ["coin"], "color": Color("f5f5ff"), "desc": "Frosted design on black mirror fields."},
+	"Doubled Die": {"mult": 4.0, "w": 0.6, "kinds": ["coin"], "color": Color("ff5577"), "desc": "The die was struck twice off-line: the letters show double."},
+	"Off-Center": {"mult": 2.2, "w": 1.0, "kinds": ["coin"], "color": Color("ff8a3d"), "desc": "Struck off-centre at the mint. A famous kind of error."},
+	"Pedigree": {"mult": 2.5, "w": 0.8, "kinds": ["coin"], "color": Color("d4af37"), "desc": "From a famous old collection, named on the slab."},
+	"Restrike": {"mult": 0.6, "w": 4.0, "kinds": ["coin"], "color": Color("9a9a9a"), "desc": "Struck later from the old dies. Real metal, not the real date."},
+	"Pattern": {"mult": 7.0, "w": 0.15, "kinds": ["coin"], "color": Color("5ee08a"), "desc": "A trial design that was never adopted. Hardly any exist."},
 }
 
 static var _by_id: Dictionary = {}
@@ -159,7 +206,8 @@ const ERA := {"FES": [1985, 1994], "SFES": [1991, 1998], "F64": [1996, 2002], "P
 	"PST": [1995, 2004], "PST2": [2000, 2009], "PSPK": [2005, 2012], "FCUBE": [2001, 2007], "XBX": [2001, 2010],
 	"DC": [1999, 2007], "GEN": [1989, 1997], "SAT": [1995, 1999], "NEO": [1990, 2006], "A26": [1977, 1990],
 	"DUO": [2006, 2010], "ODD": [1991, 1998], "MISC": [1988, 2000]}
-const MAKERS := {"funtendo": "Funtendo", "statia": "Sonny", "xbux": "Microsloth", "saga": "Saga", "snc": "SNC", "ataro": "Ataro", "odd": "Oddware Labs", "misc": "Various"}
+const MAKERS := {"funtendo": "Funtendo", "statia": "Sonny", "xbux": "Microsloth", "saga": "Saga", "snc": "SNC", "ataro": "Ataro", "odd": "Oddware Labs", "misc": "Various",
+	"critco": "Critter Co.", "lizards": "Lizards of the Coast", "konamo": "Konamo", "tcg": "Various", "usmint": "U.S. Mint", "world": "Various mints", "ancient": "Ancient mints"}
 
 
 static func _build_items() -> Array:
@@ -179,7 +227,46 @@ static func _build_items() -> Array:
 		out.append(e)
 	for d in CatalogItems.ITEMS:
 		out.append(d)
+	for d in CC.CARDS:
+		out.append(d)
+	for d in CC.COINS:
+		out.append(d)
 	return out
+
+
+## Which market a platform belongs to (games, cards or coins).
+static func market_of(plat: String) -> String:
+	return String(PLATFORMS.get(plat, PLATFORMS["MISC"]).get("market", "games"))
+
+
+static func is_cc(item: Dictionary) -> bool:
+	return CC_KINDS.has(String(item.get("kind", "game")))
+
+
+static var _by_market: Dictionary = {}
+
+
+## Every catalog def in one market.
+static func items_of(market: String) -> Array:
+	if _by_market.is_empty():
+		for m in MARKETS:
+			_by_market[m] = []
+		for d in ITEMS:
+			(_by_market[market_of(String(d["plat"]))] as Array).append(d)
+	return _by_market.get(market, [])
+
+
+## Condition in the item's own hobby words ("Near Mint", "Mint State"...).
+static func cond_name(item: Dictionary) -> String:
+	var c := String(item.get("cond", "Loose"))
+	var w: Dictionary = COND_WORDS.get(String(item.get("kind", "game")), {})
+	return String(w[c][0]) if w.has(c) else c
+
+
+static func cond_short(item: Dictionary) -> String:
+	var c := String(item.get("cond", "Loose"))
+	var w: Dictionary = COND_WORDS.get(String(item.get("kind", "game")), {})
+	return String(w[c][1]) if w.has(c) else String(COND_SHORT.get(c, c))
 
 
 ## Family-specific name for a variant (budget lines, demo discs...).
@@ -190,6 +277,10 @@ static func variant_label(item: Dictionary) -> String:
 		return {"funtendo": "Player's Pick", "statia": "Greatest Hiss", "saga": "Saga All-Stars", "xbux": "Plutonium Hits"}.get(fam, "Budget Line")
 	if v == "Test Cart" and (item.get("tags", []) as Array).has("disc"):
 		return "Demo Disc"
+	if v == "Misprint" and String(item.get("kind", "")) == "card":
+		return "Error Print"
+	if v == "Japan Import" and is_cc(item):
+		return "Japanese Print"
 	return v
 
 
@@ -247,6 +338,31 @@ static func variant_weights(def: Dictionary, ctx: Dictionary = {}) -> Dictionary
 			"Launch Edition":
 				if year > 0 and year > 2003:
 					w *= 0.7
+			"1st Edition", "Shadowless":
+				# Only the old Critter sets had 1st Edition / Shadowless runs.
+				if fam != "critco" and fam != "konamo" or year > 2003:
+					w *= 0.05 if k == "Shadowless" else 0.3
+				if k == "Shadowless" and fam != "critco":
+					w = 0.0
+			"Holo Foil", "Reverse Holo":
+				if year > 0 and year < 1995 and fam == "lizards":
+					w = 0.0  # no foils in the early Magick sets
+			"Rainbow Toned", "Proof-Like", "Deep Cameo":
+				var metal := String(def.get("metal", ""))
+				if not metal.contains("silver") and k != "Proof-Like":
+					w *= 0.15
+				if fam == "ancient":
+					w = 0.0
+			"Doubled Die", "Off-Center":
+				if (def.get("tags", []) as Array).has("error"):
+					w = 0.0  # already an error coin
+				if fam == "ancient" and k == "Doubled Die":
+					w = 0.0
+			"Restrike":
+				if fam == "usmint":
+					w *= 0.2
+			"Pedigree":
+				w *= 1.0 + 0.6 * tier
 		if w > 0.0:
 			out[k] = w
 	if out.is_empty():
@@ -289,7 +405,7 @@ static func odds(item: Dictionary) -> int:
 	if def.is_empty():
 		def = item
 	var sum := 0.0
-	for d in defs_of_tier(tier):
+	for d in defs_of_tier(tier, market_of(String(def.get("plat", "MISC")))):
 		sum += scarcity_weight(d)
 	var in_tier := scarcity_weight(def) / maxf(sum, 0.001)
 	var ws := variant_weights(def)
@@ -307,13 +423,16 @@ static func get_def(id: String) -> Dictionary:
 	return _by_id.get(id, {})
 
 
-static func defs_of_tier(tier: int) -> Array:
+## Defs of one rarity tier, in one market ("" = every market).
+static func defs_of_tier(tier: int, market: String = "") -> Array:
 	if _by_tier.is_empty():
-		for t in 4:
-			_by_tier[t] = []
 		for d in ITEMS:
-			(_by_tier[int(d["tier"])] as Array).append(d)
-	return _by_tier.get(tier, [])
+			for k in ["", market_of(String(d["plat"]))]:
+				var key := "%s%d" % [k, int(d["tier"])]
+				if not _by_tier.has(key):
+					_by_tier[key] = []
+				(_by_tier[key] as Array).append(d)
+	return _by_tier.get("%s%d" % [market, tier], [])
 
 
 static func platform(code: String) -> Dictionary:

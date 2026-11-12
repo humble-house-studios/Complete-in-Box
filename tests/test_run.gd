@@ -22,7 +22,7 @@ func test_catalog_is_sane() -> void:
 		assert_false(ids.has(d["id"]), "duplicate id " + d["id"])
 		ids[d["id"]] = true
 		assert_true(Catalog.PLATFORMS.has(d["plat"]), "bad platform on " + d["id"])
-		assert_true(["game", "console", "acc", "misc"].has(d["kind"]), "bad kind on " + d["id"])
+		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin"].has(d["kind"]), "bad kind on " + d["id"])
 		assert_between(int(d["tier"]), 0, 3)
 		assert_gt(int(d["base"]), 0)
 	for t in 4:
@@ -38,6 +38,8 @@ func test_every_perk_and_venue_has_what_the_ui_needs() -> void:
 			assert_true(v.has(k), "%s missing %s" % [v["id"], k])
 		assert_eq((v["cond"] as Array).size(), Catalog.CONDITIONS.size())
 	for slot in Venues.SLOTS:
+		for m in ["cards", "coins"]:
+			assert_gt(Venues.unlocked(slot, 5, m).size(), 0, "%s has a %s venue" % [m, slot])
 		assert_eq(Venues.unlocked(slot, 1).size(), 1, "one %s venue at ante 1" % slot)
 		assert_gt(Venues.unlocked(slot, 8).size(), 1, "more %s venues later" % slot)
 
@@ -376,3 +378,59 @@ func test_history_differs_between_items_and_copies() -> void:
 	assert_ne(str(Flavor.history(a, {"uid": 1})), str(Flavor.history(b, {"uid": 1})))
 	assert_ne(Flavor.provenance(a, {"uid": 1}, Flavor.facts(a)), Flavor.provenance(a, {"uid": 2}, Flavor.facts(a)))
 	assert_eq(str(Flavor.facts(a)), str(Flavor.facts(a)), "facts are stable per item")
+
+
+# ---------------------------------------------------------------- cards + coins
+
+func test_card_and_coin_catalogs() -> void:
+	assert_eq(Catalog.items_of("cards").size(), 250)
+	assert_eq(Catalog.items_of("coins").size(), 250)
+	for m in ["cards", "coins"]:
+		for t in 4:
+			assert_gt(Catalog.defs_of_tier(t, m).size(), 0, "%s tier %d" % [m, t])
+
+
+func test_flip_into_cards_then_coins() -> void:
+	var r := _new_run(11)
+	assert_eq(r.pivot_offer(), "", "no flip at ante 1")
+	r.ante = 5
+	r._prepare_home()
+	assert_eq(r.pivot_offer(), "cards")
+	var cash := r.cash
+	var worth := r.pivot_value()
+	var res := r.pivot("cards")
+	assert_true(bool(res["ok"]))
+	assert_eq(r.market, "cards")
+	assert_eq(r.cash, cash + worth)
+	assert_eq(r.shelf.size(), Balance.PIVOT_STARTERS)
+	for it in r.shelf:
+		assert_eq(Catalog.market_of(String(it["plat"])), "cards")
+	for id in r.venue_choices:
+		assert_eq(Venues.market(String(id)), "cards")
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_true(["card", "pack"].has(String(o["item"]["kind"])))
+	r.phase = Run.Phase.HOME
+	r.ante = 7
+	r.stop = 0
+	r._prepare_home()
+	assert_eq(r.pivot_offer(), "coins")
+	assert_true(bool(r.pivot("coins")["ok"]))
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_eq(String(o["item"]["kind"]), "coin")
+
+
+func test_ripping_a_pack() -> void:
+	var r := _new_run(3)
+	r.market = "cards"
+	r.shelf.clear()
+	r.shelf_cap = 20
+	var pk := _item(r, "crit_base_set_booster_box", "CIB")
+	r.shelf.append(pk)
+	var res := r.open_pack(int(pk["uid"]))
+	assert_true(bool(res["ok"]))
+	assert_eq(r.shelf.size(), Balance.OPEN_BOX)
+	for it in r.shelf:
+		assert_eq(String(it["plat"]), "CRIT")
+		assert_eq(String(it["kind"]), "card")

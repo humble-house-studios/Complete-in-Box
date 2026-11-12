@@ -133,6 +133,14 @@ static func build(item: Dictionary, label: Texture2D = null, boxed: int = -1) ->
 	var col: Color = Catalog.platform(plat)["color"]
 	var model := Node3D.new()
 	var size_key := kind
+	if Catalog.is_cc(item):
+		var real := _collectible(model, item, label)
+		var holder2 := Node3D.new()
+		holder2.add_child(model)
+		_fit(model, real)
+		if String(item.get("cond", "")) == "Damaged":
+			_tint(model, Color(0.78, 0.7, 0.62))
+		return holder2
 	if kind == "game":
 		if box:
 			_retail_box(model, GAME_BOX.get(plat, Vector3(0.72, 1.0, 0.17)), label, col, plat, true, item)
@@ -873,6 +881,173 @@ static func _platform_pad(model: Node3D, item: Dictionary, plat: String, col: Co
 			_pad(model, dark, 0.9, [Color(0.3, 0.3, 0.32), Color(0.3, 0.3, 0.32), Color(0.3, 0.3, 0.32)])
 		_:
 			_pad(model, Psx.mat(shell), 1.0, [Color(0.85, 0.2, 0.2), Color(0.95, 0.8, 0.2), Color(0.2, 0.6, 0.3), Color(0.25, 0.35, 0.8)])
+
+
+# ---------------------------------------------------------------- cards + coins
+
+## Real sizes (metres, longest side) of card and coin holders.
+const REAL_CC := {"card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
+	"deck": 0.1, "flip": 0.051, "coin_slab": 0.085, "proof_case": 0.09}
+
+
+static func _clear_mat() -> ShaderMaterial:
+	return Psx.mat(Color(0.82, 0.9, 0.98), null, Vector2.ONE, 0.25)
+
+
+## A thin card standing up, face +Z, with its back painted too.
+static func _card_face(model: Node3D, item: Dictionary, label: Texture2D, at: Vector3, w: float, hgt: float) -> void:
+	Psx.box(Vector3(w, hgt, 0.012), Psx.mat(Color(0.95, 0.95, 0.95)), at, model)
+	Psx.quad(Vector2(w, hgt), _pic_mat(label, w / hgt), at + Vector3(0, 0, 0.007), model)
+	if not icon_build:
+		var bq := Psx.quad(Vector2(w, hgt), _pic_mat(Art.back(item), w / hgt), at - Vector3(0, 0, 0.007), model)
+		bq.rotation_degrees.y = 180.0
+
+
+## Clear plastic edges (top-loaders, slabs, capsules).
+static func _clear_frame(model: Node3D, size: Vector3, at: Vector3, t := 0.04) -> void:
+	var m := _clear_mat()
+	Psx.box(Vector3(size.x, t, size.z), m, at + Vector3(0, size.y * 0.5 - t * 0.5, 0), model)
+	Psx.box(Vector3(size.x, t, size.z), m, at - Vector3(0, size.y * 0.5 - t * 0.5, 0), model)
+	Psx.box(Vector3(t, size.y, size.z), m, at + Vector3(size.x * 0.5 - t * 0.5, 0, 0), model)
+	Psx.box(Vector3(t, size.y, size.z), m, at - Vector3(size.x * 0.5 - t * 0.5, 0, 0), model)
+
+
+## A grader's label: company bar, grade number, name.
+static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, coin: bool) -> void:
+	var red := Color(0.8, 0.12, 0.12) if not coin else Color(0.12, 0.28, 0.6)
+	Psx.box(Vector3(w, w * 0.24, 0.03), Psx.mat(Color(0.97, 0.97, 0.95)), at, model)
+	Psx.box(Vector3(w, w * 0.06, 0.032), Psx.mat(red), at + Vector3(0, w * 0.1, 0), model)
+	if icon_build:
+		return
+	var g := int(item.get("grade", 0))
+	var l := Label3D.new()
+	var words := {10: "GEM MT", 9: "MINT", 8: "NM-MT", 7: "NM", 6: "EX-MT"}
+	var nm := String(item.get("name", "")).substr(0, 22)
+	l.text = ("%s\nMS %d" % [nm, 60 + (g - 5) * 2]) if coin else ("%s\n%s %d" % [nm, String(words.get(g, "")), g])
+	l.font_size = 22
+	l.pixel_size = w * 0.0042
+	l.modulate = Color(0.08, 0.08, 0.1)
+	l.outline_size = 0
+	l.shaded = false
+	l.position = at + Vector3(0, -w * 0.02, 0.018)
+	model.add_child(l)
+
+
+static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var kind := String(item.get("kind", ""))
+	var cond := String(item.get("cond", "Loose"))
+	var graded := int(item.get("grade", 0)) > 0
+	var tags: Array = item.get("tags", [])
+	if kind == "card":
+		var cw := 0.716
+		if graded:
+			var sz := Vector3(cw + 0.22, 1.0 + 0.5, 0.12)
+			Psx.box(Vector3(sz.x - 0.06, sz.y - 0.06, 0.02), _clear_mat(), Vector3(0, sz.y * 0.5, -0.05), model)
+			_clear_frame(model, sz, Vector3(0, sz.y * 0.5, 0), 0.06)
+			_card_face(model, item, label, Vector3(0, 0.6, 0), cw, 1.0)
+			_slab_label(model, Vector3(0, 1.3, 0.02), sz.x - 0.12, item, false)
+			return REAL_CC["card_slab"]
+		if cond == "CIB" or cond == "Mint":
+			_card_face(model, item, label, Vector3(0, 0.56, 0), cw, 1.0)
+			_clear_frame(model, Vector3(cw + 0.12, 1.12, 0.05), Vector3(0, 0.56, 0), 0.04)
+			return REAL_CC["toploader"]
+		if cond == "Sealed":
+			_card_face(model, item, label, Vector3(0, 0.6, 0), cw, 1.0)
+			_clear_frame(model, Vector3(cw + 0.2, 1.2, 0.14), Vector3(0, 0.6, 0), 0.08)
+			Psx.box(Vector3(cw + 0.2, 0.04, 0.16), Psx.mat(Color(0.15, 0.15, 0.18)), Vector3(0, 0.02, 0), model)
+			return REAL_CC["onetouch"]
+		_card_face(model, item, label, Vector3(0, 0.5, 0), cw, 1.0)
+		model.rotation_degrees.x = -8.0 if cond != "Damaged" else -14.0
+		return REAL_CC["card"]
+	if kind == "pack":
+		if tags.has("box"):
+			var b := Vector3(1.3, 1.0, 0.7)
+			var body := Psx.mat(Color(0.9, 0.9, 0.92))
+			Psx.box(b, body, Vector3(0, b.y * 0.5, 0), model)
+			Psx.quad(Vector2(b.x, b.y), _pic_mat(label, b.x / b.y), Vector3(0, b.y * 0.5, b.z * 0.5 + 0.003), model)
+			var top := Psx.quad(Vector2(b.x, b.z), _pic_mat(label, b.x / b.z), Vector3(0, b.y + 0.003, 0), model)
+			top.rotation_degrees.x = -90.0
+			if not icon_build:
+				var bq := Psx.quad(Vector2(b.x, b.y), _pic_mat(Art.back(item), b.x / b.y), Vector3(0, b.y * 0.5, -b.z * 0.5 - 0.003), model)
+				bq.rotation_degrees.y = 180.0
+			if cond == "Sealed" or cond == "Mint":
+				_seal(model)
+			return REAL_CC["box"]
+		var dim := Vector3(0.75, 1.0, 0.3) if tags.has("deck") else Vector3(0.62, 1.0, 0.05)
+		var foil := Psx.mat(Color(0.85, 0.87, 0.92), null, Vector2.ONE, 0.2)
+		Psx.box(dim, foil, Vector3(0, dim.y * 0.5, 0), model)
+		Psx.quad(Vector2(dim.x, dim.y), _pic_mat(label, dim.x / dim.y), Vector3(0, dim.y * 0.5, dim.z * 0.5 + 0.003), model)
+		if not icon_build:
+			var bq2 := Psx.quad(Vector2(dim.x, dim.y), _pic_mat(Art.back(item), dim.x / dim.y), Vector3(0, dim.y * 0.5, -dim.z * 0.5 - 0.003), model)
+			bq2.rotation_degrees.y = 180.0
+		if not tags.has("deck"):
+			model.rotation_degrees.x = -10.0
+		return REAL_CC["deck" if tags.has("deck") else "pack"]
+	# Coins.
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var mc: Array = preload("res://scripts/gfx/cc_art.gd").metal_cols(def)
+	var metal := Psx.mat(mc[0], null, Vector2.ONE, 0.25)
+	var r := 0.5
+	var coin := Node3D.new()
+	model.add_child(coin)
+	var disc := Psx.cyl(r, 0.08, metal, Vector3.ZERO, coin, 24)
+	disc.rotation_degrees.x = 90.0
+	var fm := Psx.mat(Color.WHITE, label, Vector2.ONE, 0.15)
+	fm.set_shader_parameter("circle", true)
+	Psx.quad(Vector2(r * 2.0, r * 2.0), fm, Vector3(0, 0, 0.042), coin)
+	if not icon_build:
+		var bm := Psx.mat(Color.WHITE, Art.back(item), Vector2.ONE, 0.15)
+		bm.set_shader_parameter("circle", true)
+		var bq3 := Psx.quad(Vector2(r * 2.0, r * 2.0), bm, Vector3(0, 0, -0.042), coin)
+		bq3.rotation_degrees.y = 180.0
+	if cond == "Damaged":
+		var hole := Psx.cyl(0.07, 0.1, Psx.mat(Color(0.05, 0.05, 0.05)), Vector3(0, r * 0.72, 0), coin, 10)
+		hole.rotation_degrees.x = 90.0
+	var dia := float(def.get("dia", 30)) / 1000.0
+	if graded:
+		var sz2 := Vector3(1.5, 2.0, 0.24)
+		Psx.box(Vector3(sz2.x - 0.1, sz2.y - 0.1, 0.03), _clear_mat(), Vector3(0, sz2.y * 0.5, -0.08), model)
+		_clear_frame(model, sz2, Vector3(0, sz2.y * 0.5, 0), 0.08)
+		coin.position = Vector3(0, 0.75, 0)
+		coin.scale = Vector3.ONE * 1.6 * clampf(dia / 0.038, 0.5, 1.0)
+		_slab_label(model, Vector3(0, 1.65, 0.03), sz2.x - 0.16, item, true)
+		return REAL_CC["coin_slab"]
+	if cond == "Sealed":
+		# Proof case: navy velvet box, lid open behind.
+		var velvet := Psx.mat(Color(0.12, 0.16, 0.38), Psx.tex("fabric086"))
+		Psx.box(Vector3(1.6, 0.35, 1.4), velvet, Vector3(0, 0.175, 0), model)
+		var lid := Psx.box(Vector3(1.6, 1.4, 0.12), velvet, Vector3(0, 1.0, -0.65), model)
+		lid.rotation_degrees.x = -12.0
+		Psx.box(Vector3(1.64, 0.04, 1.44), Psx.mat(Color(1.0, 0.8, 0.35), null, Vector2.ONE, 0.3), Vector3(0, 0.36, 0), model)
+		coin.position = Vector3(0, 0.95, 0)
+		coin.scale = Vector3.ONE * 1.2
+		_clear_frame(model, Vector3(1.32, 1.32, 0.12), Vector3(0, 0.95, 0), 0.06)
+		return REAL_CC["proof_case"]
+	if cond == "CIB" or cond == "Mint":
+		# Clear capsule on a little black stand.
+		Psx.box(Vector3(1.0, 0.18, 0.5), Psx.mat(Color(0.08, 0.08, 0.1)), Vector3(0, 0.09, 0), model)
+		coin.position = Vector3(0, 0.75, 0)
+		var cap := Psx.cyl(0.6, 0.14, _clear_mat(), Vector3(0, 0.75, -0.02), model, 20)
+		cap.rotation_degrees.x = 90.0
+		coin.position.z = 0.06
+		return clampf(dia * 1.6, 0.04, 0.07)
+	# Loose: a cardboard 2x2 flip with the year pencilled on.
+	var card := Psx.mat(Color(0.93, 0.9, 0.82), Psx.tex("cardboard002"))
+	Psx.box(Vector3(1.6, 1.6, 0.05), card, Vector3(0, 0.8, -0.05), model)
+	Psx.box(Vector3(1.6, 0.06, 0.4), Psx.mat(Color(0.25, 0.2, 0.15)), Vector3(0, 0.03, 0.05), model)
+	coin.position = Vector3(0, 0.8, 0.0)
+	coin.scale = Vector3.ONE * clampf(dia / 0.038, 0.45, 1.0) * 1.15
+	model.rotation_degrees.x = -10.0
+	if not icon_build:
+		var pen := Label3D.new()
+		pen.text = "%s  $%d" % [str(int(def.get("year", 1900))) if int(def.get("year", 0)) > 0 else "%d BC" % -int(def.get("year", 0)), int(item.get("base", 10)) * 2]
+		pen.font_size = 24
+		pen.pixel_size = 0.006
+		pen.modulate = Color(0.2, 0.2, 0.3)
+		pen.shaded = false
+		pen.position = Vector3(0, 1.48, 0)
+		model.add_child(pen)
+	return REAL_CC["flip"]
 
 
 # ---------------------------------------------------------------- memorabilia

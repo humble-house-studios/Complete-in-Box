@@ -41,6 +41,10 @@ var rumor: String = ""
 ## The platforms this run's market deals in (a different scene every run).
 var active_plats: Array = []
 var boss_id: String = ""
+## What this run deals in: "games", then maybe "cards" (ante 5+), "coins" (ante 7+).
+var market: String = "games"
+## Extra Time at the first stop after flipping into a new market.
+var pivot_time: int = 0
 
 ## Home
 var venue_choices: Array = []
@@ -181,13 +185,14 @@ const WILDCARD_PLATS := ["MISC", "ODD", "DUO", "PSPK"]
 
 
 ## Each run deals in its own mix of platforms, so the finds feel different.
+## Cards and coins have only a handful of categories: those markets use them all.
 func _pick_active_platforms() -> void:
 	var counts := {}
-	for d in Catalog.ITEMS:
+	for d in Catalog.items_of(market):
 		counts[d["plat"]] = int(counts.get(d["plat"], 0)) + 1
 	var pool: Array = []
 	for p in Catalog.PLATFORMS.keys():
-		if not WILDCARD_PLATS.has(p) and int(counts.get(p, 0)) >= 8:
+		if not WILDCARD_PLATS.has(p) and int(counts.get(p, 0)) >= 8 and Catalog.market_of(p) == market:
 			pool.append(p)
 	active_plats.clear()
 	while active_plats.size() < mini(Balance.ACTIVE_PLATFORMS, pool.size()):
@@ -197,6 +202,8 @@ func _pick_active_platforms() -> void:
 
 
 func is_active_plat(p: String) -> bool:
+	if Catalog.market_of(p) != market:
+		return false
 	return active_plats.is_empty() or active_plats.has(p) or WILDCARD_PLATS.has(p)
 
 
@@ -248,7 +255,7 @@ var _cum_cache: Dictionary = {}
 ## Running totals of _def_weight over a pool, cached per tier, venue type and
 ## market mood (so a pull is a quick binary search).
 func _pool_cum(tier: int, pool: Array) -> Array:
-	var key := "%d|%s|%s|%s|%d" % [tier, String(venue.get("slot", "")), ",".join(hot), ",".join(cold), pool.size()]
+	var key := "%d|%s|%s|%s|%d|%s" % [tier, String(venue.get("slot", "")), ",".join(hot), ",".join(cold), pool.size(), market]
 	if _cum_cache.has(key):
 		return _cum_cache[key]
 	var cum: Array = []
@@ -289,7 +296,7 @@ func _def_weight(d: Dictionary) -> float:
 
 func _active_pool(tier: int) -> Array:
 	var out: Array = []
-	for d in Catalog.defs_of_tier(tier):
+	for d in Catalog.defs_of_tier(tier, market):
 		if is_active_plat(String(d["plat"])):
 			out.append(d)
 	return out
@@ -403,7 +410,7 @@ func _make_auction() -> Dictionary:
 func _prepare_home() -> void:
 	phase = Phase.HOME
 	venue = {}
-	var open := Venues.unlocked(Venues.SLOTS[stop], ante)
+	var open := Venues.unlocked(Venues.SLOTS[stop], ante, market)
 	venue_choices.clear()
 	if open.size() <= 3:
 		for d in open:
@@ -427,7 +434,7 @@ func _roll_perk_offers() -> void:
 	perk_offers.clear()
 	var pool: Array = []
 	for p in Perks.LIST:
-		if not perks.has(p["id"]):
+		if not perks.has(p["id"]) and perk_fits(String(p["id"])):
 			pool.append(p["id"])
 	while perk_offers.size() < Balance.PERK_OFFERS and not pool.is_empty():
 		var i := rng.randi_range(0, pool.size() - 1)
@@ -491,6 +498,142 @@ func buy_upgrade() -> Dictionary:
 	return _ok("Got %s." % name)
 
 
+# ================================================================ changing markets
+
+## The new scene on offer right now: "cards" at Home before ante 5, "coins"
+## before ante 7 (from games or cards), else "".
+func pivot_offer() -> String:
+	if phase != Phase.HOME or stop != 0 or endless:
+		return ""
+	if ante == Balance.PIVOT_CARDS_ANTE and market == "games":
+		return "cards"
+	if ante == Balance.PIVOT_COINS_ANTE and market != "coins":
+		return "coins"
+	return ""
+
+
+## What the dealer pays for your whole shelf (and anything at the grader).
+func pivot_value() -> int:
+	var total := 0
+	for it in shelf:
+		total += maxi(1, int(round(market_value(it) * Balance.PIVOT_RATE)))
+	for g in grading:
+		total += maxi(1, int(round(market_value(g["item"]) * Balance.PIVOT_RATE)))
+	return total
+
+
+## Sells everything you own and moves the run into a new market: new venues,
+## new platforms, new trends. The dealer throws in a few starter pieces and
+## you get extra Time at the first stop to rebuild.
+func pivot(to: String) -> Dictionary:
+	if to == "" or pivot_offer() != to:
+		return _fail("Not on offer right now.")
+	var total := pivot_value()
+	var n := shelf.size() + grading.size()
+	for it in shelf:
+		_record_sale(it, maxi(1, int(round(market_value(it) * Balance.PIVOT_RATE))))
+	for g in grading:
+		_record_sale(g["item"], maxi(1, int(round(market_value(g["item"]) * Balance.PIVOT_RATE))))
+	shelf.clear()
+	grading.clear()
+	cash += total
+	market = to
+	_cum_cache.clear()
+	dry = 0
+	_pick_active_platforms()
+	rumor = _random_platform()
+	_roll_trends()
+	var starters: Array = []
+	for i in Balance.PIVOT_STARTERS:
+		var it := make_item(_pick_def(1 if i == 0 else 0), "CIB" if i == 0 else "Loose")
+		it["variant"] = "Standard"
+		shelf.append(it)
+		starters.append(it["name"])
+	pivot_time = Balance.PIVOT_TIME
+	var perks_before := perk_offers.duplicate()
+	var up_before := upgrade_offer.duplicate()
+	_prepare_home()
+	perk_offers = perks_before.filter(func(p): return perk_fits(String(p)))
+	upgrade_offer = up_before
+	stats["pivots"] = int(stats.get("pivots", 0)) + 1
+	var res := _ok("Sold %d item%s for $%d. Welcome to %s!" % [n, "" if n == 1 else "s", total, Catalog.MARKETS[to]["name"]])
+	res["total"] = total
+	res["starters"] = starters
+	return res
+
+
+## Perks tied to one hobby only show up in the shop while you deal in it.
+func perk_fits(id: String) -> bool:
+	var m := String(Perks.get_def(id).get("market", ""))
+	return m == "" or m == market
+
+
+## How many cards a sealed product holds when you rip it (0 = can't).
+func pack_size(item: Dictionary) -> int:
+	if String(item.get("kind", "")) != "pack":
+		return 0
+	var tags: Array = item.get("tags", [])
+	if tags.has("box"):
+		return Balance.OPEN_BOX
+	if tags.has("deck"):
+		return Balance.OPEN_DECK
+	return Balance.OPEN_PACK
+
+
+## Rips a sealed pack or box: it's gone, and its cards land on your shelf.
+## Pure gamble: boxes roll higher, heavy packs higher still.
+func open_pack(uid: int) -> Dictionary:
+	if phase != Phase.HOME and phase != Phase.VENUE:
+		return _fail("Not now.")
+	var i := _shelf_index(uid)
+	if i < 0:
+		return _fail("Not on your shelf.")
+	var pk: Dictionary = shelf[i]
+	var n := pack_size(pk)
+	if n <= 0:
+		return _fail("Nothing to open.")
+	if pk["cond"] == "Damaged":
+		return _fail("Too crushed to trust. Sell it as is.")
+	if free_slots() < n - 1:
+		return _fail("Need %d free shelf slots for the pulls." % (n - 1))
+	shelf.remove_at(i)
+	var plat := String(pk["plat"])
+	var boost := int(pk["tier"]) + (2 if (pk["tags"] as Array).has("box") else 0)
+	if String(pk.get("variant", "")) == "Heavy Pack":
+		boost += 2
+	elif String(pk.get("variant", "")) == "Resealed?":
+		boost -= 3
+	var pool: Array = []
+	for d in Catalog.items_of(market):
+		if String(d["plat"]) == plat and String(d["kind"]) == "card":
+			pool.append(d)
+	var pulls: Array = []
+	var each := int(pk.get("paid", 0)) / maxi(1, n)
+	for k in n:
+		var t := _roll_tier(maxi(0, boost))
+		var cands := pool.filter(func(d): return int(d["tier"]) == t)
+		while cands.is_empty() and t > 0:
+			t -= 1
+			cands = pool.filter(func(d): return int(d["tier"]) == t)
+		var def: Dictionary = cands[rng.randi_range(0, cands.size() - 1)]
+		var it := make_item(def, Catalog.CONDITIONS[_weighted(Balance.PULL_COND)])
+		it["variant"] = Catalog.roll_variant(def, rng, {"slot": "shop"})
+		if String(pk.get("variant", "")) == "1st Edition" and Catalog.variant_weights(def).has("1st Edition"):
+			it["variant"] = "1st Edition"
+		it["paid"] = each
+		shelf.append(it)
+		pulls.append(it)
+	pulls.sort_custom(func(a, b): return market_value(a) > market_value(b))
+	var worth := 0
+	for it in pulls:
+		worth += market_value(it)
+	var res := _ok("Ripped %s: %d cards worth $%d (it was worth $%d sealed)." % [pk["name"], n, worth, market_value(pk)])
+	res["pulls"] = pulls
+	res["worth"] = worth
+	res["was"] = market_value(pk)
+	return res
+
+
 # ================================================================ venue
 
 func enter_venue(id: String) -> Dictionary:
@@ -501,7 +644,8 @@ func enter_venue(id: String) -> Dictionary:
 	venue = Venues.get_def(id)
 	phase = Phase.VENUE
 	stops_played += 1
-	time_left = int(venue["time"]) + time_bonus + (1 if has_perk("extra_hour") else 0)
+	time_left = int(venue["time"]) + time_bonus + (1 if has_perk("extra_hour") else 0) + pivot_time
+	pivot_time = 0
 	if is_boss_stop() and boss_id == "crash":
 		cold.append(_random_platform(hot + cold))
 	stock.clear()
@@ -985,6 +1129,12 @@ func appraise() -> Dictionary:
 		if it["kind"] == "acc" and has_perk("lunchbox"):
 			v *= 3.0
 			notes.append("Lunchbox x3")
+		if it["kind"] == "pack" and has_perk("pack_rat"):
+			v *= 2.0
+			notes.append("Pack Rat x2")
+		if it["kind"] == "coin" and has_perk("gold_bug") and String(Catalog.get_def(String(it["id"])).get("metal", "")) == "gold":
+			v *= 2.0
+			notes.append("Gold Bug x2")
 		if boss_active("picky") and (cond == "Damaged" or cond == "Loose"):
 			v *= 0.5
 			notes.append("Picky x0.5")
@@ -1002,6 +1152,8 @@ func appraise() -> Dictionary:
 			if not kinds.has(p):
 				kinds[p] = {}
 			kinds[p][it["kind"]] = true
+			if String(it["kind"]) == "coin":
+				kinds[p]["d:" + String(Catalog.get_def(String(it["id"])).get("denom", ""))] = true
 	# Sets.
 	if not boss_active("skeptic"):
 		var set_scale := 2.0 if has_perk("completionist") else 1.0
@@ -1015,8 +1167,20 @@ func appraise() -> Dictionary:
 			if k.has("console") and k.has("game") and k.has("acc"):
 				times *= 1.5
 				bonuses.append({"label": "%s Full Setup" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
+			elif k.has("card") and k.has("pack") and n >= 3:
+				times *= 1.5
+				bonuses.append({"label": "%s Singles + Sealed" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
+			elif k.has("coin"):
+				var denoms := 0
+				for kk in k:
+					if String(kk).begins_with("d:"):
+						denoms += 1
+				if denoms >= 3:
+					times *= 1.5
+					bonuses.append({"label": "%s Type Set" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
 	# Grails.
 	var grails := 0
+	var shiny := 0
 	var consoles := 0
 	var mint := 0
 	var fun := 0
@@ -1026,6 +1190,8 @@ func appraise() -> Dictionary:
 			grails += 1
 		if it["kind"] == "console":
 			consoles += 1
+		if ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless", "Proof-Like", "Deep Cameo", "Rainbow Toned"].has(String(it.get("variant", ""))):
+			shiny += 1
 		if it["cond"] == "Mint" or it["cond"] == "Sealed":
 			mint += 1
 		var fam := String(Catalog.platform(String(it["plat"]))["family"])
@@ -1042,8 +1208,9 @@ func appraise() -> Dictionary:
 	_perk_add(bonuses, "funtendo_kid", 0.3 * fun, "Funtendo Kid")
 	_perk_add(bonuses, "saga_does", 0.5 * saga, "Saga Does")
 	_perk_add(bonuses, "console_wars", 1.0 * consoles, "Console Wars")
+	_perk_add(bonuses, "holo_hunter", 0.6 * shiny, "Shiny Hunter")
 	for b in bonuses:
-		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars"]:
+		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars", "Shiny Hunter"]:
 			add += float(b["add"])
 	if has_perk("curator") and per_plat.size() >= 5:
 		times *= 2.0

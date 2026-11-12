@@ -8,6 +8,12 @@ const RUNS := 300
 
 
 func _init() -> void:
+	_sim(false, "SIM")
+	_sim(true, "SIM flip")
+	quit()
+
+
+func _sim(flip: bool, tag: String) -> void:
 	var deaths := {}
 	var wins := 0
 	var ante_sum := 0
@@ -15,6 +21,7 @@ func _init() -> void:
 		var run := Run.new()
 		run.start(1000 + i)
 		var bot := Bot.new(run, 7 + i)
+		bot.pivots = flip
 		var r: Dictionary = bot.play_run()
 		ante_sum += int(r["ante"])
 		if bool(r["won"]):
@@ -27,6 +34,5 @@ func _init() -> void:
 	var parts: Array = []
 	for k in keys:
 		parts.append("%s:%d" % [k, deaths[k]])
-	print("SIM runs=%d wins=%d (%.0f%%) avg_ante=%.2f" % [RUNS, wins, 100.0 * wins / RUNS, float(ante_sum) / RUNS])
-	print("SIM deaths " + " ".join(parts))
-	quit()
+	print("%s runs=%d wins=%d (%.0f%%) avg_ante=%.2f" % [tag, RUNS, wins, 100.0 * wins / RUNS, float(ante_sum) / RUNS])
+	print("%s deaths " % tag + " ".join(parts))

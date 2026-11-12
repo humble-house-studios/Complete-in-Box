@@ -97,6 +97,74 @@ const LIST := [
 		"auctions": 4, "bin": false, "list": [0.9, 1.8], "fee": 0.2,
 		"color": Color("e6c35c"),
 	},
+	# ------------------------------------------------ trading cards (market "cards")
+	{
+		"id": "cardshow", "name": "Card Show", "slot": "hunt", "unlock": 1, "market": "cards",
+		"blurb": "A hotel ballroom of folding tables, binders and bargain boxes. Dig the dollar bins.",
+		"time": 4, "stock": 6, "price": [0.3, 0.95], "exact": false, "tier_boost": 0,
+		"cond": [12, 40, 32, 12, 4], "haggle": 0.6, "cut": 0.7, "dig": 2, "dig_label": "Dig a dollar bin",
+		"sell": 0.7, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("f2c230"),
+	},
+	{
+		"id": "tradenight", "name": "Trade Night", "slot": "hunt", "unlock": 1, "market": "cards",
+		"blurb": "Thursday at the game store. Kids with binders who don't know what they've got.",
+		"time": 4, "stock": 5, "price": [0.2, 0.8], "exact": false, "tier_boost": 0,
+		"cond": [25, 45, 20, 8, 2], "haggle": 0.7, "cut": 0.65, "dig": 2, "dig_label": "Flip another binder",
+		"sell": 0.0, "lots": 1, "lot_size": 3, "lot_peek": 1,
+		"color": Color("7ac74f"),
+	},
+	{
+		"id": "cardshop", "name": "The Card Shop", "slot": "shop", "unlock": 1, "market": "cards",
+		"blurb": "Glass cases of slabs, a wall of sealed boxes, a grading counter. Buys your pulls.",
+		"time": 3, "stock": 6, "price": [1.0, 1.2], "exact": true, "tier_boost": 1,
+		"cond": [0, 20, 45, 25, 10], "haggle": 0.35, "cut": 0.85, "dig": 1, "dig_label": "Check the back case",
+		"sell": 0.6, "lots": 0, "lot_size": 0, "lot_peek": 0, "grading": true, "bargain": 2,
+		"color": Color("e05f5f"),
+	},
+	{
+		"id": "tcgmarket", "name": "TCGrabber", "slot": "online", "unlock": 1, "market": "cards",
+		"blurb": "The big card marketplace. Buy singles, bid on slabs, list your own.",
+		"time": 4, "stock": 5, "price": [0.95, 1.25], "exact": true, "tier_boost": 1,
+		"cond": [5, 30, 40, 18, 7], "haggle": 0.0, "cut": 1.0, "dig": 5, "dig_label": "Refresh listings",
+		"sell": 0.0, "lots": 0, "lot_size": 0, "lot_peek": 0,
+		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.12,
+		"color": Color("5f8fe0"),
+	},
+	# ------------------------------------------------ rare coins (market "coins")
+	{
+		"id": "coinshow", "name": "Coin Show", "slot": "hunt", "unlock": 1, "market": "coins",
+		"blurb": "The bourse floor: rows of dealers, loupes, and trays of 2x2 flips.",
+		"time": 4, "stock": 6, "price": [0.35, 1.0], "exact": false, "tier_boost": 1,
+		"cond": [10, 45, 30, 12, 3], "haggle": 0.55, "cut": 0.75, "dig": 2, "dig_label": "Search a junk tray",
+		"sell": 0.75, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("e8b923"),
+	},
+	{
+		"id": "beach", "name": "Metal Detecting", "slot": "hunt", "unlock": 1, "market": "coins",
+		"blurb": "A beach at dawn and a beeping detector. Mostly bottle caps. Mostly.",
+		"time": 5, "stock": 4, "price": [0.05, 0.4], "exact": false, "tier_boost": 1,
+		"cond": [45, 45, 8, 2, 0], "haggle": 0.0, "cut": 1.0, "dig": 3, "dig_label": "Swing the detector",
+		"sell": 0.0, "lots": 1, "lot_size": 3, "lot_peek": 1,
+		"color": Color("5fc4d9"),
+	},
+	{
+		"id": "coinshop", "name": "Coin & Bullion", "slot": "shop", "unlock": 1, "market": "coins",
+		"blurb": "A vault door, a scale, slabs in a case. Grades your coins and buys near full price.",
+		"time": 3, "stock": 6, "price": [1.0, 1.15], "exact": true, "tier_boost": 1,
+		"cond": [0, 25, 40, 25, 10], "haggle": 0.3, "cut": 0.88, "dig": 1, "dig_label": "Ask about the safe",
+		"sell": 0.8, "lots": 0, "lot_size": 0, "lot_peek": 0, "grading": true, "bargain": 2,
+		"color": Color("c9a227"),
+	},
+	{
+		"id": "coinauction", "name": "Stax & Towers", "slot": "online", "unlock": 1, "market": "coins",
+		"blurb": "The great coin auction house. Pedigreed rarities, live bidding, a 20% fee.",
+		"time": 3, "stock": 3, "price": [1.0, 1.15], "exact": true, "tier_boost": 2,
+		"cond": [0, 10, 35, 35, 20], "haggle": 0.0, "cut": 1.0, "dig": 0, "dig_label": "",
+		"sell": 0.0, "lots": 0, "lot_size": 0, "lot_peek": 0,
+		"auctions": 4, "bin": true, "list": [0.9, 1.8], "fee": 0.2,
+		"color": Color("b0303a"),
+	},
 ]
 
 ## The online stop's boss twist, one per ante (Balatro's boss blinds).
@@ -127,10 +195,14 @@ static func boss(id: String) -> Dictionary:
 	return get_def("boss_" + id)
 
 
-## Venues open for a slot at this ante, newest unlock last.
-static func unlocked(slot: String, ante: int) -> Array:
+## Venues open for a slot at this ante in this market, newest unlock last.
+static func unlocked(slot: String, ante: int, market: String = "games") -> Array:
 	var out: Array = []
 	for d in LIST:
-		if d["slot"] == slot and int(d["unlock"]) <= ante:
+		if d["slot"] == slot and int(d["unlock"]) <= ante and String(d.get("market", "games")) == market:
 			out.append(d)
 	return out
+
+
+static func market(id: String) -> String:
+	return String(get_def(id).get("market", "games"))

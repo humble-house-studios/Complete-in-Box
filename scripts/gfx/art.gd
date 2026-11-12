@@ -54,6 +54,11 @@ var _queue: Array = []
 var _busy := false
 
 
+## Hardware boxes show a render of the product; games, cards and coins are painted.
+static func is_hw(item: Dictionary) -> bool:
+	return ["console", "acc", "misc"].has(String(item.get("kind", "game")))
+
+
 static func _get_host() -> Art:
 	if _host == null or not is_instance_valid(_host):
 		_host = Art.new()
@@ -73,6 +78,13 @@ static func _key(item: Dictionary) -> String:
 static func cover_size(item: Dictionary) -> Vector2i:
 	var a := 0.8
 	match String(item.get("kind", "game")):
+		"card":
+			a = 0.716
+		"coin":
+			a = 1.0
+		"pack":
+			var tags: Array = item.get("tags", [])
+			a = 1.3 if tags.has("box") else (0.75 if tags.has("deck") else 0.62)
 		"game":
 			var b: Vector3 = ItemModels.GAME_BOX.get(String(item.get("plat", "")), Vector3(0.72, 1.0, 0.17))
 			a = b.x / b.y
@@ -86,7 +98,7 @@ static func cover_size(item: Dictionary) -> Vector2i:
 ## Box front (also used for cart stickers and disc labels).
 static func front(item: Dictionary) -> Texture2D:
 	var k := "F|" + _key(item)
-	if not _tex.has(k) and String(item.get("kind", "game")) != "game":
+	if not _tex.has(k) and is_hw(item):
 		# Hardware boxes use a render of the product itself: make that first.
 		icon(item, false)
 	return _request(k, cover_size(item), item, "front")
@@ -104,7 +116,7 @@ static func _icon_key(item: Dictionary, boxed: bool) -> String:
 static func icon(item: Dictionary, boxed: bool) -> Texture2D:
 	var k := _icon_key(item, boxed)
 	# Cards on screen jump the queue (ahead of background decor).
-	var hw := String(item.get("kind", "game")) != "game"
+	var hw := is_hw(item)
 	if boxed or not hw:
 		_request("F|" + _key(item), cover_size(item), item, "front", true)
 		if boxed and hw:
@@ -219,7 +231,7 @@ func _run_batch() -> void:
 	var rest: Array = []
 	for j in _queue:
 		var ready := true
-		var hw := String(j["item"].get("kind", "game")) != "game"
+		var hw := is_hw(j["item"])
 		if j["kind"] == "icon_box" or (j["kind"] == "icon_loose" and not hw):
 			ready = _done.has("F|" + _key(j["item"]))
 		elif j["kind"] == "front" and hw:

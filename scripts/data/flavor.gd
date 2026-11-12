@@ -30,6 +30,14 @@ const SELLER := {
 	"convention": ["\"Graded copies to your left, grails behind glass.\"", "\"Show special, today only.\"", "\"You won't see another one this weekend.\""],
 	"ebay": ["\"Ships fast! Smoke-free home!\"", "\"Listed as VERY RARE L@@K.\"", "\"No lowballs, I know what I have.\""],
 	"heritage": ["\"Lot four-fifty-one. Do I hear more?\"", "\"Authenticated, catalogued, insured.\"", "\"The room is quiet. The phones are not.\""],
+	"cardshow": ["\"Dollar bin's on the left. Slabs are not a dollar.\"", "\"I'll do TCG minus fifteen.\"", "\"Pulled that myself. Swear on my binder.\""],
+	"tradenight": ["\"I'll trade you three shinies for that one.\"", "\"My mom says I can't sell, only trade.\"", "\"Is that one good? It has a lot of HP.\""],
+	"cardshop": ["\"Fresh case just came in. Don't weigh the packs.\"", "\"We grade on site. Ten-day turnaround.\"", "\"Price is on the sticker. Sticker is final.\""],
+	"tcgmarket": ["\"NM/M, pulled straight to sleeve!\"", "\"Ships in a toploader and a prayer.\"", "\"Price drop! Don't sleep on this!\""],
+	"coinshow": ["\"Loupe's on the table, take a look.\"", "\"It's been dipped? No, no, that's original luster.\"", "\"Melt plus ten and it's yours.\""],
+	"beach": ["*beep*  *beep*  *BEEEEP*", "Bottle cap. Bottle cap. Wait...", "\"Find anything?\" asks a jogger. You lie."],
+	"coinshop": ["\"We buy gold, silver, and your grandad's coin jar.\"", "\"Let me put it on the scale.\"", "\"That's a cleaned one. Still a good coin.\""],
+	"coinauction": ["\"From the Eliasberg-ish collection, lot two.\"", "\"Fresh to market. Never been offered.\"", "\"Phone bidders standing by.\""],
 }
 
 const MOOD := {
@@ -42,6 +50,28 @@ const MOOD := {
 	"convention": "Banners, cosplay and very serious collectors.",
 	"ebay": "3 a.m., one tab open, finger on the bid button.",
 	"heritage": "White gloves. Big money. Bigger egos.",
+	"cardshow": "A hotel ballroom full of binders and sleeves.",
+	"tradenight": "Folding tables, sodas and very loud trading.",
+	"cardshop": "Slabs in the case, a playmat on every table.",
+	"tcgmarket": "Ten thousand listings and a cart that never empties.",
+	"coinshow": "Loupes, flips, and whispers across the bourse.",
+	"beach": "Sunrise, surf, and a detector that won't stop beeping.",
+	"coinshop": "A vault door, a scale, and a dealer who's seen it all.",
+	"coinauction": "Mahogany, paddles, and coins older than countries.",
+}
+
+const CC_COND := {
+	"card": {"Damaged": ["A crease right through the art.", "Water damage on one corner.", "Someone wrote their name on the back."],
+		"Loose": ["Soft corners, light whitening. Played with love.", "Shuffled a lot. Still clean art.", "Lived in a rubber band for a year."],
+		"CIB": ["Sharp corners, clean surface. Near mint.", "Sleeved since the day it was pulled.", "Centring is a little off. Still lovely."],
+		"Mint": ["Perfect corners. Grader bait.", "Dead centred. Not a scratch.", "Looks printed this morning."],
+		"Sealed": ["Pulled straight from a fresh pack.", "Never touched a bare hand.", "Pack fresh, still smells like ink."]},
+	"pack": {"Damaged": ["Crushed corner, wrapper intact.", "Somebody stepped on this box."], "Loose": ["Shelf wear on the wrapper.", "Faded from a shop window."],
+		"CIB": ["Sealed. Crimps look right.", "Unsearched, they promise."], "Mint": ["Factory sealed, crisp as a dollar bill.", "Untouched since the warehouse."],
+		"Sealed": ["Straight out of a sealed case.", "Case fresh. Nobody's weighed it."]},
+	"coin": {"Damaged": ["Holed to wear on a necklace.", "Bent, scratched, still historic."], "Loose": ["Worn smooth by a century of pockets.", "Circulated, but the date is sharp."],
+		"CIB": ["Just a whisper of wear on the high points.", "About uncirculated. Lots of luster left."], "Mint": ["Mint state. Full cartwheel luster.", "Never spent. Never touched."],
+		"Sealed": ["A proof: mirror fields, frosted design.", "Struck twice on polished dies, for collectors only."]},
 }
 
 const PASS := [
@@ -67,6 +97,9 @@ static func pick(list: Array, key: Variant) -> String:
 
 
 static func cond_line(item: Dictionary) -> String:
+	var kc: Dictionary = CC_COND.get(String(item.get("kind", "")), {})
+	if not kc.is_empty():
+		return pick(kc.get(String(item.get("cond", "Loose")), kc["Loose"]), str(item.get("uid", item.get("id", ""))) + String(item.get("cond", "")))
 	return pick(COND.get(String(item.get("cond", "Loose")), COND["Loose"]), str(item.get("uid", item.get("id", ""))) + String(item.get("cond", "")))
 
 
@@ -696,12 +729,74 @@ static func _numbers(def: Dictionary, f: Dictionary, rng: RandomNumberGenerator)
 
 
 static func numbers(def: Dictionary) -> Array:
+	if Catalog.is_cc(def):
+		return _cc_numbers(def)
 	return lore(def)["numbers"]
+
+
+## Card and coin stats: plausible, funny, fixed per item.
+static func _cc_numbers(def: Dictionary) -> Array:
+	var r := _r(String(def.get("id", "")) + "ccnum")
+	var kind := String(def.get("kind", ""))
+	var name := String(def.get("name", ""))
+	var out: Array = []
+	if kind == "coin":
+		out.append(["WEIGHT", "%.2f g (%s)" % [float(def.get("dia", 30)) * float(def.get("dia", 30)) * 0.0105 * (1.35 if String(def.get("metal", "")) == "gold" else 1.0), _one(r, ["feels heavier", "it's the history", "plus ego"])]])
+		out.append(["HANDS IT PASSED", "~%s before it reached a flip" % _num(r.randi_range(40, 90000))])
+		out.append(["TIMES DROPPED", "%d (each one a small heart attack)" % r.randi_range(0, 9)])
+		out.append(["LOUPE SECONDS", "%d per look, on average" % r.randi_range(8, 140)])
+		out.append(["MELT VALUE", "$%s, which is not the point" % _num(r.randi_range(1, 2400))])
+		out.append(["COUNTERFEITS", "%d%% of the ones listed online (allegedly)" % r.randi_range(2, 60)])
+	elif kind == "pack":
+		out.append(["TIMES WEIGHED", "%s at shops, against the rules" % _num(r.randi_range(4, 900))])
+		out.append(["PULL RATE", "1 holo in %d packs, give or take" % r.randi_range(3, 12)])
+		out.append(["OPENED ON STREAM", "%s%% of this print run" % str(r.randi_range(40, 97))])
+		out.append(["SMELL", _one(r, ["fresh ink and childhood", "cardboard and hope", "the 90s", "a hobby shop basement"])])
+		out.append(["REGRET RATING", "%d/10 if you rip it, %d/10 if you don't" % [r.randi_range(3, 10), r.randi_range(3, 10)]])
+	else:
+		out.append(["TIMES SHUFFLED", "~%s before it was sleeved" % _num(r.randi_range(0, 4000))])
+		out.append(["TRADES", "%d (once for a sandwich)" % r.randi_range(1, 30)])
+		out.append(["PLAYGROUND FAME", "%d%% of kids knew this card by name" % r.randi_range(10, 99)])
+		var lr := 50 + r.randi_range(-12, 12)
+		var tb := 50 + r.randi_range(-12, 12)
+		out.append(["CENTRING", "%d/%d left-right, %d/%d top-bottom" % [lr, 100 - lr, tb, 100 - tb]])
+		out.append(["BINDER YEARS", "%d, in a %s binder" % [r.randi_range(1, 25), _one(r, ["3-ring", "9-pocket", "zip-up", "trapper keeper"])]])
+		out.append(["'%s' SAID OUT LOUD" % name.get_slice(" ", 0).to_upper(), "%s times at trade nights" % _num(r.randi_range(30, 900000))])
+	return out
+
+
+## History panel for cards and coins.
+static func _cc_history(def: Dictionary, item: Dictionary) -> Array:
+	var r := _r(String(def.get("id", "")) + "cchist")
+	var kind := String(def.get("kind", ""))
+	var year := int(def.get("year", 2000))
+	var yt := ("%d BC" % -year) if year < 0 else str(year)
+	var out: Array = []
+	if kind == "coin":
+		out.append(["STRUCK", "%s, %s, at %s. %s %s in %s." % [yt, String(def.get("country", "")), String(def.get("mint", "")), String(def.get("denom", "")), String(def.get("metal", "")), String(def.get("dia", "")) + " mm"]])
+		out.append(["SURVIVORS", "About %s struck. Maybe %s survive in mint state." % [_num(int(def.get("run", 1000))), _num(maxi(1, int(def.get("run", 1000)) / r.randi_range(40, 900)))]])
+		out.append(["THE STORY", _one(r, ["Melted by the millions in a later recall, which is why so few are left.", "Most went into tills and pockets and simply wore away.",
+			"A hoard turned up in a bank vault decades later and changed the market overnight.", "Collectors ignored it for a century, then all wanted one at once.",
+			"Famous enough to have its own book. Several, actually."])])
+		out.append(["COLLECTOR TIP", _one(r, ["Never clean a coin. Ever. Toning is value.", "Check the date for doubling with a loupe.", "Look at the rim: tooling marks mean trouble.", "Buy the slab, then the coin. Then the coin."])])
+	else:
+		out.append(["PRINTED", "%s, %s. From %s, published by %s." % [yt, String(def.get("set", "")), String(def.get("set", "")), String(def.get("pub", ""))]])
+		if kind == "card":
+			out.append(["THE ART", "Illustrated by %s. %s" % [String(def.get("artist", "")), _one(r, ["The original painting sold separately for a fortune.", "Drawn in a weekend, they say.", "The art box shadow was removed in later prints.", "Fans still argue about the background."])]])
+		out.append(["SURVIVORS", "About %s printed. Gem-grade ones are rare: maybe %s." % [_num(int(def.get("run", 1000))), _num(maxi(1, int(def.get("run", 1000)) / r.randi_range(60, 700)))]])
+		out.append(["THE HYPE", _one(r, ["A streamer pulled one live and the price tripled by morning.", "It was banned from tournaments, which only made it more famous.",
+			"Every kid wanted it. Most traded it away for something worse.", "It hit the news when one sold for the price of a house."])])
+	out.append(["THIS COPY", _one(_r(str(item.get("uid", 0)) + String(def.get("id", ""))), ["Came out of a shoebox marked KEEP.", "Bought from a collector who 'needed space'.",
+		"Spent years in a desk drawer next to rubber bands.", "Kept in a safe-deposit box since the 90s.", "Arrived in a padded envelope with no return address.",
+		"Somebody's childhood favourite. You can tell."])])
+	return out
 
 
 ## Returns [[heading, text], ...] for the item card's history panel. Every
 ## line is unique this run (copy lines per copy, the rest per item).
 static func history(def: Dictionary, item: Dictionary) -> Array:
+	if Catalog.is_cc(def):
+		return _cc_history(def, item)
 	var f := lore(def)
 	var id := String(def.get("id", ""))
 	if f.has("hist"):

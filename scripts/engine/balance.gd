@@ -90,6 +90,19 @@ const EST_LOW := [0.5, 0.85]
 const EST_HIGH := [1.2, 1.8]
 
 const LOT_PRICE := [0.45, 0.85]
+
+## Changing markets: at Home before these antes you may sell your whole shelf
+## (at PIVOT_RATE of market value) and deal in cards / coins from then on.
+const PIVOT_CARDS_ANTE := 5
+const PIVOT_COINS_ANTE := 7
+const PIVOT_RATE := 0.8
+const PIVOT_STARTERS := 2
+const PIVOT_TIME := 1
+## Cards per sealed product when you rip it, and the condition the pulls come in.
+const OPEN_PACK := 3
+const OPEN_DECK := 4
+const OPEN_BOX := 5
+const PULL_COND := [0, 8, 50, 34, 8]
 const OVERFLOW_SELL := 0.4
 
 

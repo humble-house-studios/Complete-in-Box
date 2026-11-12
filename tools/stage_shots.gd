@@ -17,11 +17,13 @@ func _go(st: Stage, out: String) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 7
 	var conds := ["Loose", "CIB", "Sealed", "Damaged", "Mint"]
-	for id in ["title", "home", "garage", "flea", "estate", "storage", "retro", "pawn", "convention", "ebay", "heritage"]:
+	for id in ["title", "home", "garage", "flea", "estate", "storage", "retro", "pawn", "convention", "ebay", "heritage",
+			"cardshow", "tradenight", "cardshop", "tcgmarket", "coinshow", "beach", "coinshop", "coinauction"]:
+		var pool: Array = Catalog.items_of(Venues.market(id)) if Venues.get_def(id).size() > 0 else Catalog.items_of("games")
 		var items: Array = []
 		var n := 1 if id == "title" else (9 if id == "home" else 6)
 		for k in n:
-			var d: Dictionary = Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()].duplicate()
+			var d: Dictionary = pool[r.randi() % pool.size()].duplicate()
 			d["cond"] = conds[r.randi() % conds.size()]
 			items.append(d)
 		st.show_scene(id, items)

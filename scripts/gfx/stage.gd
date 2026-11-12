@@ -437,8 +437,9 @@ func _poster_ids(seed_value: int, n: int) -> Array:
 	var r := RandomNumberGenerator.new()
 	r.seed = seed_value
 	var out: Array = []
+	var pool := _decor_pool()
 	for k in n:
-		out.append(String(Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()]["id"]))
+		out.append(String(pool[r.randi() % pool.size()]["id"]))
 	return out
 
 
@@ -743,7 +744,25 @@ func _bulb(pos: Vector3, color: Color, energy: float, rng: float, ceiling: float
 		_flicker.append([l, energy, flicker])
 
 
+## Card and coin venues reuse the game rooms' shells with their own signs.
+const SIGNS := {
+	"cardshow": {"COLLECTOR CON": "CARD SHOW"},
+	"tradenight": {"GAMES": "TRADE NIGHT", "BUY  SELL  TRADE": "THURSDAYS 6PM"},
+	"cardshop": {"GAMES": "CARDS", "BUY  SELL  TRADE": "SINGLES  SLABS  SEALED"},
+	"coinshow": {"COLLECTOR CON": "COIN SHOW"},
+	"coinshop": {"PAWN": "COINS & BULLION"},
+	"coinauction": {"HERITAGE": "STAX & TOWERS"},
+}
+
+
+## The catalog this room's decor comes from (cards in card shops...).
+func _decor_pool() -> Array:
+	var m := Venues.market(scene_id) if Venues.get_def(scene_id).size() > 0 else "games"
+	return Catalog.items_of(m)
+
+
 func _neon(text: String, pos: Vector3, color: Color, size: int = 64, rot_y: float = 0.0) -> void:
+	text = String((SIGNS.get(scene_id, {}) as Dictionary).get(text, text))
 	var l := Label3D.new()
 	l.text = text
 	l.font = FONT
@@ -797,7 +816,8 @@ func _lay_items(items: Array, center: Vector3, width: float, depth: float = 0.35
 		var x := center.x + (float(c) - (in_row - 1) * 0.5) * (width / maxf(per, 1))
 		var z := center.z + (float(r) - (rows - 1) * 0.5) * -depth
 		var m := ItemModels.build(items[i])
-		m.scale = Vector3.ONE * ITEM_SCALE
+		# Cards and coins are tiny at real size: show them a bit bigger on the mat.
+		m.scale = Vector3.ONE * ITEM_SCALE * (1.7 if Catalog.is_cc(items[i]) else 1.0)
 		# Back rows stand on a riser so they peek over the front row.
 		var lift := 0.0
 		if r > 0:
@@ -862,8 +882,9 @@ func _decor_stock(pos: Vector3, w: float, tops: Array, seed_value: int, per_leve
 	var r := RandomNumberGenerator.new()
 	r.seed = seed_value
 	for y in tops:
+		var pool := _decor_pool()
 		for k in per_level:
-			var d: Dictionary = Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()]
+			var d: Dictionary = pool[r.randi() % pool.size()]
 			var it := d.duplicate()
 			it["cond"] = "CIB" if boxed else "Loose"
 			var m := ItemModels.build(it)
@@ -888,7 +909,45 @@ func _build(id: String, items: Array) -> void:
 		"convention": _convention(items)
 		"ebay": _online(items)
 		"heritage": _heritage(items)
+		"cardshow", "coinshow": _convention(items)
+		"tradenight", "cardshop": _retro(items)
+		"tcgmarket": _online(items)
+		"coinshop": _pawn(items)
+		"coinauction": _heritage(items)
+		"beach": _beach(items)
 		_: _garage(items)
+
+
+## Metal detecting at dawn: sand, surf, a towel with today's finds.
+func _beach(items: Array) -> void:
+	_setup(Color(0.75, 0.82, 0.92), Color(0.8, 0.78, 0.72), 1.2, 10.0, 40.0)
+	_sky(-40, 120, 40, Color(0.45, 0.65, 0.95), Color(1.0, 0.82, 0.62))
+	_ground("pavingstones070", Color(0.95, 0.85, 0.62), Vector2(60, 30), Vector3(0, 0, -6), 0.15)
+	var sea := Psx.mat(Color(0.25, 0.55, 0.75), null, Vector2.ONE, 0.25)
+	Psx.box(Vector3(80, 0.02, 30), sea, Vector3(0, 0.01, -26), world)
+	for k in 4:
+		Psx.box(Vector3(80, 0.03, 0.15), Psx.mat(Color(0.92, 0.96, 1.0), null, Vector2.ONE, 0.4), Vector3(0, 0.02, -11.2 - k * 1.7), world)
+	_sun(-25, 160, Color(1.0, 0.88, 0.7), 1.3)
+	var towel := Psx.mat(Color(0.9, 0.35, 0.3), Psx.tex("fabric061"), Vector2(2, 2))
+	Psx.box(Vector3(2.4, 0.02, 1.0), towel, Vector3(0, 0.01, 0), world)
+	for k in 5:
+		Psx.box(Vector3(2.4, 0.022, 0.08), Psx.mat(Color(0.98, 0.95, 0.85)), Vector3(0, 0.012, -0.4 + k * 0.2), world)
+	_lay_items(items, Vector3(0, 0.03, 0.0), 1.9, 0.3, 5)
+	# Umbrella, a bucket, a sand sieve and a detector lying in the sand.
+	Psx.cyl(0.025, 2.0, Psx.mat(Color(0.9, 0.9, 0.9)), Vector3(-1.8, 1.0, -0.8), world, 6)
+	var top := Psx.cyl(1.1, 0.12, Psx.mat(Color(0.25, 0.6, 0.85)), Vector3(-1.8, 2.0, -0.8), world, 10)
+	top.rotation_degrees.z = 8.0
+	Psx.cyl(0.14, 0.24, Psx.mat(Color(0.95, 0.75, 0.2)), Vector3(1.5, 0.12, 0.3), world, 10)
+	var det := Psx.cyl(0.015, 1.2, Psx.mat(Color(0.2, 0.2, 0.22)), Vector3(1.4, 0.05, -0.5), world, 6)
+	det.rotation_degrees.z = 80.0
+	Psx.cyl(0.16, 0.03, Psx.mat(Color(0.15, 0.15, 0.15)), Vector3(0.85, 0.02, -0.55), world, 12)
+	for k in 6:
+		_prop("nature/rock_smallA", Vector3(-6 + k * 2.4, 0, -4 - (k % 3)), k * 40, 0.3)
+	_prop("nature/grass_large", Vector3(-4.5, 0, -2.5), 0, 0.6)
+	_prop("nature/grass_large", Vector3(4.2, 0, -3.0), 50, 0.7)
+	_walker([Vector3(-4, 0, -3.5), Vector3(4, 0, -4.2), Vector3(2, 0, -6.0)], [["browse", 90], ["reach", 180], ["browse", -90]], "male_adult_14", 0.35)
+	_walker([Vector3(5, 0, -7), Vector3(-5, 0, -7.5)], ["", ""], "female_adult_03", 0.5)
+	_view(Vector3(0, 1.4, 1.8), Vector3(0, 0.1, -0.3))
 
 
 func _title(items: Array) -> void:
@@ -985,7 +1044,8 @@ func _box_stack(pos: Vector3, rot_y: float, n: int, seed_value: int) -> void:
 	r.seed = seed_value
 	var y := 0.0
 	for k in n:
-		var d: Dictionary = Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()].duplicate()
+		var games := Catalog.items_of("games")
+		var d: Dictionary = games[r.randi() % games.size()].duplicate()
 		if String(d["kind"]) != "game":
 			continue
 		d["cond"] = "CIB"
@@ -1466,7 +1526,7 @@ func _online(items: Array) -> void:
 	var top := _top(desk)
 	_crt(Vector3(0.1, top, -0.5), 0.6, Color(0.45, 0.65, 1.0))
 	var l := Label3D.new()
-	l.text = "eBuy" if scene_id == "ebay" else "LOT 0451"
+	l.text = {"ebay": "eBuy", "tcgmarket": "TCGrabber"}.get(scene_id, "LOT 0451")
 	l.font = FONT
 	l.font_size = 48
 	l.pixel_size = 0.004

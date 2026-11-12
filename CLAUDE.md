@@ -61,6 +61,16 @@ The web build in Safari is the test for every platform.
   Printables STL via `tools/stl_to_glb.py`; Printables' GraphQL API downloads STLs).
 - Extra games come from `docs/research/retro_gaming_n64_more.txt` (own section, so the
   top-500 ranks stay put); `GENRE_EXACT` in gen_catalog.py sets their genres.
+- MARKETS (cards + coins): after ante 4 the route offers THE CARD SHOPS, after ante 6 THE
+  RARE COIN TRADE (`Run.pivot_offer/pivot`, `_pivot_panel`): sell the whole shelf at
+  `Balance.PIVOT_RATE`, get starters + Time, and from then on `run.market` picks the
+  platforms, venues (`"market"` in venues.gd) and decor. Lists: `docs/research/tcg_cards_top_250.txt`,
+  `rare_coins_top_250.txt` -> `python3 tools/gen_collectibles.py` -> `scripts/data/catalog_cc.gd`
+  (parody card names; edit the generator). Kinds card / pack / coin; condition words per hobby
+  (`Catalog.cond_name`); packs can be ripped (`Run.open_pack`). Art: `scripts/gfx/cc_art.gd`
+  (TCG frames, card backs, foil packs/boxes, embossed coins); models in `ItemModels._collectible`
+  (top-loaders, slabs, 2x2 flips, capsules, proof cases). Rooms reuse shells with `Stage.SIGNS`,
+  plus `_beach`. Check art: `art_sheet.gd -- OUT.png SEED cards|coins`.
 - Ask before adding any addon beyond GUT.
 
 ## Art + sound

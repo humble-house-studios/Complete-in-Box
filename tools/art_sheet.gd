@@ -1,6 +1,6 @@
 extends SceneTree
 ## Contact sheet of runtime box art + icons for random items:
-##   xvfb-run -a -s "-screen 0 1280x1280x24" godot --rendering-driver opengl3 -s res://tools/art_sheet.gd -- OUT.png [seed]
+##   xvfb-run -a -s "-screen 0 1280x1280x24" godot --rendering-driver opengl3 -s res://tools/art_sheet.gd -- OUT.png [seed] [games|cards|coins]
 
 func _initialize() -> void:
 	DisplayServer.window_set_size(Vector2i(256, 256))
@@ -13,14 +13,17 @@ func _go() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(args[1]) if args.size() > 1 else 3
 	var picks: Array = []
+	var pool: Array = Catalog.items_of(args[2]) if args.size() > 2 else Catalog.ITEMS
 	for i in 30:
-		var d: Dictionary = Catalog.ITEMS[rng.randi() % Catalog.ITEMS.size()].duplicate()
+		var d: Dictionary = pool[rng.randi() % pool.size()].duplicate()
 		d["variant"] = Catalog.roll_variant(d, rng) if i % 2 == 0 else "Standard"
 		if i % 5 == 0:
 			d["variant"] = ["Misprint", "Test Cart", "Player's Pick", "Rental Copy", "Collector's Edition", "Prototype"][(i / 5) % 6]
 			if not (Catalog.VARIANTS[d["variant"]]["kinds"] as Array).has(d["kind"]):
 				d["variant"] = "Standard"
-		d["cond"] = "CIB" if i % 3 != 0 else "Loose"
+		d["cond"] = ["CIB", "Loose", "Mint", "Sealed"][i % 4]
+		if i % 7 == 3:
+			d["grade"] = 9
 		picks.append(d)
 	var texs: Array = []
 	for d in picks:

@@ -15,6 +15,7 @@ const THEMES := {
 	"flipper": "ocean", "hype_beast": "comic", "time_capsule": "clock", "grader_buddy": "metal",
 	"bubble_wrap": "ocean", "nostalgia": "crt", "curator": "vault", "coupon": "kraft", "eagle_eye": "sky",
 	"whale": "ocean", "lunchbox": "kitchen", "console_wars": "versus",
+	"pack_rat": "cardboard", "holo_hunter": "neon", "gold_bug": "vault",
 	"up_shelf": "basement", "up_time": "clock", "up_perk_slot": "cardboard", "up_interest": "money", "up_reroll": "comic",
 }
 const BADGE_FONT := "res://assets/fonts/cover/Bangers-Regular.ttf"

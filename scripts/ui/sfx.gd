@@ -42,7 +42,7 @@ const SOUNDS := {
 
 ## Music per screen/venue slot, plus optional ambience bed per venue.
 const TRACKS := {"title": "title", "home": "home", "hunt": "hunt", "shop": "shop", "online": "online", "ending": "ending"}
-const AMBIENCE := {"flea": "amb_crowd", "convention": "amb_crowd", "storage": "amb_rain"}
+const AMBIENCE := {"flea": "amb_crowd", "convention": "amb_crowd", "storage": "amb_rain", "cardshow": "amb_crowd", "tradenight": "amb_crowd", "coinshow": "amb_crowd"}
 
 var _streams: Dictionary = {}
 var _players: Array = []

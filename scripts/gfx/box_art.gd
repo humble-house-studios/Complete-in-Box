@@ -222,7 +222,14 @@ static func scene(c: Control, r: Rect2, genre: String, seed_key: String, accent:
 static var _product: Texture2D
 
 
+const CCArt := preload("res://scripts/gfx/cc_art.gd")
+
+
 static func paint_front(c: Control, item: Dictionary) -> void:
+	if Catalog.is_cc(item):
+		CCArt.H = H
+		CCArt.paint_front(c, item, W)
+		return
 	CoverComp.current_title = String(item.get("name", ""))
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	var plat := String(item["plat"])
@@ -381,6 +388,10 @@ static func _variant_overlay(c: Control, item: Dictionary, variant: String) -> v
 # ---------------------------------------------------------------- back
 
 static func paint_back(c: Control, item: Dictionary) -> void:
+	if Catalog.is_cc(item):
+		CCArt.H = H
+		CCArt.paint_back(c, item, W)
+		return
 	CoverComp.current_title = String(item.get("name", ""))
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	var plat := String(item["plat"])

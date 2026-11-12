@@ -316,7 +316,8 @@ func _teaser_items(venue_id: String) -> Array:
 	var tries := 0
 	while out.size() < n and tries < 200:
 		tries += 1
-		var def: Dictionary = Catalog.ITEMS[r.randi() % Catalog.ITEMS.size()]
+		var pool := Catalog.items_of(Venues.market(venue_id))
+		var def: Dictionary = pool[r.randi() % pool.size()]
 		if int(def["tier"]) > 1 or not run.is_active_plat(String(def["plat"])):
 			continue
 		var it: Dictionary = def.duplicate()
@@ -328,7 +329,7 @@ func _teaser_items(venue_id: String) -> Array:
 ## The big sealed box spinning on the title screen.
 func _hero_item() -> Dictionary:
 	if _title_item.is_empty():
-		var grails := Catalog.defs_of_tier(3)
+		var grails := Catalog.defs_of_tier(3, "games")
 		var d: Dictionary = grails[randi() % grails.size()].duplicate()
 		d["cond"] = "Sealed"
 		_title_item = d
@@ -1749,7 +1750,7 @@ func _tag_row(item: Dictionary, fs: int = 16) -> HFlowContainer:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(_pill(String(plat["short"]), (plat["color"] as Color).lightened(0.15), fs))
 	var cond := String(item["cond"])
-	row.add_child(_pill(String(Catalog.COND_SHORT[cond]), (Catalog.COND_COLORS[cond] as Color).lightened(0.1), fs))
+	row.add_child(_pill(Catalog.cond_short(item), (Catalog.COND_COLORS[cond] as Color).lightened(0.1), fs))
 	if int(item["grade"]) > 0:
 		row.add_child(_pill("GRADE %d" % item["grade"], GOLD, fs))
 	var tier := int(item["tier"])
@@ -3648,6 +3649,7 @@ func _route_tab(col: VBoxContainer) -> void:
 	else:
 		tv.add_child(_label("Ante boss later: %s" % boss["name"], 16, MUTED, true))
 	col.add_child(top)
+	_pivot_panel(col)
 	_market_panel(col)
 	_section(col, "WHERE TO?")
 	for id in run.venue_choices:
@@ -4387,7 +4389,7 @@ func _item_lines(item: Dictionary, exact: bool) -> Array:
 	var lines: Array = [[Flavor.cond_line(item), INK]]
 	if tier > 0:
 		lines.append([Flavor.tier_line(item), Catalog.TIER_COLORS[tier]])
-	lines.append(["%s  |  %s  |  %s%s" % [plat["name"], item["cond"], Catalog.TIER_NAMES[tier], ("  |  Graded %d" % item["grade"]) if int(item["grade"]) > 0 else ""], (plat["color"] as Color).lightened(0.25)])
+	lines.append(["%s  |  %s  |  %s%s" % [plat["name"], Catalog.cond_name(item), Catalog.TIER_NAMES[tier], ("  |  Graded %d" % item["grade"]) if int(item["grade"]) > 0 else ""], (plat["color"] as Color).lightened(0.25)])
 	if exact:
 		lines.append(["Worth %s right now.%s" % [_money(run.market_value(item)), _trend_tag(item)], GOLD])
 	if (item["tags"] as Array).has("fad"):
@@ -4429,10 +4431,67 @@ func _open_shelf_item(uid: int, state: String) -> void:
 			actions.append(["Repair for %s" % _money(run.repair_cost(item)), func(): _act(run.repair(uid), "haggle"), PANEL_HI])
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
 			actions.append(["Send to grading for %s" % _money(run.grade_cost(item)), func(): _act(run.send_to_grading(uid), "tick"), GOLD])
+	if run.pack_size(item) > 0:
+		actions.append(["RIP IT OPEN (%d cards)" % run.pack_size(item), func(): _rip_pack(uid), Color("b07cff")])
 	actions.append(["Dump it for %s" % _money(Balance.DUMP_VALUE), func(): _act(run.dump(uid), "buzz"), Color("5a3a3a")])
 	# A quiet extra next to Close: hanging is an end-game move (it leaves the run).
 	actions.append(["Hang on Wall", func(): _hang_from_shelf(uid), Color("2a2836"), true])
 	_open_sheet(String(item["name"]), lines, actions, item)
+
+
+## Opens a sealed pack or box and shows what came out, best first.
+func _rip_pack(uid: int) -> void:
+	var res := run.open_pack(uid)
+	if not bool(res["ok"]):
+		_act(res, "buzz")
+		return
+	_close_sheet()
+	var lines: Array = []
+	var gain := int(res["worth"]) - int(res["was"])
+	lines.append(["Pulls worth %s. Sealed it was worth %s: %s." % [_money(int(res["worth"])), _money(int(res["was"])), _signed(gain)], _gain_color(gain)])
+	for it in res["pulls"]:
+		var vl := Catalog.variant_label(it)
+		lines.append(["%s  (%s%s)  %s" % [it["name"], Catalog.cond_name(it), "" if vl == "Standard" else ", " + vl, _money(run.market_value(it))], Catalog.TIER_COLORS[int(it["tier"])]])
+	var best: Dictionary = res["pulls"][0]
+	_sfx.play(["land", "land", "bargain", "grail"][clampi(int(best["tier"]), 0, 3)])
+	_open_sheet("YOU PULLED...", lines, [], best)
+	request_refresh()
+
+
+## The fork in the road after antes 4 and 6: sell everything and deal in
+## trading cards / rare coins from now on.
+func _pivot_panel(col: VBoxContainer) -> void:
+	var to := run.pivot_offer()
+	if to == "":
+		return
+	var m: Dictionary = Catalog.MARKETS[to]
+	var p := _panel(Color(0.08, 0.05, 0.02, 0.92), Color(m["color"], 0.8), 3)
+	var v := _vbox(6)
+	p.add_child(v)
+	v.add_child(_pill("A NEW SCENE IS OPENING UP", m["color"], 16))
+	var lines := {
+		"cards": ["THE CARD SHOPS", "The games crowd has gone quiet. Word is the card shops are booming: singles, slabs, sealed boxes you can rip open."],
+		"coins": ["THE RARE COIN TRADE", "Real money. Coin shows, dealers with vault doors, auction houses that sell pennies for millions."],
+	}
+	v.add_child(_title_label(String(lines[to][0]), 30, m["color"]))
+	v.add_child(_label(String(lines[to][1]), 18, INK, true))
+	v.add_child(_label("Flip now: sell your whole shelf for %s (%d%% of value), get %d starter pieces and +%d Time at your next stop. Your perks stay. There's no going back." % [_money(run.pivot_value()), int(Balance.PIVOT_RATE * 100), Balance.PIVOT_STARTERS, Balance.PIVOT_TIME], 17, MUTED, true))
+	var b := _button("FLIP EVERYTHING INTO %s  >" % String(m["short"]), func(): _do_pivot(to), Color(m["color"]).darkened(0.35), 22, 88)
+	v.add_child(b)
+	v.add_child(_label("Or ignore this and head out: you'll stay in %s." % String(Catalog.MARKETS[run.market]["name"]).to_lower(), 16, MUTED, true))
+	col.add_child(p)
+
+
+func _do_pivot(to: String) -> void:
+	var res := run.pivot(to)
+	if not bool(res["ok"]):
+		_act(res, "buzz")
+		return
+	_dest = ""
+	_sfx.play("coin")
+	_transition(func():
+		_toast_msg(String(res["msg"]), GOLD)
+		request_refresh(), "TRADING IN\nYOUR WHOLE SHELF", "Starter stack: " + ", ".join(res["starters"]), Catalog.MARKETS[to]["color"])
 
 
 # ================================================================ appraisal
@@ -4724,7 +4783,7 @@ func _play_lot_reveal(items: Array, worth: int, msg: String) -> void:
 			await _wait(0.045)
 		var it: Dictionary = items[k]
 		var tier := int(it["tier"])
-		l.text = "%s  (%s %s)  %s" % [it["name"], Catalog.platform(String(it["plat"]))["short"], Catalog.COND_SHORT[it["cond"]], _money(run.market_value(it))]
+		l.text = "%s  (%s %s)  %s" % [it["name"], Catalog.platform(String(it["plat"]))["short"], Catalog.cond_short(it), _money(run.market_value(it))]
 		l.add_theme_color_override("font_color", Catalog.TIER_COLORS[tier])
 		_sfx.play("grail" if tier >= 3 else "land")
 		_punch(l, 1.2)
@@ -5247,13 +5306,13 @@ func _stat_block(item: Dictionary) -> Control:
 		_stat_row(g, "VALUE", _title_label(_money(run.market_value(item)), 26, GOLD))
 	else:
 		_stat_row(g, "VALUE", _title_label("???", 26, Color("e8dcc0")))
-	_stat_row(g, "CONDITION", _pips(Catalog.CONDITIONS.find(cond) + 1, 5, Catalog.COND_COLORS[cond], cond))
+	_stat_row(g, "CONDITION", _pips(Catalog.CONDITIONS.find(cond) + 1, 5, Catalog.COND_COLORS[cond], Catalog.cond_name(item)))
 	var tier := int(item["tier"])
 	_stat_row(g, "RARITY", _pips(tier + 1, 4, Catalog.TIER_COLORS[tier], String(Catalog.TIER_NAMES[tier])))
 	var def := Catalog.get_def(String(item["id"]))
 	var rank := int(def.get("rank", 0))
 	if rank > 0:
-		var lst: String = {"games": "top 500 games", "hardware": "top 250 hardware"}.get(String(def.get("list", "")), "")
+		var lst: String = {"games": "top 500 games", "hardware": "top 250 hardware", "cards": "top 250 trading cards", "coins": "top 250 rare coins"}.get(String(def.get("list", "")), "")
 		if lst == "":
 			var more := Catalog.ITEMS.filter(func(d): return String(d.get("list", "")) == String(def.get("list", "")) and String(d["plat"]) == String(def["plat"])).size()
 			lst = "%d deep-cut %s games" % [more, Catalog.platform(String(def["plat"]))["short"]]
@@ -5261,11 +5320,22 @@ func _stat_block(item: Dictionary) -> Control:
 	var who := String(def.get("pub", ""))
 	if who != "":
 		_stat_row(g, "MADE BY", _label("%s, %d" % [who, int(def.get("year", 0))], 18, INK))
+	match String(item["kind"]):
+		"card":
+			_stat_row(g, "CARD", _label("%s  |  %s" % [def.get("rarity", "?"), def.get("line", "")], 18, INK, true))
+			_stat_row(g, "SET", _label("%s  #%s" % [def.get("set", "?"), def.get("num", "")], 18, INK, true))
+			_stat_row(g, "ARTIST", _label(String(def.get("artist", "?")), 18, INK))
+		"pack":
+			_stat_row(g, "SEALED", _label("%s  |  %d cards inside" % [def.get("set", "?"), int(def.get("count", 11))], 18, INK, true))
+			_stat_row(g, "RIP IT?", _label("Opening gives %d cards from this set" % run.pack_size(item), 18, Color("ffcc66"), true))
+		"coin":
+			_stat_row(g, "COIN", _label("%s  |  %s  |  %d mm" % [def.get("denom", "?"), String(def.get("metal", "?")).capitalize(), int(def.get("dia", 0))], 18, INK, true))
+			_stat_row(g, "STRUCK", _label("%s, %s" % [def.get("mint", "?"), def.get("country", "")], 18, INK, true))
 	if String(item["kind"]) == "game":
 		_stat_row(g, "GENRE", _label("%s  |  Rated %s" % [def.get("genre", "?"), def.get("rating", "E")], 18, INK))
 	var printed := int(def.get("run", 0))
 	if printed > 0:
-		_stat_row(g, "PRINT RUN", _label("~%s copies" % _commas(printed), 18, INK))
+		_stat_row(g, "MINTAGE" if String(item["kind"]) == "coin" else "PRINT RUN", _label("~%s %s" % [_commas(printed), "struck" if String(item["kind"]) == "coin" else "copies"], 18, INK))
 		var pop := maxi(1, int(printed / 900.0 * Catalog.VARIANTS[String(item.get("variant", "Standard"))]["w"] / 70.0))
 		_stat_row(g, "GRADED POP", _label("%s graded by GCA" % _commas(pop), 18, INK))
 	_stat_row(g, "FIND ODDS", _label("about 1 in %s finds" % _commas(Catalog.odds(item)), 18, Color("ffcc66")))
