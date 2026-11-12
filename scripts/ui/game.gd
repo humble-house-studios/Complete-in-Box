@@ -1963,8 +1963,11 @@ func _market_panel(parent: Control) -> void:
 # ================================================================ title
 
 func show_title() -> void:
+	var from_coll := screen == "collection"
 	screen = "title"
 	request_refresh()
+	if from_coll:
+		_forget_later()
 	if not _intro_done:
 		_intro_done = true
 		_start_intro.call_deferred()
@@ -3325,6 +3328,34 @@ func go_to_venue(id: String) -> void:
 	_transition(_go_to_venue.bind(id), "DRIVING TO\n%s" % String(d["name"]).to_upper(), Flavor.mood(id), d.get("color", GOLD))
 
 
+const SLOT_REEL := preload("res://scripts/ui/slot_reel.gd")
+## Offer uids that already had their slot spin (new ones spin when they appear).
+var _spun: Dictionary = {}
+var _reel_tick := 0
+
+
+## Slot-machine reveal over a new offer card: staggered left to right.
+func _slot_reel(card: Control, tier: int, order: int) -> void:
+	var r: Control = SLOT_REEL.new()
+	r.tier = tier
+	r.tier_col = Catalog.TIER_COLORS[clampi(tier, 0, 3)]
+	r.delay = 0.08 + order * 0.14
+	r.dur = 0.65 + randf() * 0.25
+	r.blocked = func() -> bool: return _veil != null and is_instance_valid(_veil)
+	r.sound = _reel_sound
+	card.add_child(r)
+
+
+func _reel_sound(kind: String, v) -> void:
+	if kind == "tick":
+		var now := Time.get_ticks_msec()
+		if now - _reel_tick > 70:
+			_reel_tick = now
+			_sfx.play("spin", float(v))
+	else:
+		_sfx.play(["tick", "land", "bargain", "grail"][clampi(int(v), 0, 3)])
+
+
 func _go_to_venue(id: String) -> void:
 	var res := run.enter_venue(id)
 	_venue_tab = "sale"
@@ -3394,8 +3425,17 @@ func _build_venue() -> void:
 		label = "BUY IT NOW"
 	if not run.stock.is_empty():
 		_section(main, label)
+		var fresh := 0
 		for i in run.stock.size():
-			g.add_child(_offer_tile(i, w) if is_landscape() else _offer_card(i, w))
+			var card := _offer_tile(i, w) if is_landscape() else _offer_card(i, w)
+			g.add_child(card)
+			var it: Dictionary = run.stock[i]["item"]
+			var uid := int(it.get("uid", -1))
+			if not _spun.has(uid):
+				_spun[uid] = true
+				if not fast and DisplayServer.get_name() != "headless":
+					_slot_reel(card, int(it.get("tier", 0)), fresh)
+					fresh += 1
 		main.add_child(g)
 	elif int(run.venue["stock"]) > 0:
 		main.add_child(_label("Picked clean.", 20, MUTED))
@@ -4348,6 +4388,7 @@ func _on_spin_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	_lazy_update(delta)
 	if _pad:
 		_pad_scroll(delta)
 		_pad_sticks(delta)
@@ -4376,7 +4417,7 @@ func _process(delta: float) -> void:
 			_manual_t -= delta
 		else:
 			_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
-			_spin_model.rotation.y += (0.35 + _spin_vel) * delta
+			_spin_model.rotation.y += (0.14 + _spin_vel) * delta
 			_spin_model.rotation.x = lerpf(_spin_model.rotation.x, 0.0, delta * 2.0)
 
 
@@ -4716,11 +4757,55 @@ func _set_coll_tab(t: String) -> void:
 func _dev_binder_all() -> void:
 	_binder_all = not _binder_all
 	request_refresh()
+	_forget_later()
 
 
 func _binder_step(d: int) -> void:
 	_binder_plat = posmod(_binder_plat + d, Catalog.PLATFORMS.size())
 	request_refresh()
+	_forget_later()
+
+
+## After the old page's tiles are gone, drop their unstarted renders.
+func _forget_later() -> void:
+	get_tree().create_timer(0.2).timeout.connect(Art.forget_unwatched)
+
+
+## An icon that only asks Art for its render once it scrolls into view, so a
+## full binder (or DEV show-all) paints what you look at, not the whole page.
+var _lazy: Array = []
+var _lazy_t := 0.0
+
+
+func _lazy_icon(item: Dictionary, px: float) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.custom_minimum_size = Vector2(px, px)
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.set_meta("item", item)
+	_lazy.append(tr)
+	return tr
+
+
+func _lazy_update(delta: float) -> void:
+	_lazy_t -= delta
+	if _lazy.is_empty() or _lazy_t > 0.0:
+		return
+	_lazy_t = 0.1
+	var view := get_viewport_rect().grow(160)
+	var keep: Array = []
+	for tr in _lazy:
+		if not is_instance_valid(tr) or not (tr as TextureRect).is_inside_tree():
+			continue
+		var t := tr as TextureRect
+		if t.is_visible_in_tree() and view.intersects(t.get_global_rect()):
+			var item: Dictionary = t.get_meta("item")
+			t.texture = Art.icon(item, ItemModels.is_boxed(item) and String(item["kind"]) != "misc")
+		else:
+			keep.append(tr)
+	_lazy = keep
 
 
 func _build_collection() -> void:
@@ -4855,7 +4940,7 @@ func _binder_tile(def: Dictionary, w: float, now: Dictionary) -> Button:
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(tl)
 	else:
-		var ic := _icon(item, 64)
+		var ic := _lazy_icon(item, 64)
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		if state == "seen":
 			ic.modulate = Color(0.55, 0.55, 0.62, 0.8)

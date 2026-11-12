@@ -219,6 +219,8 @@ static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
 
 
 static var _white_tex: Texture2D
+## True while Art renders an icon: the box back faces away, so skip painting it.
+static var icon_build := false
 
 
 ## A picture material that fills a `surf`-shaped quad by cropping, never stretching.
@@ -298,7 +300,7 @@ static func _retail_box(model: Node3D, size: Vector3, label: Texture2D, col: Col
 	var surf := (size.x - inset * 2.0) / (size.y - inset * 2.0)
 	var front := _pic_mat(label, surf)
 	Psx.quad(Vector2(size.x - inset * 2.0, size.y - inset * 2.0), front, Vector3(0, size.y / 2.0, size.z / 2.0 + 0.002), model)
-	if not item.is_empty():
+	if not item.is_empty() and not icon_build:
 		var bq := Psx.quad(Vector2(size.x - inset * 2.0, size.y - inset * 2.0), _pic_mat(Art.back(item), surf), Vector3(0, size.y / 2.0, -size.z / 2.0 - 0.002), model)
 		bq.rotation_degrees.y = 180.0
 	# Side spine in the platform colour.

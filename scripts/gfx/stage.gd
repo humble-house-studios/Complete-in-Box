@@ -220,7 +220,7 @@ func _process(delta: float) -> void:
 			(node as ShaderMaterial).set_shader_parameter("emit", v)
 	for s in _spin:
 		if is_instance_valid(s):
-			(s as Node3D).rotation.y += delta * 0.6
+			(s as Node3D).rotation.y += delta * 0.22
 	for s in _swing:
 		if is_instance_valid(s):
 			(s as Node3D).rotation.z = sin(_t * 1.3) * 0.12

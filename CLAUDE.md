@@ -49,6 +49,13 @@ The web build in Safari is the test for every platform.
   discs/posters/quads crop (`Psx.fit`, `tex_fit`). Sizes are real (`REAL_*`): a loose
   CD is 12 cm, a mini disc 8 cm, a DS card 3.5 cm.
 - Minor sheet actions (4th entry `true`, e.g. Hang on Wall) sit small beside Close.
+- New offers get a slot-machine reveal (`scripts/ui/slot_reel.gd`, preload; `_slot_reel`):
+  any offer uid not in `_spun` spins when it first appears (entering a stop, dig,
+  back room), staggered, waits for the loading card, lands on its rarity, tap skips.
+- Art load: on screen Art paints `LIVE_PER_FRAME` (4) per batch, 16 behind a loading
+  card; icon renders skip the box back (`ItemModels.icon_build`). Binder tiles use
+  `_lazy_icon` (requested only when scrolled into view) and `Art.forget_unwatched()`
+  drops unstarted jobs when you flip pages or leave. Item card auto-spin is slow (0.14).
 - Discs show their data side with a diffraction rainbow (`assets/shaders/disc_back.gdshader`,
   black on PST/PST2). F64 carts use a real N64-shell model (`n64Cartridge.glb`, from a
   Printables STL via `tools/stl_to_glb.py`; Printables' GraphQL API downloads STLs).

@@ -12,6 +12,7 @@ extends Node
 
 const ICON := Vector2i(96, 96)
 const PER_FRAME := 16
+const LIVE_PER_FRAME := 4
 const MAX_CACHE := 600
 
 static var _host: Art
@@ -162,6 +163,39 @@ static func _trim() -> void:
 	_order = keep
 
 
+## Drop waiting jobs nobody is looking at any more (a binder page you flipped
+## past): their placeholder textures are forgotten too, so asking again later
+## queues them afresh. Covers still needed by a kept icon job stay.
+static func forget_unwatched() -> void:
+	if _host == null or not is_instance_valid(_host):
+		return
+	var kept: Array = []
+	var dropped: Array = []
+	for j in _host._queue:
+		var k := String(j["key"])
+		var t: Texture2D = _tex.get(k)
+		if not j.has("vp") and String(j["kind"]).begins_with("icon") and t != null and t.get_reference_count() <= 1:
+			dropped.append(k)
+		else:
+			kept.append(j)
+	var need: Dictionary = {}
+	for j in kept:
+		if String(j["kind"]).begins_with("icon"):
+			need["F|" + _key(j["item"])] = true
+	var kept2: Array = []
+	for j in kept:
+		var k := String(j["key"])
+		var t: Texture2D = _tex.get(k)
+		if not j.has("vp") and (j["kind"] == "front" or j["kind"] == "back") and not need.has(k) and t != null and t.get_reference_count() <= 1:
+			dropped.append(k)
+		else:
+			kept2.append(j)
+	_host._queue = kept2
+	for k in dropped:
+		_tex.erase(k)
+		_order.erase(k)
+
+
 ## Move a waiting job to the front of the queue.
 func _bump(k: String) -> void:
 	for i in _queue.size():
@@ -190,7 +224,9 @@ func _run_batch() -> void:
 			ready = _done.has("F|" + _key(j["item"]))
 		elif j["kind"] == "front" and hw:
 			ready = _done.has(_icon_key(j["item"], false))
-		var cap := PER_FRAME if loading else ((1 if throttle else 2) if Lite.perf else (2 if throttle else PER_FRAME))
+		# Behind a loading card: go flat out. On screen: a few per batch so
+		# scrolling a full binder never hitches (each one is a GPU readback).
+		var cap := PER_FRAME if loading else ((1 if throttle else 2) if Lite.perf else (2 if throttle else LIVE_PER_FRAME))
 		if batch.size() < cap and ready:
 			batch.append(j)
 		else:
@@ -300,7 +336,9 @@ func _make_viewport(j: Dictionary) -> SubViewport:
 	var ff := Psx.fog_far
 	Psx.fog_near = 100.0
 	Psx.fog_far = 200.0
+	ItemModels.icon_build = true
 	var model := ItemModels.build(item, null, 1 if kind == "icon_box" else 0)
+	ItemModels.icon_build = false
 	Psx.fog_near = fn
 	Psx.fog_far = ff
 	vp.add_child(model)
