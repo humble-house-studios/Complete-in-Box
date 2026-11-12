@@ -132,6 +132,9 @@ The web build in Safari is the test for every platform.
   rendered art and CRT overlay (or one at a time: `?no3d=1`, `?noart=1`,
   `?nocrt=1`). The page's startup script shows errors on screen and reloads
   with `?lite=1` if the full build crashes (seen on an Android TV browser).
+- Android TV app: CI also exports preset "Android TV" (arm32+arm64, debug-signed,
+  feature tag `tv` = landscape) and publishes it as `tv.apk` next to the web
+  game. Install on a TV with Downloader by AFTVnews. Never blocks the web deploy.
 
 ## Testing pipeline
 - Use Godot 4.3 (as CI does). If the container's `godot` is newer, grab the
