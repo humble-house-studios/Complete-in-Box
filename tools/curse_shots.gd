@@ -31,6 +31,8 @@ func _snap(name: String, frames: int = 24) -> void:
 
 
 func _go() -> void:
+	game._save["sealed"] = 0
+	game.show_title()
 	await _snap("title")
 	game._open_guide(Callable())
 	game._guide_show(0)
@@ -54,4 +56,6 @@ func _go() -> void:
 	game.run.last_appraisal["total"] = int(tgt * 0.62)
 	game._after_appraisal()
 	await _snap("over", 40)
+	game.show_title()
+	await _snap("title_after_loss", 40)
 	quit()

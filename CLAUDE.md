@@ -21,6 +21,12 @@ you (`Stage.PLAYER`) shrink-wrapped and tied with twine in a glass case on a pli
 with a grading slab label (`Stage.case_info`), in a dark vault of other cased
 collectors. Grade and condition come from `Run.curse_grade()` (how close you came).
 Boss twists are shown as THE BUYER'S TERMS. Shots: `tools/curse_shots.gd`.
+The twist stays hidden until your first loss: the title vault's corner case
+(`Stage._vault_case`, `Stage.vault_case`) stands under a dust sheet with a RESERVED
+plaque and a red glow under the hem (the intro flight glances past it); after a loss
+the sheet is on the floor and your last sealed self is inside (save keys `sealed`,
+`seal_grade`, `seal_cond`, `seal_ante`, `seal_lot`; `_vault_info`). The guide's PAY THE
+APPRAISER page uses its `secret` lines until then.
 
 Samuel builds from his phone: Claude writes and pushes the code, GitHub builds a
 web version, and he playtests it in Safari. Keep replies short and in plain words,

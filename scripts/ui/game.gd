@@ -58,7 +58,9 @@ var _last_inset := Vector4(-1, -1, -1, -1)
 var _refresh_queued := false
 var _busy := false
 var _skip := false
-var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1, "guide_off": 0, "gfx": -1}
+var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1, "guide_off": 0, "gfx": -1,
+	"sealed": 0, "seal_grade": 0, "seal_cond": 0, "seal_ante": 0, "seal_lot": 0}
+const SEAL_CONDS := ["DAMAGED", "LOOSE", "COMPLETE IN BOX", "MINT"]
 var _stage: Stage
 var _gap: Control
 var _crt: ColorRect
@@ -248,6 +250,7 @@ func _sync_stage() -> void:
 		return
 	match screen:
 		"title":
+			_stage.vault_case = _vault_info()
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("title")
 		"home":
@@ -272,12 +275,14 @@ func _sync_stage() -> void:
 			_stage.show_scene("cursed", [])
 			_sfx.music("ending")
 		"won":
+			_stage.vault_case = _vault_info()
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("ending")
 		"collection":
 			var hung: Array = []
 			for w in _coll_wall.slice(0, 6):
 				hung.append(w)
+			_stage.vault_case = _vault_info()
 			_stage.show_scene("title", hung if not hung.is_empty() else [_hero_item()])
 			_sfx.music("title")
 
@@ -2498,11 +2503,11 @@ func _start_intro() -> void:
 	# A slow, low glide along the shelves, round the room, onto the pedestal.
 	var path := [
 		[Vector3(-3.2, 1.5, -3.0), Vector3(-3.0, 1.2, -4.9)],
-		[Vector3(-2.2, 1.45, -3.35), Vector3(-1.6, 1.15, -4.9)],
-		[Vector3(-0.6, 1.4, -3.45), Vector3(0.2, 1.1, -4.9)],
-		[Vector3(1.0, 1.45, -3.4), Vector3(1.9, 1.05, -4.9)],
+		[Vector3(-2.2, 1.45, -3.85), Vector3(-1.6, 1.15, -4.9)],
+		[Vector3(-0.6, 1.4, -3.9), Vector3(0.2, 1.1, -4.9)],
+		[Vector3(1.0, 1.45, -3.8), Vector3(1.9, 1.05, -4.9)],
 		[Vector3(2.5, 1.7, -2.2), Vector3(1.6, 1.0, -3.6)],
-		[Vector3(2.7, 1.9, 0.2), Vector3(0.4, 1.0, -0.8)],
+		[Vector3(2.7, 1.9, 0.2), Vector3(-0.8, 1.2, -2.2)],  # glances past the covered case
 		[Vector3(1.4, 1.7, 2.4), Vector3(0.0, 1.0, 0.0)],
 		[Vector3(0.0, 1.4, 2.3), Vector3(0.0, 1.0, 0.0)],
 	]
@@ -3172,7 +3177,8 @@ const GUIDE := [
 	{"title": "COLLECT SETS", "color": Color("4fd9a0"), "art": "sets",
 		"lines": ["3+ things for one console = more MULT.", "Console + game + accessory = x1.5!", "Found a GRAIL? +1 MULT and a lifetime of bragging."]},
 	{"title": "PAY THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
-		"lines": ["Leave a stop and the Buyer's appraiser scores your shelf.", "Beat the target. Come up short and YOU get boxed and graded."]},
+		"lines": ["Leave a stop and the Buyer's appraiser scores your shelf.", "Beat the target. Come up short and YOU get boxed and graded."],
+		"secret": ["Leave a stop and the Buyer's appraiser scores your shelf.", "Beat the target. Come up short and the Buyer collects what you owe."]},
 	{"title": "CHECK YOUR MAIL", "color": Color("7dff9a"), "art": "mail",
 		"lines": ["Every new round, a message waits on the computer at home.", "Read them. Find out what happened to Arlo."]},
 	{"title": "YOUR COLLECTION", "color": Color("7fb8ff"), "art": "collection",
@@ -3333,7 +3339,10 @@ func _guide_show(p: int, dir: int = 0) -> void:
 	var art := _guide_art(String(pg["art"]), col)
 	_ignore_mouse(art)
 	_guide_body.add_child(art)
-	for line in pg["lines"]:
+	var lines: Array = pg["lines"]
+	if pg.has("secret") and int(_save.get("sealed", 0)) == 0:
+		lines = pg["secret"]
+	for line in lines:
 		var l := _label(String(line), 30 if not is_landscape() else 21, INK, true)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_guide_body.add_child(l)
@@ -4533,6 +4542,14 @@ func finish_stop() -> void:
 	_save["best_ante"] = maxi(int(_save["best_ante"]), run.ante)
 	if run.phase == Run.Phase.WON:
 		_save["wins"] = int(_save["wins"]) + 1
+	elif run.phase == Run.Phase.OVER:
+		# Sealed: remembered so the title vault's case shows you from now on.
+		var cg := run.curse_grade()
+		_save["sealed"] = int(_save["sealed"]) + 1
+		_save["seal_grade"] = int(round(float(cg["grade"]) * 10.0))
+		_save["seal_cond"] = maxi(0, SEAL_CONDS.find(String(cg["cond"])))
+		_save["seal_ante"] = run.ante
+		_save["seal_lot"] = run.seed_value % 9973
 	_write_save()
 	await _play_appraisal(res)
 
@@ -4828,6 +4845,16 @@ func _close_reveal() -> void:
 
 # ================================================================ the Buyer's mail
 
+## What the title vault's corner case shows: {} = still covered (no losses yet).
+func _vault_info() -> Dictionary:
+	var n := int(_save.get("sealed", 0))
+	if n <= 0:
+		return {}
+	return {"count": n, "grade": "%.1f" % (int(_save["seal_grade"]) / 10.0),
+		"cond": SEAL_CONDS[clampi(int(_save["seal_cond"]), 0, SEAL_CONDS.size() - 1)],
+		"lot": "#%04d" % int(_save["seal_lot"]), "lot_n": int(_save["seal_lot"]), "ante": "ANTE %d" % int(_save["seal_ante"])}
+
+
 ## The home computer: a green CRT panel.
 func _crt_panel() -> PanelContainer:
 	var p := PanelContainer.new()
@@ -4942,7 +4969,8 @@ func _build_over() -> void:
 	var t := _title_label("GRADED & SEALED", 64 if not land else 50, CURSE_C)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
-	var sub := _label("You came up short. The Buyer adds you to the collection.", 20, FLAVOR_C, true)
+	var first := int(_save.get("sealed", 0)) <= 1
+	var sub := _label("You came up short. Now you know what the Buyer collects." if first else "You came up short. The Buyer adds you to the collection.", 20, FLAVOR_C, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 	if not land:

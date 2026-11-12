@@ -27,6 +27,9 @@ var _zoom := 1.0
 var wall_items: Array = []
 ## The lose ending (scene "cursed"): grade, condition and labels for your case.
 var case_info: Dictionary = {}
+## The title vault's covered case: empty = still under its dust sheet (the
+## twist stays hidden); after your first loss it holds your last sealed self.
+var vault_case: Dictionary = {}
 var _shelf_view: Array = []
 var _home_view: Array = []
 ## Landscape centre-strip layout: look down onto the table like phones do.
@@ -84,7 +87,7 @@ func _ready() -> void:
 
 ## Rebuilds the room only when the scene or its items changed.
 func show_scene(id: String, items: Array = []) -> void:
-	var bits: Array = [id, wall_items.size(), case_info.hash() if id == "cursed" else 0]
+	var bits: Array = [id, wall_items.size(), case_info.hash() if id == "cursed" else (vault_case.hash() if id == "title" else 0)]
 	for it in items:
 		bits.append("%s/%s" % [it.get("id", ""), it.get("cond", "")])
 	var key := "|".join(bits)
@@ -1038,6 +1041,7 @@ func _title(items: Array) -> void:
 		pivot.add_child(sl)
 		_sweep.append(pivot)
 	_light(Vector3(0, 2.6, -3.8), Color(1.0, 0.75, 0.55), 2.0, 6.0)
+	_vault_case(Vector3(-1.3, 0, -2.95), 18.0)
 	_view(Vector3(0, 1.4, 2.3), Vector3(0, 1.0, 0), 44.0)
 
 
@@ -1791,3 +1795,67 @@ func _case_text(parent: Node3D, text: String, pos: Vector3, size: int, col: Colo
 	l.position = pos
 	parent.add_child(l)
 	return l
+
+
+## The tall case in the corner of the title vault. Until your first loss it
+## stands under a dust sheet with a RESERVED plaque (and a faint red glow
+## under the hem). After that the sheet is on the floor and you're inside.
+func _vault_case(pos: Vector3, rot_y: float) -> void:
+	var holder := world
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation_degrees.y = rot_y
+	world.add_child(root)
+	world = root
+	var sheet := Psx.mat(Color(0.78, 0.74, 0.68), Psx.tex("fabric086"), Vector2(2, 3))
+	if vault_case.is_empty():
+		# Plinth under the sheet.
+		Psx.box(Vector3(CASE_W + 0.14, PLINTH_H, CASE_D + 0.14), Psx.mat(Color(0.16, 0.05, 0.08), Psx.tex("fabric061"), Vector2(2, 1)), Vector3(0, PLINTH_H * 0.5, 0), root)
+		# The dust sheet: draped over the case, flaring at the hem, sagging folds.
+		var top := PLINTH_H + CASE_H + 0.06
+		Psx.box(Vector3(CASE_W + 0.06, CASE_H + 0.06, CASE_D + 0.06), sheet, Vector3(0, PLINTH_H + CASE_H * 0.5 + 0.03, 0), root)
+		var hem := Psx.box(Vector3(CASE_W + 0.26, 0.5, CASE_D + 0.26), sheet, Vector3(0, PLINTH_H + 0.12, 0), root)
+		hem.scale = Vector3(1.0, 1.0, 1.0)
+		for k in 5:
+			var fx := -CASE_W * 0.4 + k * CASE_W * 0.2
+			var fold := Psx.box(Vector3(0.05, CASE_H * (0.7 + 0.06 * (k % 3)), 0.05), Psx.mat(Color(0.66, 0.62, 0.57), Psx.tex("fabric086")), Vector3(fx, PLINTH_H + CASE_H * 0.4, CASE_D * 0.5 + 0.05), root)
+			fold.rotation_degrees.z = (k - 2) * 2.5
+		# Something under there pushes the sheet up at about head height.
+		var sm := SphereMesh.new()
+		sm.radius = 0.16
+		sm.height = 0.2
+		sm.radial_segments = 10
+		sm.rings = 5
+		Psx.mesh(sm, sheet, Vector3(0, top - 0.02, 0.0), root)
+		# A thin red glow leaking from under the hem.
+		var glow := Psx.box(Vector3(CASE_W + 0.2, 0.015, CASE_D + 0.2), Psx.mat(Color(0.9, 0.08, 0.1), null, Vector2.ONE, 1.6), Vector3(0, 0.006, 0), root)
+		_flicker.append([glow.material_override, 1.6, 0.25])
+		var red := OmniLight3D.new()
+		red.position = Vector3(0, 0.08, CASE_D * 0.5 + 0.2)
+		red.light_color = Color(0.9, 0.1, 0.12)
+		red.light_energy = 0.8
+		red.omni_range = 1.1
+		root.add_child(red)
+		_flicker.append([red, 0.8, 0.3])
+		_vault_plaque(root, "RESERVED", "AWAITING CONSIGNMENT")
+	else:
+		var info := vault_case.duplicate()
+		info["name"] = "SPECIMEN: YOU"
+		_grade_case(Vector3.ZERO, PLAYER, info, true)
+		# The sheet that covered it, dropped in a heap on the floor.
+		var heap := Psx.box(Vector3(0.8, 0.12, 0.6), sheet, Vector3(0.75, 0.06, 0.45), root)
+		heap.rotation_degrees = Vector3(4, 25, -3)
+		Psx.box(Vector3(0.5, 0.1, 0.4), sheet, Vector3(0.6, 0.15, 0.4), root).rotation_degrees.y = -20
+		var n := int(vault_case.get("count", 1))
+		_vault_plaque(root, "SEALED  x%d" % n, "THE BUYER THANKS YOU")
+		world = holder
+		_light(pos + Vector3(0, 2.6, 0.6), Color(0.65, 0.8, 1.0), 1.4, 3.0, 0.15)
+	world = holder
+
+
+func _vault_plaque(root: Node3D, big: String, small: String) -> void:
+	var brass := Psx.mat(Color(0.75, 0.6, 0.3), null, Vector2.ONE, 0.2)
+	var z := CASE_D * 0.5 + 0.14
+	Psx.box(Vector3(0.5, 0.17, 0.01), brass, Vector3(0, 0.19, z), root)
+	_case_text(root, big, Vector3(0, 0.215, z + 0.008), 30, Color(0.2, 0.1, 0.05))
+	_case_text(root, small, Vector3(0, 0.15, z + 0.008), 13, Color(0.25, 0.14, 0.06))
