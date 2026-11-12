@@ -70,6 +70,7 @@ var grail_cool: int = 0
 
 func start(p_seed: int = 0) -> void:
 	seed_value = p_seed if p_seed != 0 else randi()
+	Flavor.reset_claims()
 	rng.seed = seed_value
 	phase = Phase.HOME
 	ante = 1

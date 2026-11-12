@@ -4443,6 +4443,15 @@ func _stat_block(item: Dictionary) -> Control:
 		else:
 			msg += " - %d more for a set" % need
 		_stat_row(g, "SET", _label(msg, 17, GOOD if need == 0 else INK, true))
+	# By the numbers: silly-but-plausible stats tied to this item.
+	pv.add_child(_label("BY THE NUMBERS", 16, GOLD))
+	var ng := GridContainer.new()
+	ng.columns = 2
+	ng.add_theme_constant_override("h_separation", 14)
+	ng.add_theme_constant_override("v_separation", 6)
+	for nrow in Flavor.numbers(def):
+		_stat_row(ng, String(nrow[0]), _label(String(nrow[1]), 17, INK, true))
+	pv.add_child(ng)
 	# History: where it came from, how it was made, this copy's past.
 	for h in Flavor.history(def, item):
 		var hb := _vbox(2)

@@ -264,13 +264,456 @@ static func provenance(def: Dictionary, item: Dictionary, f: Dictionary) -> Stri
 	return line + _one(rng, PAST_MARK)
 
 
-## Returns [[heading, text], ...] for the item card's history panel.
-static func history(def: Dictionary, item: Dictionary) -> Array:
+# --- title-tied lore, recurring developers, by-the-numbers ------------------
+
+const STOP := ["the", "and", "of", "for", "with", "edition", "version", "game", "cartridge", "cart", "disc", "set", "pack", "bros", "deluxe"]
+const SWAP := ["Quest", "Saga", "Zone", "Fury", "Dreams", "Tactics", "Unleashed", "Turbo", "Legends", "Panic", "Heroes", "Chronicles", "Blast", "Mania", "Odyssey", "Rumble", "Kingdom", "Overdrive", "Party", "Hustle", "Galaxy", "Rampage", "Express", "Dynasty"]
+const JP_SUFFIX := ["Densetsu", "Monogatari", "Daisakusen", "-kun", "Paradise", "GP", "Spirits", "Gaiden", "Revolution", "DX", "Wars", "Club"]
+const NICK_END := ["-y", "o", "ster", " Bros", "-tron", "zilla", "-man", " Jr."]
+const ROLES := ["director", "designer", "lead programmer", "composer", "artist", "producer"]
+const STUDIO_A := ["Pixel", "Bright", "Moon", "Turbo", "Sugar", "Comet", "Lucky", "Crunch", "Velvet", "Hyper", "Tiny", "Iron"]
+const STUDIO_B := ["Soft", "Works", "Factory", "House", "Lab", "Arts", "Bit", "Studio"]
+
+const TITLE_T := [
+	"The title was almost \"{alt}\" until a focus group laughed out loud.",
+	"\"{key}\" was a placeholder word. Nobody remembered to change it.",
+	"Marketing wanted to call it \"{alt}\". The {role} threatened to quit.",
+	"The \"{short}\" logo was redrawn {logo_n} times. Version {logo_pick} won by one vote.",
+	"In Japan it was sold as \"{jp}\".",
+	"The {letters}-letter name had to be squashed to fit the label.",
+	"A trademark fight over the word \"{key}\" delayed it {delay} weeks.",
+	"Early print ads spelled it \"{typo}\". {typo_n} thousand flyers went in the bin.",
+	"Kids on the playground called it \"{nick}\".",
+	"The European box called it \"{eu}\" for reasons nobody can explain.",
+	"\"{key}\" was picked from a hat. The other slips said \"{swap1}\" and \"{swap2}\".",
+	"The {role} named it after a {key_lower}-shaped stain on the office ceiling.",
+	"Test audiences thought \"{short}\" was a breakfast cereal.",
+	"A radio ad read the title {radio_n} times in 30 seconds.",
+	"The working logo used a font stolen from a pizza menu. It stayed.",
+	"Its title screen took longer to make than the first {lvl_n} levels.",
+	"The name \"{short}\" was registered on a Friday, the cover painted over the weekend.",
+	"Somebody suggested \"{short} {swap1}\". They now work in insurance.",
+]
+const SUB_T := [
+	"The subtitle \"{sub}\" was added a week before the box went to print.",
+	"\"{sub}\" was the {role}'s idea. Nobody asked what it meant.",
+	"Fans just call it \"{short}\" and pretend \"{sub}\" isn't there.",
+]
+const SEQ_T := [
+	"Number {seq} in the series, made in half the time of the last one.",
+	"Sequel {seq}: the team slept under their desks for {months} months.",
+	"Part {seq}. The {role} swore it would be the last. It wasn't.",
+]
+
+## Theme lines picked by words in the title.
+const THEMES := {
+	"plumb": ["The plumber has a moustache because the hardware couldn't draw a mouth.", "A real plumber was hired as a consultant. He mostly ate the snacks."],
+	"robo": ["The robot's arm cannon started as a paint roller.", "A toaster in the break room was the model for the {key} boss."],
+	"mega": ["\"Mega\" was added to the name to sound like it had more memory than it did."],
+	"drag": ["The dragon's roar is a garbage truck reversing, slowed down.", "The dragon was cut down to fit the screen. Fans say it's 'cute now'."],
+	"fanta": ["\"Final\" was in the name because the studio thought it would go bust. It didn't.", "Every save point was placed by the {role} counting steps on graph paper."],
+	"zeld": ["The hero never speaks, because the text box was out of memory.", "The first dungeon is shaped like the {role}'s initials."],
+	"crit": ["Over {crit_n} critters were designed; {crit_cut} were cut for being 'too soggy'.", "One critter is just a pile of sand with eyes. It's a fan favourite."],
+	"pock": ["It was built to fit in a jeans pocket. Cargo shorts were consulted."],
+	"vein": ["The castle music was written on a church organ at 3 a.m.", "Holy water was nearly a 'cup of tea' in early builds."],
+	"sonik": ["The hero's speed was tuned until a tester felt slightly sick."],
+	"race": ["The fastest car's stats were copied from the {role}'s own hatchback, times ten."],
+	"kart": ["Banana peels were added after the {role} slipped on one in the car park."],
+	"star": ["The star field is 64 dots. Fans have named every single one."],
+	"space": ["Space was black because black is free. Budget art direction."],
+	"ninja": ["The ninjas wear black because colour palettes were expensive."],
+	"fight": ["A tester found a combo that does {combo}% damage. It was left in as a 'reward'."],
+	"street": ["The street signs in the background are real shops near the studio."],
+	"castle": ["The castle has {rooms} rooms. Speedrunners visit {rooms_speed}."],
+	"dungeon": ["The dungeon map was pinned to a wall and darts decided the traps."],
+	"world": ["The world map was printed and used as the office tablecloth."],
+	"super": ["The \"Super\" in the title was legally required to sound important."],
+	"monkey": ["The monkey animator spent a week at a zoo. The zoo sent a bill."],
+	"kong": ["The giant ape's barrels were modelled on the studio's actual beer kegs."],
+	"ghost": ["The ghost voice is the {role} humming in a stairwell."],
+	"dead": ["The zombies walk slowly because the animator got bored at frame six."],
+	"resident": ["The 'mansion' was the {role}'s aunt's house, roughly."],
+	"silent": ["The fog was a trick to hide the draw distance, then became the whole mood."],
+	"metal": ["The cardboard box stealth trick was found by a tester hiding from his boss."],
+	"golf": ["The {role} has never played golf. You can tell on hole 9."],
+	"soccer": ["Every player has the same face. Twelve fans noticed."],
+	"wrest": ["The wrestlers' voices are all one guy with a cold."],
+	"puzzle": ["The puzzles were tested on the {role}'s grandma. She beat all of them."],
+	"block": ["The falling blocks were timed to the office clock's tick."],
+	"party": ["Board rules were tested at a real birthday party. Two friendships ended."],
+	"quest": ["The quest log was nearly a physical notebook in the box."],
+	"legend": ["The legend in the title was made up during the ad campaign."],
+	"war": ["The war map was played out with breakfast cereal first."],
+	"tank": ["The tank treads sound is someone rubbing two cardboard tubes."],
+	"jet": ["The jet sound is a hair dryer held close to the mic."],
+	"kirb": ["The pink hero was white in early art. A marker ran out."],
+	"bomb": ["The explosions are the {role} popping paper bags."],
+	"duck": ["The dog that laughs at you was the {role}'s revenge on a tester."],
+	"tetro": ["The falling shapes were named after the team's kids."],
+	"cast": ["Half the cast were named after staff pets."],
+	"adventure": ["The adventure took {beat}h to beat in testing and {beat2}h at retail."],
+	"chrono": ["The time travel plot was rewritten every time someone went on holiday."],
+	"pinball": ["The ball physics came from rolling a marble down a desk."],
+	"console": ["The hardware team named the prototype after a sandwich shop."],
+	"controller": ["The grips were shaped by squeezing modelling clay for an hour."],
+}
+
+const RUMORS := [
+	"Beat {short} twice without saving to unlock {alt}.",
+	"There's a secret {key_lower} level if you hold Select for {n} seconds.",
+	"Blow on the cart {n} times and the {key_lower} turns gold.",
+	"{lead} hid their phone number in the {short} credits.",
+	"Typing {cheat} on the {short} title screen gives you {n} lives.",
+	"A cousin's friend's dad worked on {short} and said {other} is hidden inside.",
+	"If you lose on purpose {n} times, the {key_lower} apologises.",
+	"Pause the last boss of {short} for {n} minutes and the music turns into {other}.",
+	"{key} is secretly the villain's cousin. Page {page} of the manual 'proves' it.",
+	"Leave {short} running overnight and a {key_lower} appears on the map.",
+	"{co} put a curse on {n} copies of {short}. Yours might be one.",
+	"Name your file {nick} and everything is upside down.",
+]
+const CHEAT_BITS := ["UP", "UP", "DOWN", "DOWN", "LEFT", "RIGHT", "B", "A", "SELECT", "START", "L", "R", "X", "Y"]
+
+const LINK_T := [
+	"{lead} ({lead_role}) also made {other}.",
+	"{lead} came straight off {other} and reused half its code.",
+	"{lead}'s next project was {other}. You can see the family resemblance.",
+	"{lead} pitched this on a napkin at the {other} wrap party.",
+	"Same {lead_role} as {other}: {lead}.",
+	"{lead} snuck a {other} cameo into a background poster.",
+]
+const LINK2_T := [
+	"{co} ({co_role}) later worked on {other2}.",
+	"The music is by {co}, who also scored {other2}.",
+	"{co} drew the box art for this and {other2} in the same month.",
+	"{co} (also on {other2}) wrote the manual in one night.",
+	"{co} left to work on {other2}. The goodbye cake was {key_lower}-shaped.",
+]
+const POACH_T := [
+	"{lead} was poached from {pub2}, where they made {other}.",
+	"{lead} quit {pub2} after {other} and started over here.",
+]
+
+
+## Extra title-tied lines, used to make any repeated line unique again.
+const EXTRA_T := [
+	"The {key_lower} sprite is {px} pixels tall.",
+	"On {short}, that took {days} days to get right.",
+	"The {short} team had {mugs} mugs and one kettle.",
+	"{lead} still has the {key_lower} sketch framed at home.",
+	"Copies of {short} sold in {month} outsold the rest of the year.",
+	"Even the {short} manual mentions it, on page {page}.",
+	"Fans of {short} made a {wiki}-page wiki about it.",
+	"It got a {score2}/10 from a kid's zine called {zine}.",
+	"The {short} launch party served {snack}.",
+	"{co} says it was {lead}'s fault. {lead} says otherwise.",
+	"The {key_lower} theme was hummed into an answering machine first.",
+	"Tested on a {tv}-inch TV in a broom cupboard.",
+	"Shipped in crates labelled \"{alt}\" to fool leakers.",
+	"{short} was the {rank_say} title {pub} shipped that year.",
+	"A {short} poster hung in {posters} rental stores.",
+]
+const ZINES := ["Rad Pixels", "Joypad Juniors", "Cart Club", "Button Mash Monthly", "The Cheat Sheet", "Couch Co-op", "Lunchbox Gamer", "Bit Bulletin"]
+const SNACKS := ["warm cola and cold pizza", "cake shaped like the cart", "a single fruit platter", "120 hot dogs", "crisps in a hard hat", "a chocolate fountain that broke"]
+
+static var _claims: Dictionary = {}
+static var _fcache: Dictionary = {}
+static var _by_pub: Dictionary = {}
+
+
+## A fresh run: lines get handed out again, so nothing repeats within a run.
+static func reset_claims() -> void:
+	_claims.clear()
+	_fcache.clear()
+
+
+## Makes text unique this run: if another item already said it, keep adding
+## title-tied extras until nobody has.
+static func _uniq(text: String, owner: String, slot: String, rng: RandomNumberGenerator, f: Dictionary) -> String:
+	var out := text
+	for k in 6:
+		var key := slot + out
+		if not _claims.has(key) or _claims[key] == owner:
+			_claims[key] = owner
+			return out
+		out = text + " " + String(EXTRA_T[rng.randi_range(0, EXTRA_T.size() - 1)]).format(f)
+	return out
+
+
+## Picks from list, preferring a line no other item has used this run.
+static func _claim(rng: RandomNumberGenerator, list: Array, id: String, slot: String) -> String:
+	var n := list.size()
+	if n == 0:
+		return ""
+	var start := rng.randi_range(0, n - 1)
+	for k in n:
+		var line := String(list[(start + k) % n])
+		var key := slot + line
+		if not _claims.has(key) or _claims[key] == id:
+			_claims[key] = id
+			return line
+	return String(list[start])
+
+
+static func _pub_of(def: Dictionary) -> String:
+	var pb := String(def.get("pub", ""))
+	if pb != "":
+		return pb
+	if String(def.get("kind", "game")) != "game":
+		return String(Catalog.MAKERS.get(String(Catalog.platform(String(def.get("plat", "MISC"))).get("family", "misc")), "Various"))
+	var rng := _r(String(def.get("plat", "")) + String(def.get("genre", "")) + "studio")
+	return "%s %s" % [_one(rng, STUDIO_A), _one(rng, STUDIO_B)]
+
+
+static func _pub_items(pb: String) -> Array:
+	if _by_pub.is_empty():
+		for d in Catalog.ITEMS:
+			var k := _pub_of(d)
+			if not _by_pub.has(k):
+				_by_pub[k] = []
+			(_by_pub[k] as Array).append(d)
+	return _by_pub.get(pb, [])
+
+
+## Each publisher has a fixed staff, so names recur across its games.
+static func _staff(pb: String, jp: bool) -> Array:
+	var rng := _r(pb + "staff")
+	var out: Array = []
+	for i in 6:
+		var fi := rng.randi_range(0, 9) if jp else rng.randi_range(10, FIRST.size() - 1)
+		var la := rng.randi_range(0, 9) if jp else rng.randi_range(10, LAST.size() - 1)
+		out.append({"name": "%s %s" % [FIRST[fi], LAST[la]], "role": ROLES[i % ROLES.size()]})
+	return out
+
+
+static func _other_title(rng: RandomNumberGenerator, list: Array, self_id: String) -> String:
+	var pool := list.filter(func(d): return String(d["id"]) != self_id)
+	if pool.is_empty():
+		return ""
+	return String(pool[rng.randi_range(0, pool.size() - 1)]["name"])
+
+
+static func _title_bits(name: String, rng: RandomNumberGenerator) -> Dictionary:
+	var short := name.split(":")[0].strip_edges()
+	var sub := name.substr(short.length() + 1).strip_edges() if name.contains(":") else ""
+	var words: Array = []
+	var seq := ""
+	for w in short.replace("'", "").replace(".", "").split(" ", false):
+		var lw := w.to_lower()
+		if lw in ["ii", "iii", "iv", "v", "vi", "vii", "2", "3", "4", "5", "6"]:
+			seq = w
+		elif w.length() >= 3 and not STOP.has(lw) and not w.is_valid_int():
+			words.append(w)
+	var key := short
+	for w in words:
+		if String(w).length() > key.length() or key == short:
+			key = w
+	var swap := _one(rng, SWAP)
+	var alt := short.replace(key, swap) if key != short else short + " " + swap
+	var typo := key
+	if key.length() > 3:
+		var i := rng.randi_range(1, key.length() - 2)
+		typo = key.substr(0, i) + key[i + 1] + key[i] + key.substr(i + 2)
+	return {"short": short, "sub": sub, "key": key, "key_lower": key.to_lower(), "alt": alt,
+		"jp": "%s %s" % [key, _one(rng, JP_SUFFIX)], "eu": "%s %s" % [short, ["EX", "Plus", "Turbo", "'%02d" % rng.randi_range(90, 99), "Gold"][rng.randi_range(0, 4)]],
+		"nick": key.substr(0, mini(4, key.length())) + _one(rng, NICK_END), "typo": typo,
+		"swap1": _one(rng, SWAP), "swap2": _one(rng, SWAP), "letters": short.replace(" ", "").length(), "seq": seq}
+
+
+## Everything the card says about the item, fixed per id within a run.
+static func lore(def: Dictionary) -> Dictionary:
+	var id := String(def.get("id", ""))
+	if _fcache.has(id):
+		return _fcache[id]
 	var f := facts(def)
-	var kind := String(def.get("kind", item.get("kind", "game")))
+	var rng := _r(id + "lore")
+	var kind := String(def.get("kind", "game"))
+	f.merge(_title_bits(String(def.get("name", "")), rng))
+	var pb := _pub_of(def)
+	f["pub"] = pb
+	var staff := _staff(pb, f["first_in"] == "Japan")
+	var li := rng.randi_range(0, staff.size() - 1)
+	var ci := (li + rng.randi_range(1, staff.size() - 1)) % staff.size()
+	f["lead"] = staff[li]["name"]
+	f["lead_role"] = staff[li]["role"]
+	f["co"] = staff[ci]["name"]
+	f["co_role"] = staff[ci]["role"]
+	f["role"] = _one(rng, ROLES)
+	var same := _pub_items(pb)
+	f["other"] = _other_title(rng, same, id)
+	f["other2"] = _other_title(rng, same, id)
+	var fam_pool := Catalog.ITEMS.filter(func(d): return String(d.get("genre", "")) == String(def.get("genre", "")) and _pub_of(d) != pb)
+	if fam_pool.is_empty():
+		fam_pool = Catalog.ITEMS
+	var far: Dictionary = fam_pool[rng.randi_range(0, fam_pool.size() - 1)]
+	f["far"] = String(far["name"])
+	f["pub2"] = _pub_of(far)
+	# Numbers the templates use.
+	f["logo_n"] = rng.randi_range(4, 61)
+	f["logo_pick"] = rng.randi_range(2, int(f["logo_n"]))
+	f["delay"] = rng.randi_range(2, 19)
+	f["typo_n"] = rng.randi_range(3, 140)
+	f["radio_n"] = rng.randi_range(6, 23)
+	f["lvl_n"] = rng.randi_range(2, 9)
+	f["crit_n"] = rng.randi_range(160, 400)
+	f["crit_cut"] = rng.randi_range(11, 90)
+	f["combo"] = rng.randi_range(101, 340)
+	f["rooms"] = rng.randi_range(40, 260)
+	f["rooms_speed"] = rng.randi_range(6, 19)
+	f["beat"] = rng.randi_range(9, 70)
+	f["beat2"] = int(f["beat"]) + rng.randi_range(3, 40)
+	f["px"] = rng.randi_range(8, 64)
+	f["days"] = rng.randi_range(2, 90)
+	f["mugs"] = rng.randi_range(3, 40)
+	f["page"] = rng.randi_range(2, 40)
+	f["wiki"] = rng.randi_range(12, 4000)
+	f["score2"] = rng.randi_range(3, 11)
+	f["zine"] = _one(rng, ZINES)
+	f["snack"] = _one(rng, SNACKS)
+	f["tv"] = rng.randi_range(9, 32)
+	f["posters"] = _num(rng.randi_range(40, 9000))
+	f["rank_say"] = _one(rng, ["biggest", "weirdest", "loudest", "last", "first", "cheapest", "most-delayed"])
+	var ch: Array = []
+	for i in rng.randi_range(5, 8):
+		ch.append(_one(rng, CHEAT_BITS))
+	f["cheat"] = " ".join(ch)
+	# Title-tied story.
+	var tl: Array = []
+	tl.append(_claim(rng, TITLE_T, id, "title").format(f))
+	if String(f["sub"]) != "":
+		tl.append(_claim(rng, SUB_T, id, "sub").format(f))
+	if String(f["seq"]) != "":
+		tl.append(_claim(rng, SEQ_T, id, "seq").format(f))
+	var lname := String(def.get("name", "")).to_lower()
+	var themed: Array = []
+	for k in THEMES:
+		if lname.contains(k):
+			themed.append_array(THEMES[k])
+	if not themed.is_empty():
+		tl.append(_claim(rng, themed, id, "theme").format(f))
+	f["title_story"] = " ".join(tl)
+	# Who made it, and what else they made.
+	var links: Array = []
+	if String(f["other"]) != "":
+		links.append(_claim(rng, LINK_T, id, "link").format(f))
+	else:
+		f["other"] = f["far"]
+		links.append(_claim(rng, POACH_T, id, "poach").format(f))
+	if String(f["other2"]) != "" and f["other2"] != f["other"]:
+		links.append(_claim(rng, LINK2_T, id, "link2").format(f))
+	f["links"] = " ".join(links)
+	f["dev"] = _claim(rng, DEV_LINE.get(String(def.get("genre", "Hardware" if kind != "game" else "Action")), DEV_LINE["Action"]), id, "dev")
+	f["quirk"] = _claim(rng, QUIRK.get(kind, QUIRK["game"]), id, "quirk")
+	f["numbers"] = _numbers(def, f, rng)
+	_fcache[id] = f
+	return f
+
+
+## Funny stats with believable ranges. Returns [[label, value], ...].
+## Funny stats with believable ranges. Returns [[label, value], ...]; each
+## value is re-rolled if another item already showed it this run.
+static func _numbers(def: Dictionary, f: Dictionary, rng: RandomNumberGenerator) -> Array:
+	var id := String(def.get("id", ""))
+	var kind := String(def.get("kind", "game"))
+	var genre := String(def.get("genre", "Action"))
+	var plat := String(def.get("plat", ""))
+	var cart := not DISC_PLATS.has(plat)
+	var year := int(f["year"])
+	var key := String(f["key"]).to_upper()
+	var price := float(String(f["price"]).substr(1))
+	var all: Array = []
+	all.append(["IN TODAY'S MONEY", func(r: RandomNumberGenerator): return "$%d (%s)" % [int(price * (1.0 + maxf(0.0, 2025 - year) * 0.034) + r.randi_range(-3, 3)), _one(r, ["that's a lot of paper rounds", "or %d chocolate bars" % r.randi_range(40, 400), "two birthdays, minimum", "a month of chores", "%d weeks of pocket money" % r.randi_range(5, 60)])]])
+	if kind == "game":
+		var beat: Array = {"RPG": [28, 90], "Strategy": [20, 60], "Adventure": [10, 40], "Puzzle": [4, 999], "Sports": [6, 300], "Racing": [5, 25], "Fighting": [1, 4], "Shooter": [1, 8], "Platformer": [4, 18], "Horror": [6, 16]}.get(genre, [6, 20])
+		var h := rng.randi_range(int(beat[0]), int(beat[1]))
+		all.append(["HOURS TO BEAT", func(r: RandomNumberGenerator): return ("never (it doesn't end; record session %d h %02d m)" % [r.randi_range(20, 300), r.randi_range(0, 59)] if h > 400 else "%d h %02d m, or %d h if you read the signs" % [h, r.randi_range(0, 59), h + r.randi_range(1, 12)])])
+		all.append(["SPEEDRUN RECORD", func(r: RandomNumberGenerator):
+			var wr := maxi(1, int(h * 60 * r.randf_range(0.04, 0.3)))
+			return "%d:%02d.%d by xX_%s%d_Xx" % [wr / 60, wr % 60, r.randi_range(0, 9), key.substr(0, 6), r.randi_range(1, 99)]])
+		if cart and year < 2001:
+			all.append(["BLOWS TO BOOT", func(r: RandomNumberGenerator): return "%.2f on average (it never helped)" % r.randf_range(1.2, 6.8)])
+		all.append(["RAGE QUITS", func(r: RandomNumberGenerator): return "%d per player, mostly on level %d-%d" % [r.randi_range(2, 60), r.randi_range(1, 9), r.randi_range(1, 4)]])
+		all.append(["SECRETS", func(r: RandomNumberGenerator): return "%d found, %d still hidden (probably)" % [r.randi_range(3, 80), r.randi_range(1, 9)]])
+		all.append(["CONTROLLERS BROKEN", func(r: RandomNumberGenerator): return "~%d per 1,000 copies (%d thrown, %d sat on)" % [r.randi_range(20, 140), r.randi_range(5, 19), r.randi_range(1, 9)]])
+		all.append(["MUM APPROVAL", func(r: RandomNumberGenerator): return "%d%% (\"%s\")" % [r.randi_range(4, 96), _one(r, ["is it violent?", "keep it down", "one more hour", "that's educational", "go outside", "who's %s?" % String(f["key"]), "dinner's ready", "not on a school night", "is that the %s one again?" % String(f["key"])])]])
+		all.append(["RENTAL LATE FEES", func(r: RandomNumberGenerator): return "$%s paid nationwide" % _num(r.randi_range(9000, 2400000))])
+		all.append(["FRIENDSHIPS ENDED", func(r: RandomNumberGenerator): return "%s (couch co-op incidents)" % _num(r.randi_range(12, 90000))])
+		all.append(["BUGS SHIPPED", func(r: RandomNumberGenerator): return "%d, %s" % [r.randi_range(3, 240), _one(r, ["one of them now a feature", "speedrunners love %d of them" % r.randi_range(2, 9), "none fatal (allegedly)", "the %s one is famous" % String(f["key_lower"])])]])
+		all.append(["MANUAL", func(r: RandomNumberGenerator): return "%d pages, %d of them warnings, %d about %s" % [r.randi_range(12, 64), r.randi_range(1, 6), r.randi_range(1, 9), String(f["key"])]])
+		all.append(["TIMES \"%s\" APPEARS" % key, func(r: RandomNumberGenerator): return "%s in text, %d out loud" % [_num(r.randi_range(14, 3100)), r.randi_range(0, 40)]])
+		all.append(["%s PLUSHIES SOLD" % key, func(r: RandomNumberGenerator): return "%s (%s)" % [_num(r.randi_range(400, 90000)), _one(r, ["the plush was better than the game", "%d recalled for being too soft" % r.randi_range(10, 900), "one is in a museum", "they squeak"])]])
+		all.append(["SOUNDTRACK", func(r: RandomNumberGenerator): return "%d tracks, %d stuck in your head since %d" % [r.randi_range(8, 70), r.randi_range(1, 3), year + r.randi_range(0, 3)]])
+		all.append(["CHEAT CODE", func(r: RandomNumberGenerator):
+			var ch: Array = []
+			for i in r.randi_range(5, 9):
+				ch.append(_one(r, CHEAT_BITS))
+			return " ".join(ch)])
+		all.append(["BOX VS GAME", func(r: RandomNumberGenerator): return "%d heroes on the box, %d in the game, %d explosions on the box, %d in the game" % [r.randi_range(2, 7), r.randi_range(1, 2), r.randi_range(2, 12), r.randi_range(0, 3)]])
+		all.append(["HINT LINE CALLS", func(r: RandomNumberGenerator): return "%s at $1.99 a minute" % _num(r.randi_range(2000, 600000))])
+		all.append(["WEIGHT", func(r: RandomNumberGenerator): return "%.1f g%s" % [r.randf_range(58, 95) if cart else r.randf_range(88, 130), " (feels heavier)" if cart else " with the manual"]])
+		all.append(["PLAYGROUND RUMOR", func(r: RandomNumberGenerator):
+			var g := f.duplicate()
+			g["n"] = r.randi_range(3, 120)
+			return "\"" + _one(r, RUMORS).format(g) + "\""])
+		all.append(["SAVE FILES DELETED", func(r: RandomNumberGenerator): return "%s by little siblings" % _num(r.randi_range(300, 400000))])
+		all.append(["SICK DAYS FAKED", func(r: RandomNumberGenerator): return "%s the week %s came out" % [_num(r.randi_range(500, 200000)), String(f["short"])]])
+	else:
+		var hw := kind == "console"
+		all.append(["WEIGHT", func(r: RandomNumberGenerator): return "%.2f kg" % (r.randf_range(0.9, 3.6) if hw else r.randf_range(0.08, 0.5))])
+		all.append(["BOOT TIME", func(r: RandomNumberGenerator): return "%.1f s (plus %d s staring at the logo)" % [r.randf_range(0.4, 9.0), r.randi_range(2, 8)]])
+		all.append(["POWER DRAW", func(r: RandomNumberGenerator): return "%d W, %d W in summer (vibes)" % [r.randi_range(6, 160), r.randi_range(10, 200)]])
+		all.append(["FAN NOISE", func(r: RandomNumberGenerator): return "%d dB (\"%s\")" % [r.randi_range(18, 54), _one(r, ["a polite hairdryer", "a cat purring", "a distant lawnmower", "basically silent", "a tiny jet"])]])
+		all.append(["WARRANTY CLAIMS", func(r: RandomNumberGenerator): return "%.1f%% (mostly %s)" % [r.randf_range(0.4, 9.0), _one(r, ["dropped down stairs", "juice spills", "the dog", "'it just stopped'", "kicked during a boss fight"])]])
+		all.append(["TOAST INSERTED", func(r: RandomNumberGenerator): return "%d reported cases, %d with jam" % [r.randi_range(3, 900), r.randi_range(0, 60)]])
+		all.append(["CABLE LENGTH", func(r: RandomNumberGenerator): return "%.2f m (always 30 cm too short)" % r.randf_range(1.0, 3.2)])
+		all.append(["UNITS IN ATTICS", func(r: RandomNumberGenerator): return "~%s" % _num(int(int(f["printed"]) * r.randf_range(0.05, 0.3)))])
+		all.append(["CHRISTMAS MORNINGS", func(r: RandomNumberGenerator): return "%s made, %s ruined (no batteries)" % [_num(r.randi_range(5000, 900000)), _num(r.randi_range(40, 9000))]])
+		all.append(["SCREWS", func(r: RandomNumberGenerator): return "%d, %d of them a weird shape on purpose" % [r.randi_range(6, 34), r.randi_range(2, 8)]])
+		all.append(["DEMO KIOSKS", func(r: RandomNumberGenerator): return "%s, %d still bolted down somewhere" % [_num(r.randi_range(400, 30000)), r.randi_range(1, 60)]])
+		all.append(["YELLOWING", func(r: RandomNumberGenerator): return "%.1f%% of units (%s)" % [r.randf_range(4, 80), _one(r, ["sun is undefeated", "the grey ones went beige", "window-sill units first", "smokers' homes worst", "the %s logo stays white, weirdly" % String(f["key"])])]])
+		all.append(["%s NICKNAMES" % key, func(r: RandomNumberGenerator): return "%d, the rudest is \"%s\"" % [r.randi_range(3, 40), String(f["nick"])]])
+	var idx: Array = range(all.size())
+	for i in idx.size():
+		var j := rng.randi_range(i, idx.size() - 1)
+		var t: int = idx[i]
+		idx[i] = idx[j]
+		idx[j] = t
+	var out: Array = []
+	for i in mini(7, idx.size()):
+		var e: Array = all[idx[i]]
+		var gen: Callable = e[1]
+		var val := String(gen.call(rng))
+		for tries in 8:
+			var ck := "num" + String(e[0]) + val
+			if not _claims.has(ck) or _claims[ck] == id:
+				_claims[ck] = id
+				break
+			val = String(gen.call(rng))
+			if tries == 7:
+				val += " (%s, %d)" % [String(f["short"]), year]
+		out.append([e[0], val])
+	return out
+
+
+static func numbers(def: Dictionary) -> Array:
+	return lore(def)["numbers"]
+
+
+## Returns [[heading, text], ...] for the item card's history panel. Every
+## line is unique this run (copy lines per copy, the rest per item).
+static func history(def: Dictionary, item: Dictionary) -> Array:
+	var f := lore(def)
+	var id := String(def.get("id", ""))
+	if f.has("hist"):
+		var cached: Array = (f["hist"] as Array).duplicate()
+		cached.insert(7, ["THIS COPY", _copy_line(def, item, f)])
+		return cached
+	var rng := _r(id + "uniq")
 	var out: Array = []
 	out.append(["ORIGIN", String(f["origin_t"]).format(f)])
+	out.append(["THE NAME", String(f["title_story"])])
 	out.append(["BEHIND THE SCENES", String(f["team_t"]).format(f) + String(f["code_t"]).format(f) + String(f["dev"])])
+	out.append(["THE PEOPLE", "Published by %s. %s" % [f["pub"], f["links"]]])
 	var launch := "Sold for %s new." % f["price"]
 	if int(f["score"]) > 0:
 		launch += " %s - magazines averaged %d%%." % [f["reception"], f["score"]]
@@ -279,6 +722,14 @@ static func history(def: Dictionary, item: Dictionary) -> Array:
 	left += ", and %s sealed." % _num(int(f["sealed_left"])) if int(f["sealed_left"]) > 0 else ". Sealed ones are basically myths."
 	out.append(["SURVIVORS", left])
 	out.append(["DID YOU KNOW", String(f["quirk"])])
-	out.append(["THIS COPY", provenance(def, item, f)])
 	out.append(["COLLECTOR TIP", String(f["tip"])])
+	for row in out:
+		row[1] = _uniq(String(row[1]), id, String(row[0]), rng, f)
+	f["hist"] = out.duplicate()
+	out.insert(7, ["THIS COPY", _copy_line(def, item, f)])
 	return out
+
+
+static func _copy_line(def: Dictionary, item: Dictionary, f: Dictionary) -> String:
+	var ck := "%s|%s|%s" % [def.get("id", ""), item.get("uid", 0), item.get("serial", 0)]
+	return _uniq(provenance(def, item, f), ck, "copy", _r(ck + "u"), f)

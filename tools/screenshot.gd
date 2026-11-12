@@ -72,6 +72,10 @@ func _go() -> void:
 	await _snap("venue_garage_shelf")
 	game._open_shelf_item(int(game.run.shelf[-1]["uid"]), "")
 	await _snap("shelf_item_open")
+	for y in [700, 1300]:
+		for sc in game.find_children("*", "ScrollContainer", true, false):
+			(sc as ScrollContainer).scroll_vertical = y
+		await _snap("shelf_item_mid_%d" % y)
 	for sc in game.find_children("*", "ScrollContainer", true, false):
 		(sc as ScrollContainer).scroll_vertical = 100000
 	await _snap("shelf_item_history")
