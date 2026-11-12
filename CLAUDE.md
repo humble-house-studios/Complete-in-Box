@@ -65,7 +65,9 @@ The web build in Safari is the test for every platform.
 - Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
   model spinning on a turntable (drag to turn), stat bars, set progress,
   flavor and the actions. `_open_sheet(..., item)` routes there.
-- Opening sequence (`_start_intro` in game.gd, once per launch, tap skips):
+- Opening sequence (`_start_intro` in game.gd, once per launch): a sound gate
+  first (PLAY WITH SOUND / PLAY MUTED; browsers need a tap before audio), a
+  SKIP button during the show, tap at the logo to continue. Then:
   studio card, Stage cinematic camera (`cine_on`/`cine_pos`) flying a spline
   through the title vault, grail box drop, logo slam over light rays, then the
   title UI fades in. Frames: `xvfb-run ... -s res://tools/intro_shots.gd -- OUT_DIR`.

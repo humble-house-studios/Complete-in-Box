@@ -70,6 +70,7 @@ var _scroll_reg: Dictionary = {}
 var _intro_done := false
 var _intro: Control
 var _intro_skip := false
+signal intro_gate_done
 var _press_pos := Vector2.ZERO
 var _drag_moved := false
 
@@ -1089,7 +1090,6 @@ func _start_intro() -> void:
 	_intro = Control.new()
 	_intro.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_intro.mouse_filter = Control.MOUSE_FILTER_STOP
-	_intro.gui_input.connect(_on_intro_input)
 	_overlay.add_child(_intro)
 	var black := ColorRect.new()
 	black.color = Color(0, 0, 0, 1)
@@ -1097,6 +1097,38 @@ func _start_intro() -> void:
 	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_intro.add_child(black)
 	var vs := get_viewport_rect().size
+	# 0. Sound gate: browsers only allow audio after a tap, so the first tap
+	# picks sound on/off and starts the show (with music) instead of skipping it.
+	var gate := _vbox(18)
+	gate.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	gate.alignment = BoxContainer.ALIGNMENT_CENTER
+	var gm := MarginContainer.new()
+	gm.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right"]:
+		gm.add_theme_constant_override("margin_" + side, int(vs.x * (0.12 if not is_landscape() else 0.3)))
+	_intro.add_child(gm)
+	gm.add_child(gate)
+	var gt := _title_label("COMPLETE IN BOX", 48, GOLD)
+	gt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gate.add_child(gt)
+	var gh := _label("Best with sound. Headphones on?", 22, Color("ffe7b0"))
+	gh.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gate.add_child(gh)
+	gate.add_child(_button("PLAY WITH SOUND", _gate_pick.bind(true), GOLD, 30, 110))
+	gate.add_child(_button("PLAY MUTED", _gate_pick.bind(false), Color(0.2, 0.17, 0.26), 24, 88))
+	await intro_gate_done
+	gm.queue_free()
+	if _intro_skip:
+		return
+	# Skip button (top corner) for the rest of the show.
+	var skip := _button("SKIP  >", _skip_intro, Color(0.15, 0.13, 0.2, 0.85), 20, 72)
+	skip.anchor_left = 1.0
+	skip.anchor_right = 1.0
+	skip.offset_left = -190
+	skip.offset_right = -_margins.z
+	skip.offset_top = _margins.y + 8
+	skip.offset_bottom = _margins.y + 80
+	_intro.add_child(skip)
 	# 1. Studio card.
 	var studio := _vbox(0)
 	studio.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -1111,6 +1143,7 @@ func _start_intro() -> void:
 	black.add_child(studio)
 	studio.position = Vector2(vs.x * 0.5, vs.y * 0.5) - Vector2(260, 50)
 	studio.custom_minimum_size = Vector2(520, 100)
+	_sfx.music("")
 	_sfx.music("title")
 	_stage.cine_on = true
 	_stage.set_focus(0.5, 1.0)
@@ -1243,8 +1276,12 @@ func _intro_logo(vs: Vector2) -> void:
 	tag.modulate.a = 0.0
 	layer.add_child(tag)
 	tag.create_tween().tween_property(tag, "modulate:a", 1.0, 0.8).set_delay(1.1)
+	_intro.gui_input.connect(func(e: InputEvent) -> void:
+		if (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed):
+			_finish_intro())
 	var tap := _title_label("TAP TO START", 34, INK)
 	tap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tap.size = Vector2(vs.x, 50)
 	tap.position = Vector2(0, vs.y * 0.86)
 	tap.modulate.a = 0.0
@@ -1270,11 +1307,17 @@ func _intro_logo(vs: Vector2) -> void:
 	layer.add_child(p)
 
 
-func _on_intro_input(event: InputEvent) -> void:
-	var pressed := (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
-	if pressed:
-		_intro_skip = true
-		_finish_intro()
+func _gate_pick(sound: bool) -> void:
+	_save["sound"] = 1 if sound else 0
+	_write_save()
+	_sfx.enabled = sound
+	_sfx.set_music_enabled(sound)
+	intro_gate_done.emit()
+
+
+func _skip_intro() -> void:
+	_intro_skip = true
+	_finish_intro()
 
 
 ## Hand over to the title screen (also the skip path).
