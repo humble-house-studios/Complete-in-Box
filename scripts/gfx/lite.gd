@@ -9,6 +9,9 @@ extends RefCounted
 static var no3d := false
 static var noart := false
 static var nocrt := false
+## Performance mode (TV app, or ?perf=1): lower 3D resolution, no sun
+## shadows, fewer art renders per frame, 30 fps cap, no CRT overlay.
+static var perf := false
 static var _ready := false
 
 
@@ -16,6 +19,9 @@ static func init() -> void:
 	if _ready:
 		return
 	_ready = true
+	if OS.has_feature("tv"):
+		perf = true
+		nocrt = true
 	if not OS.has_feature("web"):
 		return
 	var q := str(JavaScriptBridge.eval("window.location.search", true))
@@ -23,7 +29,8 @@ static func init() -> void:
 	no3d = lite or q.contains("no3d=1")
 	noart = lite or q.contains("noart=1")
 	nocrt = lite or q.contains("nocrt=1")
+	perf = perf or lite or q.contains("perf=1")
 
 
 static func any() -> bool:
-	return no3d or noart or nocrt
+	return no3d or noart or nocrt or perf

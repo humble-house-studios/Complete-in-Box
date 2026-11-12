@@ -137,7 +137,7 @@ func _run_batch() -> void:
 			ready = _done.has("F|" + _key(j["item"]))
 		elif j["kind"] == "front" and hw:
 			ready = _done.has(_icon_key(j["item"], false))
-		if batch.size() < (2 if throttle else PER_FRAME) and ready:
+		if batch.size() < (2 if throttle or Lite.perf else PER_FRAME) and ready:
 			batch.append(j)
 		else:
 			rest.append(j)

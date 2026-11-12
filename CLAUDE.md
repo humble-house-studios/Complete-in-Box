@@ -135,6 +135,9 @@ The web build in Safari is the test for every platform.
 - Android TV app: CI also exports preset "Android TV" (arm32+arm64, debug-signed,
   feature tag `tv` = landscape) and publishes it as `tv.apk` next to the web
   game. Install on a TV with Downloader by AFTVnews. Never blocks the web deploy.
+  The `tv` feature turns on `Lite.perf` (3D at ~360 px tall, no sun shadows,
+  fewer art renders per frame, 30 fps cap, no CRT); `?perf=1` does it on web.
+  TV remote arrows / OK / BACK drive the same focus as a pad.
 
 ## Testing pipeline
 - Use Godot 4.3 (as CI does). If the container's `godot` is newer, grab the

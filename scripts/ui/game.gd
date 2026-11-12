@@ -77,6 +77,8 @@ var _drag_moved := false
 
 func _ready() -> void:
 	Lite.init()
+	if Lite.perf:
+		Engine.max_fps = 30
 	theme = _make_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
@@ -440,6 +442,19 @@ func _input(event: InputEvent) -> void:
 		if fo == null or not fo.is_visible_in_tree() or not layer.is_ancestor_of(fo):
 			_pad_focus(0)
 		return
+	# TV remotes and keyboards: arrows / OK / back steer the same focus as a pad.
+	if event is InputEventKey and (event as InputEventKey).pressed and not _pad:
+		for a in ["ui_up", "ui_down", "ui_left", "ui_right", "ui_accept", "ui_cancel"]:
+			if event.is_action(a):
+				_pad = true
+				request_refresh()
+				_pad_focus.call_deferred(0)
+				get_viewport().set_input_as_handled()
+				return
+	if _pad and event is InputEventKey and (event as InputEventKey).pressed and event.is_action("ui_cancel"):
+		if _pad_back():
+			get_viewport().set_input_as_handled()
+			return
 	if _pad and (event is InputEventMouseButton or event is InputEventScreenTouch):
 		_pad = false
 		var f := get_viewport().gui_get_focus_owner()
@@ -519,6 +534,12 @@ func _pad_focus(idx: int = 0) -> void:
 	(list[clampi(idx, 0, list.size() - 1)] as Control).grab_focus()
 
 
+## Android back button / TV remote BACK.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_pad_back()
+
+
 func _pad_button(btn: int) -> bool:
 	match btn:
 		JOY_BUTTON_B:
@@ -536,7 +557,15 @@ func _pad_button(btn: int) -> bool:
 	return false
 
 
+var _last_back := 0
+
+
 func _pad_back() -> bool:
+	# Some pads send B as both a button and the Android BACK key: act once.
+	var now := Time.get_ticks_msec()
+	if now - _last_back < 250:
+		return true
+	_last_back = now
 	if _intro != null and is_instance_valid(_intro):
 		_skip_intro()
 		return true

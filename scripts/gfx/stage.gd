@@ -44,6 +44,10 @@ var _cine_look_s := Vector3.ZERO
 func _ready() -> void:
 	stretch = true
 	stretch_shrink = pixel
+	if Lite.perf:
+		# Big TV screens: keep the 3D render around 360 px tall.
+		var h := DisplayServer.window_get_size().y
+		stretch_shrink = maxi(pixel, int(ceil(h / 360.0)))
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -215,7 +219,7 @@ func _sun(pitch: float, yaw: float, color: Color, energy: float, shadows: bool =
 	d.rotation_degrees = Vector3(pitch, yaw, 0)
 	d.light_color = color
 	d.light_energy = energy
-	d.shadow_enabled = shadows
+	d.shadow_enabled = shadows and not Lite.perf
 	d.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	d.directional_shadow_max_distance = 16.0
 	d.shadow_bias = 0.06

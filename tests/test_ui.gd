@@ -79,22 +79,23 @@ func _pad_press(btn: int) -> void:
 
 func test_controller_focus_tabs_and_back() -> void:
 	_pad_press(JOY_BUTTON_DPAD_DOWN)
-	await wait_frames(4)
-	assert_true(game._pad)
-	assert_true(get_viewport().gui_get_focus_owner() is BaseButton)
+	await wait_frames(8)
+	assert_true(game._pad, "pad mode on")
+	assert_true(get_viewport().gui_get_focus_owner() is BaseButton, "title focus")
 	game.start_new_run(12)
-	await wait_frames(4)
+	await wait_frames(8)
 	var before: String = game._home_tab
 	_pad_press(JOY_BUTTON_RIGHT_SHOULDER)
-	await wait_frames(4)
-	assert_ne(game._home_tab, before)
-	assert_true(get_viewport().gui_get_focus_owner() is BaseButton)
+	await wait_frames(8)
+	assert_ne(game._home_tab, before, "RB switches tab")
+	assert_true(get_viewport().gui_get_focus_owner() is BaseButton, "home focus")
 	game._show_how_to()
-	await wait_frames(4)
-	assert_true(game.sheet_open())
+	await wait_frames(8)
+	assert_true(game.sheet_open(), "guide open")
+	game._last_back = 0
 	_pad_press(JOY_BUTTON_B)
-	await wait_frames(2)
-	assert_false(game.sheet_open())
+	await wait_frames(4)
+	assert_false(game.sheet_open(), "B closes")
 
 
 func test_home_then_venue_then_appraisal() -> void:
