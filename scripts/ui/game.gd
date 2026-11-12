@@ -1825,6 +1825,9 @@ func _end_stats() -> void:
 # ================================================================ sheet + toast
 
 func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary = {}) -> void:
+	if not item.is_empty():
+		_open_inspect(title, lines, actions, item)
+		return
 	_close_sheet()
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)
@@ -1894,6 +1897,291 @@ func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary =
 		panel.modulate.a = 0.0
 		var tw := panel.create_tween()
 		tw.tween_property(panel, "modulate:a", 1.0, 0.12)
+
+
+# ================================================================ inspect card
+
+var _spin_model: Node3D
+var _spin_drag := false
+var _spin_vel := 0.0
+
+
+## Full-screen trading card for one item: a turntable with its spinning 3D
+## model (drag to turn it), name, pills, flavor, stat bars and the actions.
+func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary) -> void:
+	_close_sheet()
+	var dim := ColorRect.new()
+	dim.color = Color(0.01, 0.01, 0.02, 0.82)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(_on_dim_input)
+	_overlay.add_child(dim)
+	_sheet = dim
+	if _sfx != null and not fast:
+		_sfx.play("open")
+	var plat := Catalog.platform(String(item["plat"]))
+	var pcol: Color = plat["color"]
+	var tier := int(item.get("tier", 0))
+	var frame_col: Color = pcol if tier < 2 else Catalog.TIER_COLORS[tier]
+	# The card itself.
+	var card := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.07, 0.06, 0.09, 0.98).lerp(pcol.darkened(0.7), 0.25)
+	st.set_corner_radius_all(14)
+	st.set_border_width_all(6)
+	st.border_color = frame_col
+	st.shadow_color = Color(frame_col, 0.35) if tier >= 2 else Color(0, 0, 0, 0.6)
+	st.shadow_size = 18 if tier >= 2 else 8
+	for side in ["left", "right", "top", "bottom"]:
+		st.set("content_margin_" + side, 14)
+	card.add_theme_stylebox_override("panel", st)
+	var mx := _margins
+	if is_landscape():
+		card.anchor_left = 0.5
+		card.anchor_right = 0.5
+		card.offset_left = -300
+		card.offset_right = 300
+	else:
+		card.anchor_left = 0.0
+		card.anchor_right = 1.0
+		card.offset_left = mx.x + 4
+		card.offset_right = -mx.z - 4
+	card.anchor_top = 0.0
+	card.anchor_bottom = 1.0
+	card.offset_top = mx.y + 4
+	card.offset_bottom = -mx.w - 4
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.add_child(card)
+	var v := _vbox(8)
+	card.add_child(v)
+	# Header band: platform + tier.
+	var band := PanelContainer.new()
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = pcol
+	bs.set_corner_radius_all(6)
+	bs.content_margin_left = 12
+	bs.content_margin_right = 12
+	bs.content_margin_top = 2
+	bs.content_margin_bottom = 2
+	band.add_theme_stylebox_override("panel", bs)
+	var bh := _hbox()
+	var pl := _title_label(String(plat["name"]).to_upper(), 24, DARK_TXT)
+	pl.add_theme_constant_override("outline_size", 0)
+	pl.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.2))
+	bh.add_child(pl)
+	bh.add_child(_spacer(false))
+	bh.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier].lightened(0.2) if tier > 0 else Color(1, 1, 1, 0.85), 16))
+	band.add_child(bh)
+	v.add_child(band)
+	# Turntable.
+	v.add_child(_turntable(item, pcol))
+	# Name + pills.
+	var nm := _title_label(title, 40, INK)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(nm)
+	var tags := _tag_row(item, 17)
+	tags.alignment = FlowContainer.ALIGNMENT_CENTER
+	v.add_child(tags)
+	# Info: stats + lines, scrolls if the screen is short.
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.custom_minimum_size = Vector2(0, 150 if is_landscape() else 290)
+	sc.size_flags_vertical = Control.SIZE_SHRINK_END
+	v.add_child(sc)
+	var info := _vbox(8)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(info)
+	info.add_child(_stat_block(item))
+	for ln in lines:
+		var txt := String(ln[0])
+		if txt.begins_with("\""):
+			var q := _panel(Color(0.2, 0.16, 0.1, 0.9), Color(FLAVOR_C, 0.4), 2)
+			q.add_child(_label(txt, 19, FLAVOR_C, true))
+			info.add_child(q)
+		else:
+			info.add_child(_label(txt, 19, ln[1], true))
+	# Actions.
+	var acts := GridContainer.new()
+	acts.columns = 2 if actions.size() > 1 else 1
+	acts.add_theme_constant_override("h_separation", 8)
+	acts.add_theme_constant_override("v_separation", 8)
+	for a in actions:
+		var cb: Callable = a[1]
+		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 20, 80)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		acts.add_child(btn)
+	v.add_child(acts)
+	v.add_child(_button("Close", _close_sheet_sfx, Color("3a3548"), 20, 64))
+	if not fast:
+		card.pivot_offset = get_viewport_rect().size * 0.5
+		card.scale = Vector2(0.92, 0.92)
+		card.modulate.a = 0.0
+		var tw := card.create_tween().set_parallel(true)
+		tw.tween_property(card, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(card, "modulate:a", 1.0, 0.12)
+
+
+## A little 3D stage with the item turning on a lit turntable.
+func _turntable(item: Dictionary, col: Color) -> Control:
+	var frame := PanelContainer.new()
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = Color(0.02, 0.02, 0.03)
+	fs.set_corner_radius_all(8)
+	fs.set_border_width_all(2)
+	fs.border_color = Color(1, 1, 1, 0.12)
+	frame.add_theme_stylebox_override("panel", fs)
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.custom_minimum_size = Vector2(0, 200)
+	var svc := SubViewportContainer.new()
+	svc.stretch = true
+	svc.stretch_shrink = 2
+	svc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	svc.mouse_filter = Control.MOUSE_FILTER_STOP
+	svc.gui_input.connect(_on_spin_input)
+	var pm := ShaderMaterial.new()
+	pm.shader = Stage.POST
+	pm.set_shader_parameter("pixel", 2.0)
+	pm.set_shader_parameter("vignette", 0.6)
+	svc.material = pm
+	frame.add_child(svc)
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.msaa_3d = Viewport.MSAA_DISABLED
+	svc.add_child(vp)
+	_spin_model = null
+	_spin_vel = 0.0
+	if DisplayServer.get_name() == "headless":
+		return frame
+	var we := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = col.darkened(0.82)
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(0.7, 0.68, 0.75)
+	e.ambient_light_energy = 0.9
+	we.environment = e
+	vp.add_child(we)
+	Psx.fog_near = 100.0
+	Psx.fog_far = 200.0
+	Psx.snap = 260.0
+	# Backdrop glow + turntable.
+	var glow := Psx.mat(col.darkened(0.45), null, Vector2.ONE, 0.45)
+	var root3 := Node3D.new()
+	vp.add_child(root3)
+	Psx.quad(Vector2(8, 5), glow, Vector3(0, 1.2, -1.8), root3)
+	Psx.cyl(0.62, 0.08, Psx.mat(Color(0.12, 0.11, 0.14), Psx.tex("metalplates006")), Vector3(0, -0.04, 0), root3, 24)
+	Psx.cyl(0.64, 0.02, Psx.mat(col, null, Vector2.ONE, 1.2), Vector3(0, -0.005, 0), root3, 24)
+	var spin := Node3D.new()
+	root3.add_child(spin)
+	var m := ItemModels.build(item)
+	spin.add_child(m)
+	var b := Psx.aabb(m)
+	var biggest := maxf(b.size.x, maxf(b.size.y, b.size.z))
+	m.scale = Vector3.ONE * (0.95 / maxf(biggest, 0.01))
+	_spin_model = spin
+	var key := DirectionalLight3D.new()
+	key.rotation_degrees = Vector3(-35, 30, 0)
+	key.light_color = Color(1.0, 0.92, 0.8)
+	key.light_energy = 1.2
+	root3.add_child(key)
+	var rim := OmniLight3D.new()
+	rim.position = Vector3(-0.9, 1.2, -0.8)
+	rim.light_color = col.lightened(0.3)
+	rim.light_energy = 2.0
+	rim.omni_range = 3.0
+	root3.add_child(rim)
+	var cam := Camera3D.new()
+	cam.fov = 32.0
+	root3.add_child(cam)
+	cam.look_at_from_position(Vector3(0, 0.75, 2.6), Vector3(0, 0.42, 0))
+	cam.current = true
+	return frame
+
+
+func _on_spin_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		_spin_drag = (event as InputEventMouseButton).pressed
+	elif event is InputEventScreenTouch:
+		_spin_drag = (event as InputEventScreenTouch).pressed
+	elif event is InputEventMouseMotion and _spin_drag:
+		_spin_vel = (event as InputEventMouseMotion).relative.x * 0.6
+	elif event is InputEventScreenDrag:
+		_spin_vel = (event as InputEventScreenDrag).relative.x * 0.6
+
+
+func _process(delta: float) -> void:
+	if _spin_model == null or not is_instance_valid(_spin_model):
+		return
+	if _spin_drag:
+		_spin_model.rotation.y += _spin_vel * delta
+		_spin_vel = lerpf(_spin_vel, 0.0, 0.3)
+	else:
+		_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
+		_spin_model.rotation.y += (0.8 + _spin_vel) * delta
+
+
+## Stat rows: value, condition and rarity bars, held/paid, set progress.
+func _stat_block(item: Dictionary) -> Control:
+	var p := _panel(Color(0, 0, 0, 0.3), Color(1, 1, 1, 0.08), 2)
+	var g := GridContainer.new()
+	g.columns = 2
+	g.add_theme_constant_override("h_separation", 14)
+	g.add_theme_constant_override("v_separation", 6)
+	p.add_child(g)
+	var cond := String(item["cond"])
+	var exact: bool = run.shows_exact() or screen != "venue" or run.find_item(int(item["uid"])).size() > 0
+	if exact:
+		_stat_row(g, "VALUE", _title_label(_money(run.market_value(item)), 26, GOLD))
+	else:
+		_stat_row(g, "VALUE", _title_label("???", 26, Color("e8dcc0")))
+	_stat_row(g, "CONDITION", _pips(Catalog.CONDITIONS.find(cond) + 1, 5, Catalog.COND_COLORS[cond], cond))
+	var tier := int(item["tier"])
+	_stat_row(g, "RARITY", _pips(tier + 1, 4, Catalog.TIER_COLORS[tier], String(Catalog.TIER_NAMES[tier])))
+	if int(item.get("grade", 0)) > 0:
+		_stat_row(g, "GRADE", _pips(int(item["grade"]), 10, GOLD, "%d / 10" % item["grade"]))
+	var mult := run.trend_mult(String(item["plat"]))
+	if absf(mult - 1.0) > 0.01:
+		_stat_row(g, "MARKET", _label("x%.2f %s" % [mult, "HOT" if mult > 1.0 else "COLD"], 18, HOT_C if mult > 1.0 else COLD_C))
+	if int(item.get("paid", 0)) > 0 or int(item.get("held", 0)) > 0:
+		_stat_row(g, "PAID", _label("%s, held %d stop%s" % [_money(int(item["paid"])), item["held"], "" if int(item["held"]) == 1 else "s"], 18, INK))
+	var same := 0
+	for it in run.shelf:
+		if String(it["plat"]) == String(item["plat"]) and int(it["uid"]) != int(item["uid"]):
+			same += 1
+	if String(item["plat"]) != "MISC":
+		var need := maxi(0, 2 - same)
+		var msg := "%d other %s on your shelf" % [same, Catalog.platform(String(item["plat"]))["short"]]
+		if need == 0:
+			msg += " - makes a set!"
+		else:
+			msg += " - %d more for a set" % need
+		_stat_row(g, "SET", _label(msg, 17, GOOD if need == 0 else INK, true))
+	return p
+
+
+func _stat_row(g: GridContainer, name: String, value: Control) -> void:
+	var l := _label(name, 15, MUTED)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	g.add_child(l)
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	g.add_child(value)
+
+
+## A row of filled/empty pips with a caption.
+func _pips(n: int, total: int, col: Color, caption: String) -> HBoxContainer:
+	var h := _hbox(4)
+	for k in total:
+		var r := ColorRect.new()
+		r.custom_minimum_size = Vector2(18 if total <= 5 else 10, 16)
+		r.color = col if k < n else Color(1, 1, 1, 0.12)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(r)
+	var c := _label(caption.to_upper(), 16, col.lightened(0.2))
+	h.add_child(c)
+	return h
 
 
 func _close_sheet_sfx() -> void:

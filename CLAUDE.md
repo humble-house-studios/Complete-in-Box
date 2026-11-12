@@ -55,6 +55,9 @@ The web build in Safari is the test for every platform.
   headers, light icon wells. Flavor text lives in `scripts/data/flavor.gd`
   (condition notes, seller quotes per venue, venue moods, appraiser quips);
   quoted lines render as speech panels in sheets. Keep body text >= 16 px.
+- Tapping any item opens a full-screen trading card (`_open_inspect`): its 3D
+  model spinning on a turntable (drag to turn), stat bars, set progress,
+  flavor and the actions. `_open_sheet(..., item)` routes there.
 - The UI leaves a see-through gap under the header (`_stage_gap`) and aims the
   3D camera at it (`_update_focus`). Panels are smoked glass (alpha ~0.9).
 - Item art is baked, not drawn at runtime: after changing `catalog.gd` or
