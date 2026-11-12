@@ -55,29 +55,25 @@ func _go() -> void:
 	_show("after guide")
 	await _press(JOY_BUTTON_DPAD_DOWN)
 	_show("dpad down")
-	await _press(JOY_BUTTON_RIGHT_SHOULDER)
-	_show("RB")
-	await _press(JOY_BUTTON_Y)
-	await create_timer(1.0).timeout
-	_show("Y")
-	await _press(JOY_BUTTON_DPAD_DOWN)
-	_show("dpad down")
 	await _press(JOY_BUTTON_A)
-	await create_timer(0.5).timeout
+	await create_timer(0.6).timeout
 	_show("A on card")
+	await _press(JOY_BUTTON_DPAD_DOWN)
+	_show("down in card")
+	await _press(JOY_BUTTON_DPAD_RIGHT)
+	_show("right in card")
+	await _press(JOY_BUTTON_DPAD_LEFT)
+	_show("left in card")
 	await _press(JOY_BUTTON_A)
-	await create_timer(0.5).timeout
-	_show("A buy?")
-	await _press(JOY_BUTTON_B)
-	await create_timer(0.5).timeout
-	_show("B close")
+	await create_timer(0.6).timeout
+	_show("A action")
 	await _press(JOY_BUTTON_START)
 	await create_timer(0.5).timeout
 	_show("start menu")
 	for k in 4:
 		await _press(JOY_BUTTON_DPAD_DOWN)
-		_show("menu down")
+	_show("menu down x4")
 	await _press(JOY_BUTTON_A)
 	await create_timer(1.0).timeout
-	_show("A quit?")
+	_show("A quit")
 	quit()

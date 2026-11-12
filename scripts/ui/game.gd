@@ -3720,6 +3720,8 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 			cb.add_theme_stylebox_override("pressed", _box(Color(1, 1, 1, 0.08), 4, GOLD, 2))
 			cb.tooltip_text = String(side[0])
 			cb.pressed.connect(_spin_to.bind(float(side[2])))
+			# Touch-only extra; the pad goes straight to the actions.
+			cb.focus_mode = Control.FOCUS_NONE
 			var col := _vbox(0)
 			col.add_child(cb)
 			var cl := _label("BOX " + String(side[0]), 13, MUTED)
@@ -3768,9 +3770,13 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	acts.columns = 2 if actions.size() > 1 else 1
 	acts.add_theme_constant_override("h_separation", 8)
 	acts.add_theme_constant_override("v_separation", 8)
+	var first := true
 	for a in actions:
 		var cb: Callable = a[1]
 		var btn := _button(String(a[0]), _sheet_action.bind(cb), a[2], 20, 80)
+		if first:
+			btn.set_meta("pad_main", true)
+			first = false
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		acts.add_child(btn)
