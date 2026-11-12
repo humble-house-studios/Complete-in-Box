@@ -58,8 +58,11 @@ The web build in Safari is the test for every platform.
   quoted lines render as speech panels in sheets. Keep body text >= 16 px.
 - Menus are tabbed to stay uncluttered: Home = ROUTE / PERK SHOP / SHELF
   (landscape: route left, tabs right); venues on phones = FOR SALE / YOUR SHELF.
-  Picking a destination previews its room (with teaser items) behind the menu;
-  venue cards show a postcard of the room (`Art.venue`). Perk cards are
+  Between stops the background is always your evening living room (moody
+  lamps, your shelf lit, THE WALL case beside it with `Stage.wall_items`);
+  the route card's postcard shows where you're headed. VIEW YOUR SHELF (route
+  tab, shelf tab, pause menu) hides the menus and moves the camera to the
+  shelves (`Stage.showcase`); BACK / B returns. Perk cards are
   trading cards: category colour (`PERK_CATS`), striped art, effect badge.
 - Scrolling: `_scroll_col` remembers its position across rebuilds, fades its
   edges when there's more, and a drag never counts as a tap (`_guarded`).

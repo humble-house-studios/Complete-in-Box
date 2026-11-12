@@ -47,6 +47,9 @@ func _go() -> void:
 	await _snap("pad_home")
 	game._pad = false
 	game.request_refresh()
+	game._set_showcase(true)
+	await _snap("home_showcase")
+	game._set_showcase(false)
 	game._set_home_tab("perks")
 	await _snap("home_perks")
 	game._set_home_tab("shelf")

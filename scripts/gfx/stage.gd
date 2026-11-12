@@ -23,6 +23,10 @@ var scene_id := ""
 var _key := ""
 var _focus := 0.3
 var _zoom := 1.0
+## Your Wall finds, shown on the living room's second shelf.
+var wall_items: Array = []
+var _shelf_view: Array = []
+var _home_view: Array = []
 ## Landscape centre-strip layout: look down onto the table like phones do.
 var look_down := false
 var _look := Vector3.ZERO
@@ -78,7 +82,7 @@ func _ready() -> void:
 
 ## Rebuilds the room only when the scene or its items changed.
 func show_scene(id: String, items: Array = []) -> void:
-	var bits: Array = [id]
+	var bits: Array = [id, wall_items.size()]
 	for it in items:
 		bits.append("%s/%s" % [it.get("id", ""), it.get("cond", "")])
 	var key := "|".join(bits)
@@ -664,10 +668,20 @@ func _title(items: Array) -> void:
 	_view(Vector3(0, 1.4, 2.3), Vector3(0, 1.0, 0), 44.0)
 
 
+## Close-up on the collection shelf ("VIEW SHELF") or back to the room.
+func showcase(on: bool) -> void:
+	var v: Array = _shelf_view if on else _home_view
+	if v.is_empty():
+		return
+	_view(v[0], v[1], v[2])
+	mark_dirty(10)
+
+
 func _home(items: Array) -> void:
-	_setup(Color(0.08, 0.08, 0.14), Color(0.65, 0.58, 0.6), 1.05, 6.0, 20.0)
+	# Evening at home: low warm lamps, the street dark outside, the shelf lit.
+	_setup(Color(0.03, 0.03, 0.06), Color(0.32, 0.28, 0.4), 0.5, 5.0, 16.0)
 	var hole := Rect2(1.4, 0.95, 1.4, 1.1)
-	_room(6, 5.5, 2.7, "woodfloor043", Color(0.85, 0.75, 0.65), "bricks105", Color(0.75, 0.6, 0.55), 1.0, hole)
+	_room(6, 5.5, 2.7, "woodfloor043", Color(0.55, 0.45, 0.4), "bricks105", Color(0.45, 0.36, 0.38), 1.0, hole)
 	_window_bars(hole, -3.0)
 	_sky(-26, 60, 22, Color(0.05, 0.06, 0.18), Color(0.35, 0.25, 0.45))
 	_street(-4.0, 11)
@@ -687,17 +701,44 @@ func _home(items: Array) -> void:
 	_crt(Vector3(1.7, 0.5, -1.6), 0.55, Color(0.45, 0.65, 1.0), -20)
 	_prop("lampRoundFloor", Vector3(2.5, 0, -0.4), 0, 1.6)
 	_prop("rugRectangle", Vector3(0, 0.005, 0.7), 0, 0.0, Color(0.85, 0.45, 0.4), 2.4)
-	_prop("cardboardBoxOpen", Vector3(-2.2, 0, -2.2), 15, 0.45)
-	_prop("cardboardBoxClosed", Vector3(-2.6, 0, -1.6), -10, 0.45)
+	_prop("cardboardBoxOpen", Vector3(-2.2, 0, -2.3), 15, 0.4)
 	_prop("plantSmall1", Vector3(0.9, 1.5, -0.9), 0, 0.3)
 	_prop("bear", Vector3(-1.5, 1.5, -0.9), 20, 0.25)
 	var ids := _poster_ids(5, 3)
 	_poster(Vector3(-2.2, 1.75, -2.98), 0, Vector2(0.6, 0.7), ids[0])
 	_poster(Vector3(-2.99, 1.6, -0.5), 90, Vector2(0.6, 0.7), ids[1])
-	_bulb(Vector3(0, 2.05, 0.4), Color(1.0, 0.8, 0.55), 3.4, 6.0, 2.7, 0.04)
-	_light(Vector3(2.4, 1.4, -0.4), Color(1.0, 0.8, 0.55), 1.5, 3.0)
-	_light(Vector3(1.4, 1.6, -3.6), Color(0.5, 0.55, 1.0), 1.0, 4.0)
-	_view(Vector3(0, 1.45, 2.0), Vector3(-0.3, 1.05, -0.9), 46.0)
+	# Your Wall: a display case on the left wall with the finds you kept.
+	if not wall_items.is_empty():
+		var side := Node3D.new()
+		side.position = Vector3(-2.35, 0, -0.9)
+		world.add_child(side)
+		var wt := _shelf_unit_at(side, 1.15, 3, 0.48)
+		var holder := world
+		world = side
+		for k in 3:
+			var chunk := wall_items.slice(k * 4, (k + 1) * 4)
+			if chunk.is_empty():
+				break
+			_lay_items(chunk, Vector3(0, wt[mini(k, wt.size() - 1)], 0.02), 1.0, 0.3, 4)
+		world = holder
+		_light(Vector3(-2.35, 1.95, -0.3), Color(1.0, 0.78, 0.45), 1.8, 2.2)
+		var tag := Label3D.new()
+		tag.text = "THE WALL"
+		tag.font = FONT
+		tag.font_size = 36
+		tag.pixel_size = 0.004
+		tag.modulate = Color(1.0, 0.82, 0.35)
+		tag.position = Vector3(-2.35, 1.62, -0.68)
+		world.add_child(tag)
+	_bulb(Vector3(0, 2.05, 0.4), Color(1.0, 0.68, 0.4), 1.1, 4.0, 2.7, 0.03)
+	_light(Vector3(2.4, 1.4, -0.4), Color(1.0, 0.7, 0.45), 1.8, 3.2)
+	# Shelf lighting: a warm strip in front of the collection.
+	_light(Vector3(-0.6, 1.9, -0.2), Color(1.0, 0.88, 0.65), 2.2, 2.6)
+	_light(Vector3(1.4, 1.6, -3.6), Color(0.35, 0.45, 1.0), 0.9, 4.0)
+	_light(Vector3(1.7, 0.6, -1.2), Color(0.45, 0.65, 1.0), 0.8, 1.8)
+	_home_view = [Vector3(0, 1.45, 2.0), Vector3(-0.3, 1.05, -0.9), 46.0]
+	_shelf_view = [Vector3(-1.2, 1.2, 1.25), Vector3(-1.2, 0.95, -0.9), 56.0]
+	_view(_home_view[0], _home_view[1], _home_view[2])
 
 
 func _garage(items: Array) -> void:

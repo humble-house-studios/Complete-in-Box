@@ -246,10 +246,11 @@ func _sync_stage() -> void:
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("title")
 		"home":
-			if _dest != "":
-				_stage.show_scene(_dest, _teaser_items(_dest))
-			else:
-				_stage.show_scene("home", run.shelf)
+			# Between stops you're home: your living room and your shelf (the
+			# route card already shows where you're headed).
+			_stage.wall_items = _coll_wall.slice(0, 12)
+			_stage.show_scene("home", run.shelf)
+			_stage.showcase(_showcase)
 			_sfx.music("home")
 		"venue":
 			var items: Array = []
@@ -924,6 +925,9 @@ func _pad_back() -> bool:
 		return true
 	if screen == "collection":
 		show_title()
+		return true
+	if screen == "home" and _showcase:
+		_set_showcase(false)
 		return true
 	if screen in ["home", "venue"]:
 		_open_menu()
@@ -1813,6 +1817,9 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 	var ap := run.appraise()
 	var head := _label("Appraises %s" % _money(int(ap["total"])), 20, GOLD)
 	_section(parent, "YOUR SHELF %d/%d" % [run.slots_used(), run.shelf_cap], head)
+	if screen == "home":
+		var vb := _button("VIEW YOUR SHELF IN 3D", _set_showcase.bind(true), Color("2f5d7a"), 20, 72)
+		parent.add_child(vb)
 	var gc: Array = _grid(avail, 150, 8)
 	var g: GridContainer = gc[0]
 	var w: float = gc[1]
@@ -2430,6 +2437,8 @@ func _open_menu() -> void:
 		["Graphics: %s" % ["FULL", "FAST", "LITE"][Lite.level()], _cycle_gfx, PANEL_HI],
 		["Quit to title (run is kept)", _quit_to_title, Color("2f5d7a")],
 	]
+	if screen == "home":
+		acts.insert(1, ["View your shelf", _set_showcase.bind(true), PANEL_HI])
 	if not OS.has_feature("web"):
 		acts.append(["Close the game", func(): get_tree().quit(), Color("5a3a3a")])
 	_open_sheet("Paused", [["Ante %d, stop %d of 3. Cash %s." % [run.ante, run.stop + 1, _money(run.cash)], MUTED]], acts)
@@ -2885,9 +2894,42 @@ func _act(res: Dictionary, good: String = "coin") -> void:
 
 # ================================================================ home
 
+var _showcase := false
+
+
+## VIEW SHELF: hide the menus and look at your collection in the living room.
+func _set_showcase(on: bool) -> void:
+	_showcase = on
+	_close_sheet()
+	_transition(func(): request_refresh())
+
+
+func _build_showcase() -> void:
+	_header()
+	var gap := _stage_gap(200)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_root_box.add_child(gap)
+	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
+	var h := _hbox(12)
+	bar.add_child(h)
+	var v := _vbox(0)
+	v.add_child(_title_label("YOUR SHELF  %d/%d" % [run.slots_used(), run.shelf_cap], 30, GOLD))
+	var walln := ("   |   %d on your Wall" % _coll_wall.size()) if not _coll_wall.is_empty() else ""
+	v.add_child(_label("Appraises %s right now%s" % [_money(int(run.appraise()["total"])), walln], 18, MUTED))
+	h.add_child(v)
+	h.add_child(_spacer(false))
+	var back := _mark_main(_button("BACK", _set_showcase.bind(false), STICKER, 24, 80))
+	back.custom_minimum_size.x = 180
+	h.add_child(back)
+	_root_box.add_child(bar)
+
+
 func _build_home() -> void:
 	if _dest == "" or not run.venue_choices.has(_dest):
 		_dest = String(run.venue_choices[0]) if not run.venue_choices.is_empty() else ""
+	if _showcase:
+		_build_showcase()
+		return
 	_header()
 	if not is_landscape():
 		_root_box.add_child(_stage_gap(250))
@@ -2921,6 +2963,7 @@ func _build_home() -> void:
 
 ## Where you're going next: target, boss, market, and the venues to pick from.
 func _route_tab(col: VBoxContainer) -> void:
+	col.add_child(_button("VIEW YOUR SHELF  (%d/%d)" % [run.slots_used(), run.shelf_cap], _set_showcase.bind(true), Color("2f5d7a"), 20, 72))
 	var top := _panel(Color(0.06, 0.05, 0.08, 0.85), Color(GOLD, 0.25), 2)
 	var tv := _vbox(4)
 	top.add_child(tv)
@@ -3324,6 +3367,7 @@ const LOADING_TIPS := [
 
 
 func go_to_venue(id: String) -> void:
+	_showcase = false
 	var d := Venues.get_def(id)
 	_transition(_go_to_venue.bind(id), "DRIVING TO\n%s" % String(d["name"]).to_upper(), Flavor.mood(id), d.get("color", GOLD))
 
