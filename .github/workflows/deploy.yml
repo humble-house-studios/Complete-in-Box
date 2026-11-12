@@ -114,7 +114,14 @@ jobs:
           # Accept SDK licenses up front so Gradle never waits for input.
           SDKM=$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager "$SDK"/tools/bin/sdkmanager 2>/dev/null | head -1)
           if [ -n "$SDKM" ]; then yes | timeout 120 "$SDKM" --licenses >/dev/null 2>&1; fi
-          godot --headless --install-android-build-template 2>&1 | tail -3
+          # Install the Gradle build template by hand (the editor flag for it
+          # never exits in headless CI): unzip android_source.zip into android/build.
+          TPL=$(ls -d ~/.local/share/godot/export_templates/*.stable /root/.local/share/godot/export_templates/*.stable 2>/dev/null | head -1)
+          rm -rf android && mkdir -p android/build
+          unzip -q -o "$TPL/android_source.zip" -d android/build
+          echo "4.3.stable" > android/.build_version
+          touch android/.gdignore android/build/.gdignore
+          ls android/build | head
           sed -i 's/^gradle_build\/use_gradle_build=.*/gradle_build\/use_gradle_build=true/' export_presets.cfg
           timeout 900 godot --headless --verbose --export-debug "Android TV" build/android/complete-in-box-tv.apk < /dev/null 2>&1 | tee android.log
           if [ ! -f build/android/complete-in-box-tv.apk ]; then
