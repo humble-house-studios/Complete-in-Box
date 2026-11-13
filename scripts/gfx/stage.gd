@@ -108,6 +108,9 @@ func show_scene(id: String, items: Array = []) -> void:
 	_swing.clear()
 	_breathe.clear()
 	_walkers.clear()
+	_sel = null
+	_sel_item = null
+	_bounds = Rect2(-4, -5, 8, 7)
 	world = Node3D.new()
 	vp.add_child(world)
 	_build(id, items)
@@ -263,6 +266,7 @@ func _process(delta: float) -> void:
 			(s as Node3D).rotation.y += delta * 0.22
 	if not _walkers.is_empty():
 		_walk_update(delta)
+	_sel_update()
 	for b in _breathe:
 		if is_instance_valid(b[0]):
 			(b[0] as Node3D).scale.y = float(b[1]) * (1.0 + sin(_t * 1.6 + float(b[2])) * 0.006)
@@ -297,14 +301,10 @@ func _apply_cam() -> void:
 		cam.look_at(_cine_look_s)
 		fov = cine_fov + (16.0 if portrait else 0.0)
 	elif room_on:
-		# Orbit round the middle of the room (see room_orbit / zoom / move).
-		var centre := _look + Vector3(0, 0.3, -0.9) + room_pan
-		var back := (_cam_pos + Vector3(0, 0.25, 0.55)) - (_look + Vector3(0, 0.3, -0.9))
-		var rot := Basis(Vector3.UP, room_yaw) * Basis(Vector3.RIGHT, -room_pitch)
-		cam.position = centre + rot * (back * room_zoom)
-		cam.position.y = maxf(cam.position.y, 0.25)
-		cam.look_at(centre)
-		fov = minf(fov + 10.0, 100.0)
+		# First person: stand at room_eye, look along yaw / pitch.
+		cam.position = room_eye
+		cam.rotation = Vector3(room_pitch, room_yaw, 0.0)
+		fov = clampf((fov + 8.0) * room_zoom, 25.0, 100.0)
 	else:
 		cam.position = _cam_pos + sway + raise
 		cam.look_at(_look + sway * 0.5)
@@ -380,6 +380,7 @@ func _ground(tex: String, tint: Color, size: Vector2, center: Vector3, uv: float
 func _room(w: float, d: float, h: float, floor_tex: String, floor_tint: Color, wall_tex: String, wall_tint: Color, uv: float = 1.0, hole := Rect2(), ceiling := Color(0.55, 0.52, 0.5)) -> void:
 	var zc := -d * 0.5 + 2.5
 	var zb := 2.5 - d
+	_bounds = Rect2(-w * 0.5 + 0.4, zb + 0.4, w - 0.8, 2.4 - (zb + 0.4))
 	_ground(floor_tex, floor_tint, Vector2(w, d), Vector3(0, 0, zc), 0.7 * uv)
 	var tx := Psx.tex(wall_tex)
 	if hole.size == Vector2.ZERO:
@@ -833,6 +834,7 @@ func _lay_items(items: Array, center: Vector3, width: float, depth: float = 0.35
 		m.position = Vector3(x, center.y + lift, z)
 		m.rotation_degrees.y = sin(i * 2.7) * 12.0
 		world.add_child(m)
+		m.set_meta("uid", int((items[i] as Dictionary).get("uid", -1)))
 		Psx.outline(m)
 		_tier_glow(items[i], Vector3(x, center.y + lift, z), m)
 		_items.append(m)
@@ -1089,14 +1091,15 @@ func _beam(top: Vector3, r_top: float, r_bot: float, h: float, col: Color) -> vo
 	world.add_child(mi)
 
 
-## LOOK AROUND: an orbit camera round the middle of the venue, like any 3D
-## viewer. Drag orbits (yaw + pitch), pinch / wheel zooms, two fingers /
-## right-drag pans the centre across the floor. room_reset() goes back.
+## LOOK AROUND: first person, like a normal 3D game. You stand where the
+## camera usually is; dragging looks around (yaw + pitch), the joystick / WASD /
+## left stick walks you round the room (kept inside `_bounds`), pinch zooms.
 var room_on := false
+var room_eye := Vector3.ZERO
 var room_yaw := 0.0
 var room_pitch := 0.0
 var room_zoom := 1.0
-var room_pan := Vector3.ZERO
+var _bounds := Rect2(-3, -3, 6, 5.5)
 
 
 func room_view(on: bool) -> void:
@@ -1105,34 +1108,120 @@ func room_view(on: bool) -> void:
 
 
 func room_reset() -> void:
-	room_yaw = 0.0
-	room_pitch = 0.0
+	room_eye = _cam_pos + Vector3(0, 0.12, 0.2)
+	var d := (_look - room_eye).normalized()
+	room_yaw = atan2(-d.x, -d.z)
+	room_pitch = clampf(asin(clampf(d.y, -1.0, 1.0)), -0.7, 0.2)
 	room_zoom = 1.0
-	room_pan = Vector3.ZERO
 	mark_dirty(12)
 
 
-## Screen pixels -> orbit: dragging right swings the room right (camera left).
-func room_orbit(dx: float, dy: float) -> void:
-	room_yaw = wrapf(room_yaw - dx * 0.008, -PI, PI)
-	room_pitch = clampf(room_pitch + dy * 0.006, -0.35, 0.9)
+## Drag pixels -> look: drag right to look right, up to look up.
+func room_look(dx: float, dy: float) -> void:
+	_facing = 0.0
+	room_yaw = wrapf(room_yaw - dx * 0.0055, -PI, PI)
+	room_pitch = clampf(room_pitch - dy * 0.0055, -1.2, 1.1)
 	mark_dirty(4)
 
 
 func room_zoom_by(f: float) -> void:
-	room_zoom = clampf(room_zoom * f, 0.35, 1.8)
+	room_zoom = clampf(room_zoom * f, 0.45, 1.25)
 	mark_dirty(4)
 
 
-## Screen pixels -> slide the centre over the floor (moves with the finger).
-func room_move(dx: float, dy: float) -> void:
-	var right := Vector3(cos(room_yaw), 0, -sin(room_yaw))
+## v = stick (x right, y down = back), walking speed in m/s at full tilt.
+func room_walk(v: Vector2, delta: float) -> void:
+	if v.length() < 0.05:
+		return
 	var fwd := Vector3(-sin(room_yaw), 0, -cos(room_yaw))
-	var k := 0.006 * room_zoom
-	room_pan += (-right * dx + fwd * dy) * k
-	room_pan.x = clampf(room_pan.x, -3.0, 3.0)
-	room_pan.z = clampf(room_pan.z, -2.5, 1.5)
-	mark_dirty(4)
+	var right := Vector3(cos(room_yaw), 0, -sin(room_yaw))
+	room_eye += (right * v.x - fwd * v.y) * 1.7 * delta
+	room_eye.x = clampf(room_eye.x, _bounds.position.x, _bounds.end.x)
+	room_eye.z = clampf(room_eye.z, _bounds.position.y, _bounds.end.y)
+	mark_dirty(3)
+
+
+# ---------------------------------------------------------------- selector
+
+## A marker under the 3D item that matches the selected mini card: a pulsing
+## gold ring on the surface and a bobbing arrow above it.
+var _sel: Node3D
+var _sel_item: Node3D
+var _sel_base := Vector3.ZERO
+
+
+func highlight_uid(uid: int) -> void:
+	if _sel != null and is_instance_valid(_sel):
+		_sel.queue_free()
+	_sel = null
+	_sel_item = null
+	if uid < 0 or world == null:
+		return
+	for n in _items:
+		if is_instance_valid(n) and (n as Node3D).has_meta("uid") and int((n as Node3D).get_meta("uid")) == uid:
+			_sel_item = n
+			break
+	if _sel_item == null:
+		return
+	var b := _global_aabb(_sel_item)
+	_sel = Node3D.new()
+	world.add_child(_sel)
+	_sel_base = Vector3(b.get_center().x, b.position.y, b.get_center().z)
+	_sel.position = _sel_base
+	var r := maxf(b.size.x, b.size.z) * 0.7 + 0.03
+	var gold := Psx.mat(Color(1.0, 0.8, 0.25), null, Vector2.ONE, 2.0)
+	var ring := Psx.cyl(r, 0.008, gold, Vector3(0, 0.004, 0), _sel, 24)
+	ring.set_meta("ring", true)
+	Psx.cyl(r * 0.8, 0.009, Psx.mat(Color(0.1, 0.06, 0.16)), Vector3(0, 0.005, 0), _sel, 24)
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.07
+	cone.bottom_radius = 0.0
+	cone.height = 0.14
+	cone.radial_segments = 4
+	var arrow := Psx.mesh(cone, Psx.mat(Color(1.0, 0.82, 0.3), null, Vector2.ONE, 1.4), Vector3(0, b.size.y + 0.12, 0), _sel)
+	arrow.set_meta("arrow", b.size.y + 0.12)
+	Psx.outline(arrow, 1.2)
+	var l := OmniLight3D.new()
+	l.light_color = Color(1.0, 0.82, 0.4)
+	l.light_energy = 0.9
+	l.omni_range = 0.8
+	l.position = Vector3(0, 0.15, 0)
+	_sel.add_child(l)
+	if room_on:
+		# Turn to face it, like a game's "look at" when you pick something.
+		var to := (b.get_center() - room_eye)
+		_face_goal = Vector2(clampf(asin(clampf(to.normalized().y, -1.0, 1.0)), -1.1, 0.6), atan2(-to.x, -to.z))
+		_facing = 0.45
+	mark_dirty(10)
+
+
+var _face_goal := Vector2.ZERO
+var _facing := 0.0
+
+
+func _sel_update() -> void:
+	if _facing > 0.0 and room_on:
+		var dt := get_process_delta_time()
+		_facing -= dt
+		var k := minf(1.0, dt * 9.0)
+		room_pitch = lerpf(room_pitch, _face_goal.x, k)
+		room_yaw = lerp_angle(room_yaw, _face_goal.y, k)
+		mark_dirty(2)
+	if _sel == null or not is_instance_valid(_sel):
+		return
+	for c in _sel.get_children():
+		if c.has_meta("arrow"):
+			(c as Node3D).position.y = float(c.get_meta("arrow")) + sin(_t * 4.0) * 0.025
+			(c as Node3D).rotation.y = _t * 1.5
+		elif c.has_meta("ring"):
+			var s := 1.0 + sin(_t * 5.0) * 0.06
+			(c as Node3D).scale = Vector3(s, 1, s)
+
+
+func _global_aabb(n: Node3D) -> AABB:
+	var acc: Array = [null]
+	Psx._aabb(n, n.global_transform, acc)
+	return acc[0] if acc[0] != null else AABB(n.global_position, Vector3.ONE * 0.1)
 
 
 ## Close-up on the collection shelf ("VIEW SHELF") or back to the room.

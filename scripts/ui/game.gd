@@ -1137,14 +1137,11 @@ func _hop_into(col: Control, sc: ScrollContainer) -> void:
 
 func _pad_sticks(delta: float) -> void:
 	if _room_view and screen == "venue" and _stage != null and not sheet_open():
-		var lx := _axis(JOY_AXIS_LEFT_X)
-		var ly := _axis(JOY_AXIS_LEFT_Y)
-		if absf(lx) > 0.15 or absf(ly) > 0.15:
-			_stage.room_orbit(lx * 500.0 * delta, ly * 350.0 * delta)
+		# Left stick walks (_room_walk_update), right stick looks, triggers zoom.
 		var rx := _axis(JOY_AXIS_RIGHT_X)
 		var ry := _axis(JOY_AXIS_RIGHT_Y)
 		if absf(rx) > 0.15 or absf(ry) > 0.15:
-			_stage.room_move(-rx * 400.0 * delta, -ry * 400.0 * delta)
+			_stage.room_look(rx * absf(rx) * 650.0 * delta, ry * absf(ry) * 450.0 * delta)
 		var zt := _axis(JOY_AXIS_TRIGGER_RIGHT) - _axis(JOY_AXIS_TRIGGER_LEFT)
 		if absf(zt) > 0.1:
 			_stage.room_zoom_by(1.0 - zt * 1.2 * delta)
@@ -1983,6 +1980,8 @@ func _show_preview(item: Dictionary, kind: String, i: int) -> void:
 	_hide_preview()
 	if sheet_open() or run == null or not is_inside_tree():
 		return
+	if (_showcase and screen == "home") or (_room_view and screen == "venue"):
+		_select_3d(int(item.get("uid", -1)))
 	var plat := Catalog.platform(String(item["plat"]))
 	var pcol: Color = plat["color"]
 	var tier := int(item.get("tier", 0))
@@ -1992,10 +1991,11 @@ func _show_preview(item: Dictionary, kind: String, i: int) -> void:
 	var r := Rect2(Vector2((vs.x - 420.0) * 0.5, _margins.y + 96), Vector2(420, 260))
 	if _gap != null and is_instance_valid(_gap) and _gap.is_inside_tree() and _gap.size.y > 120:
 		r = _gap.get_global_rect().grow(-6)
-		if _showcase and screen == "home":
-			# Shelf view: tuck the card against the right edge, clear of the shelves.
-			var w := minf(360.0, r.size.x * (0.34 if is_landscape() else 0.5))
-			r = Rect2(Vector2(r.end.x - w, r.position.y), Vector2(w, r.size.y))
+		if (_showcase and screen == "home") or (_room_view and screen == "venue"):
+			# Shelf view / LOOK AROUND: a small card in the top-right corner so
+			# the item and its selector in the room stay in view.
+			var w := minf(300.0, r.size.x * (0.3 if is_landscape() else 0.44))
+			r = Rect2(Vector2(r.end.x - w, r.position.y), Vector2(w, minf(r.size.y * 0.62, 360.0)))
 	var tall := r.size.y > r.size.x * 1.1
 	var p := PanelContainer.new()
 	var frame: Color = pcol if tier < 2 else Catalog.TIER_COLORS[tier]
@@ -3598,6 +3598,7 @@ var _showcase := false
 func _set_showcase(on: bool) -> void:
 	_showcase = on
 	_close_sheet()
+	_select_3d(-1)
 	_transition(func(): request_refresh())
 
 
@@ -4119,9 +4120,38 @@ func _set_room_view(on: bool) -> void:
 	_room_view = on
 	_close_sheet()
 	_hide_preview()
+	_select_3d(-1)
 	if _stage != null:
 		_stage.room_view(on)
 	request_refresh()
+
+
+## Point at a mini card's item in the room (or clear with -1).
+func _select_3d(uid: int) -> void:
+	_sel_uid = uid
+	if _stage != null:
+		_stage.highlight_uid(uid)
+
+
+## In the shelf view / LOOK AROUND a tap first picks the card (selector in the
+## room + preview); tapping the picked card again opens it. Returns true when
+## the tap was used to pick.
+func _pick_first(item: Dictionary, kind: String, i: int) -> bool:
+	if not ((_showcase and screen == "home") or (_room_view and screen == "venue")):
+		return false
+	var uid := int(item.get("uid", -1))
+	if uid == _sel_uid:
+		return false
+	_show_preview(item, kind, i)
+	_sfx.play("tick")
+	return true
+
+
+const JOYSTICK := preload("res://scripts/ui/joystick.gd")
+var _joy: Control
+## uid of the mini card picked in the shelf view / LOOK AROUND (its 3D twin
+## gets the selector); a second tap opens the full card.
+var _sel_uid := -1
 
 
 func _build_room_view() -> void:
@@ -4132,23 +4162,45 @@ func _build_room_view() -> void:
 	gap.gui_input.connect(_on_room_input)
 	_root_box.add_child(gap)
 	_touches.clear()
+	# Walk stick in the bottom-left of the view (not needed with a pad).
+	_joy = JOYSTICK.new()
+	_joy.custom_minimum_size = Vector2(170, 170)
+	_joy.anchor_top = 1.0
+	_joy.anchor_bottom = 1.0
+	_joy.offset_left = 14
+	_joy.offset_right = 184
+	_joy.offset_top = -184
+	_joy.offset_bottom = -14
+	_joy.visible = not _pad
+	gap.add_child(_joy)
+	# The table's mini cards: pick one to point it out in the room.
+	var items: Array = []
+	for i in run.stock.size():
+		items.append(i)
+	if not items.is_empty():
+		var sc := ScrollContainer.new()
+		sc.follow_focus = true
+		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.custom_minimum_size = Vector2(0, 200)
+		var row := _hbox(8)
+		sc.add_child(row)
+		for i in items:
+			var tile := _offer_tile(int(i), 160)
+			row.add_child(tile)
+		_root_box.add_child(sc)
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
 	var h := _hbox(10)
 	bar.add_child(h)
 	var v := _vbox(0)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(_title_label(String(run.venue.get("name", "THE VENUE")).to_upper(), 28, GOLD))
-	var hint := "Drag to turn  •  pinch to zoom  •  two fingers to move  •  double-tap resets"
-	if not OS.has_feature("mobile") and not OS.has_feature("web_ios") and not OS.has_feature("web_android"):
-		hint = "Drag to turn  •  wheel or pinch to zoom  •  right-drag / two fingers to move"
+	v.add_child(_title_label(String(run.venue.get("name", "THE VENUE")).to_upper(), 26, GOLD))
+	var hint := "Drag to look  •  stick to walk  •  pinch to zoom  •  tap a card to find it"
 	if _pad:
-		hint = "Left stick turns  •  right stick moves  •  LT / RT zoom  •  X resets"
-	v.add_child(_label(hint, 16, MUTED, true))
+		hint = "Left stick walks  •  right stick looks  •  D-pad picks a card  •  X resets"
+	elif not OS.has_feature("mobile") and not OS.has_feature("web_ios") and not OS.has_feature("web_android"):
+		hint = "Drag to look  •  WASD / stick to walk  •  wheel to zoom  •  click a card to find it"
+	v.add_child(_label(hint, 15, MUTED, true))
 	h.add_child(v)
-	for z in [["-", 1.15], ["+", 0.87]]:
-		var zb := _button(String(z[0]), _stage_zoom.bind(float(z[1])), PANEL_HI, 30, 80)
-		zb.custom_minimum_size.x = 80
-		h.add_child(zb)
 	var rb := _button("RESET", _stage_reset, PANEL_HI, 20, 80)
 	rb.custom_minimum_size.x = 110
 	h.add_child(rb)
@@ -4158,24 +4210,42 @@ func _build_room_view() -> void:
 	_root_box.add_child(bar)
 
 
-func _stage_zoom(f: float) -> void:
-	if _stage != null:
-		_stage.room_zoom_by(f)
-
-
 func _stage_reset() -> void:
 	if _stage != null:
 		_stage.room_reset()
 
 
-## Touch points on the room (index -> position), for pinch and two-finger pan.
+## Walking: on-screen stick, WASD / arrows, or the pad's left stick.
+func _room_walk_update(delta: float) -> void:
+	if not _room_view or screen != "venue" or _stage == null or sheet_open():
+		return
+	var v := Vector2.ZERO
+	if _joy != null and is_instance_valid(_joy):
+		v += _joy.value
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		v.y -= 1.0
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		v.y += 1.0
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		v.x -= 1.0
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		v.x += 1.0
+	if _pad:
+		var lx := _axis(JOY_AXIS_LEFT_X)
+		var ly := _axis(JOY_AXIS_LEFT_Y)
+		if absf(lx) > 0.15 or absf(ly) > 0.15:
+			v += Vector2(lx, ly)
+	_stage.room_walk(v.limit_length(1.0), delta)
+
+
+## Touch points on the room (index -> position), for pinch.
 var _touches: Dictionary = {}
 var _touch_t := 0
 var _last_tap := 0
 
 
-## Common 3D-viewer controls: one finger / left drag orbits, pinch / wheel
-## zooms, two fingers / right or middle drag pans, double-tap / double-click resets.
+## First-person controls: one finger / left drag looks, pinch / wheel zooms,
+## double-tap / double-click resets. (Walking is the stick, WASD or the pad.)
 func _on_room_input(e: InputEvent) -> void:
 	if _stage == null:
 		return
@@ -4195,7 +4265,9 @@ func _on_room_input(e: InputEvent) -> void:
 	if e is InputEventScreenDrag:
 		var d := e as InputEventScreenDrag
 		_touch_t = Time.get_ticks_msec()
-		if _touches.size() >= 2 and _touches.has(d.index):
+		if not _touches.has(d.index):
+			return
+		if _touches.size() >= 2:
 			var keys := _touches.keys()
 			var other: Vector2 = _touches[keys[1] if keys[0] == d.index else keys[0]]
 			var before: Vector2 = _touches[d.index]
@@ -4203,10 +4275,8 @@ func _on_room_input(e: InputEvent) -> void:
 			var d1 := d.position.distance_to(other)
 			if d0 > 1.0 and d1 > 1.0:
 				_stage.room_zoom_by(d0 / d1)
-			# Each finger moves the middle by half its own motion.
-			_stage.room_move(d.relative.x * 0.5, d.relative.y * 0.5)
 		else:
-			_stage.room_orbit(d.relative.x, d.relative.y)
+			_stage.room_look(d.relative.x, d.relative.y)
 		_touches[d.index] = d.position
 		return
 	# Mouse (skipped right after touches: browsers echo them as mouse events).
@@ -4215,21 +4285,19 @@ func _on_room_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton:
 		var mb := e as InputEventMouseButton
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_stage.room_zoom_by(0.9)
+			_stage.room_zoom_by(0.92)
 		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_stage.room_zoom_by(1.1)
+			_stage.room_zoom_by(1.08)
 		elif mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and mb.double_click:
 			_stage.room_reset()
 	elif e is InputEventMouseMotion:
 		var mm := e as InputEventMouseMotion
-		if (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 and not mm.shift_pressed:
-			_stage.room_orbit(mm.relative.x, mm.relative.y)
-		elif (mm.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE)) != 0 or ((mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 and mm.shift_pressed):
-			_stage.room_move(mm.relative.x, mm.relative.y)
+		if (mm.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT)) != 0:
+			_stage.room_look(mm.relative.x, mm.relative.y)
 	elif e is InputEventMagnifyGesture:
 		_stage.room_zoom_by(1.0 / maxf(0.2, (e as InputEventMagnifyGesture).factor))
 	elif e is InputEventPanGesture:
-		_stage.room_move(-(e as InputEventPanGesture).delta.x * 8.0, -(e as InputEventPanGesture).delta.y * 8.0)
+		_stage.room_look((e as InputEventPanGesture).delta.x * 6.0, (e as InputEventPanGesture).delta.y * 6.0)
 
 
 func _build_venue() -> void:
@@ -4348,6 +4416,8 @@ func _open_offer(i: int) -> void:
 		return
 	var o: Dictionary = run.stock[i]
 	var item: Dictionary = o["item"]
+	if _pick_first(item, "offer", i):
+		return
 	var lines: Array = []
 	var quote := Flavor.seller(String(run.venue["id"]), str(item["uid"]))
 	if quote != "":
@@ -4455,6 +4525,10 @@ func _item_lines(item: Dictionary, exact: bool) -> Array:
 func _open_shelf_item(uid: int, state: String) -> void:
 	if _busy:
 		return
+	if state == "" and _showcase:
+		var it0 := run.find_item(uid)
+		if not it0.is_empty() and _pick_first(it0, "shelf", -1):
+			return
 	if state == "LISTED":
 		for it in run.listings:
 			if int(it["uid"]) == uid:
@@ -5713,6 +5787,7 @@ func _on_spin_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_lazy_update(delta)
+	_room_walk_update(delta)
 	if _pad:
 		_pad_repeat(delta)
 		_pad_scroll(delta)

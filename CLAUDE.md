@@ -130,11 +130,15 @@ The web build in Safari is the test for every platform.
   restock, wipe, talk). `_person(pos, rot, tint, h, who)` = standing; `_walker(path,
   acts, who, speed)` = walks the path in a loop, pausing to do `acts` (a name or
   [name, facing_deg]); walkers stand still in Lite.perf. Arcade machines in `props/arcade/`.
-- LOOK AROUND (venue button, pause menu): `_room_view` hides the menus; `Stage.room_view`
-  is an orbit camera round the room. `_on_room_input`: one finger / left drag orbits
-  (`room_orbit`), pinch / wheel / trackpad zooms (`room_zoom_by`), two fingers / right or
-  middle or shift-drag pans (`room_move`), double-tap resets (`room_reset`); on screen - / +
-  / RESET buttons; pad: left stick orbit, right stick pan, LT/RT zoom, X reset, B back.
+- LOOK AROUND (venue button, pause menu): first person, like a normal 3D game.
+  `Stage.room_view` stands you at the usual camera spot (`room_eye`, inside `_bounds`, set
+  by `_room`); drag / mouse looks (`room_look`), the on-screen stick (`scripts/ui/joystick.gd`,
+  bottom-left), WASD / arrows or the pad's left stick walk (`room_walk`, via
+  `_room_walk_update`), right stick looks, pinch / wheel / triggers zoom, double-tap / RESET /
+  X reset. A strip of the table's mini cards stays up: picking one (`_pick_first`: first
+  tap picks, second opens; pad focus picks, A opens) puts the selector on its 3D twin
+  (`Stage.highlight_uid`: gold ring + bobbing arrow, items carry meta "uid" from
+  `_lay_items`) and turns the view to it. VIEW YOUR SHELF does the same for shelf cards.
   Walk cycle: arms swing against the same-side leg, `ARM_IN` near 0 (+Z = back).
 - The title vault: velvet plinth with gold rings and a GRAIL plaque, museum ropes, a
   light beam (`_beam`), stacks of real boxed games (`_box_stack`), arcade cabinets.
