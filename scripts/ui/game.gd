@@ -3224,7 +3224,7 @@ const GUIDE := [
 	{"title": "3 STOPS A ROUND", "color": STICKER, "art": "stops",
 		"lines": ["Each round you visit three places to buy and sell stuff."]},
 	{"title": "YOUR SHELF IS YOUR HAND", "color": Color("5fb3d9"), "art": "formula",
-		"lines": ["Everything you buy goes on your shelf.", "Items give CHIPS. Sets and perks give MULT. Multiply them!"]},
+		"lines": ["Everything you buy goes on your shelf.", "Each item adds its worth as CHIPS. Sets and perks add MULT.", "CHIPS x MULT = your SHELF SCORE."]},
 	{"title": "COLLECT SETS", "color": Color("4fd9a0"), "art": "sets",
 		"lines": ["3+ things for one console = more MULT.", "Console + game + accessory = x1.5!", "Found a GRAIL? +1 MULT and a lifetime of bragging."]},
 	{"title": "PAY THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
@@ -4944,57 +4944,101 @@ func _play_appraisal(res: Dictionary) -> void:
 	layer.gui_input.connect(_on_appraisal_input)
 	layer.name = "Appraisal"
 	_overlay.add_child(layer)
+	var land := is_landscape()
 	var m := MarginContainer.new()
 	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "top", "right", "bottom"]:
-		m.add_theme_constant_override("margin_" + side, 24)
+		m.add_theme_constant_override("margin_" + side, 16 if land else 24)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(m)
 	var v := _vbox(8)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(v)
 	var head := _hbox()
-	head.add_child(_title_label("APPRAISAL", 52, GOLD))
+	head.add_child(_title_label("APPRAISAL", 52 if not land else 40, GOLD))
 	head.add_child(_spacer(false))
-	head.add_child(_title_label("Target %s" % _money(tgt), 30, INK))
+	var tp := _pill("TARGET  " + _money(tgt), INK, 22 if not land else 18)
+	tp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(tp)
 	v.add_child(head)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 150 if is_landscape() else 260)
-	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(gap)
-	_focus_on.call_deferred(gap)
-	var card := _panel(Color(0.05, 0.04, 0.065, 0.93), Color(GOLD, 0.35), 2)
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(card)
-	var cv := _vbox(6)
-	card.add_child(cv)
+	# Where things go: landscape = list panel left, 3D shelf middle, score
+	# panel right. Phones = one column under the 3D shelf.
+	var list_box: VBoxContainer
+	var score_box: VBoxContainer
+	var btn_box: VBoxContainer
+	if land:
+		var row := _hbox(12)
+		row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(row)
+		var lc := _panel(Color(0.05, 0.04, 0.065, 0.93), Color(GOLD, 0.35), 2)
+		lc.custom_minimum_size.x = 440
+		lc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(lc)
+		list_box = _vbox(4)
+		lc.add_child(list_box)
+		var mid := Control.new()
+		mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(mid)
+		_focus_on.call_deferred(mid)
+		var rc := _panel(Color(0.05, 0.04, 0.065, 0.93), Color(GOLD, 0.35), 2)
+		rc.custom_minimum_size.x = 440
+		rc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(rc)
+		score_box = _vbox(4)
+		rc.add_child(score_box)
+		btn_box = score_box
+	else:
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(0, 200)
+		gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(gap)
+		_focus_on.call_deferred(gap)
+		var card := _panel(Color(0.05, 0.04, 0.065, 0.93), Color(GOLD, 0.35), 2)
+		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(card)
+		list_box = _vbox(4)
+		card.add_child(list_box)
+		score_box = list_box
+		btn_box = v
 	for e in res["events"]:
-		cv.add_child(_label(String(e), 18, Color("4fd9a0"), true))
+		list_box.add_child(_label(String(e), 16, Color("4fd9a0"), true))
+	list_box.add_child(_step_label("1", "EACH ITEM ADDS ITS WORTH AS CHIPS", Color("4fa3ff")))
 	var sc := ScrollContainer.new()
 	sc.follow_focus = false
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.custom_minimum_size.y = 120 if not land else 0
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.mouse_filter = Control.MOUSE_FILTER_PASS
-	cv.add_child(sc)
-	var list := _vbox(4)
+	list_box.add_child(sc)
+	var list := _vbox(2)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(list)
-	var score_cap := _label("SHELF SCORE  (not cash: you keep your items)", 18, MUTED, true)
-	score_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cv.add_child(score_cap)
-	var totals := _hbox(16)
+	score_box.add_child(_step_label("3", "CHIPS x MULT = SHELF SCORE", GOLD))
+	var totals := _hbox(10)
 	totals.alignment = BoxContainer.ALIGNMENT_CENTER
-	var chips_l := _title_label("$0", 44, Color("4fa3ff"))
-	var x_l := _title_label("x", 30, MUTED)
-	var mult_l := _title_label("1.00", 44, Color("ff5577"))
-	totals.add_child(chips_l)
-	totals.add_child(x_l)
-	totals.add_child(mult_l)
-	cv.add_child(totals)
-	var total_l := _title_label("", 64, INK)
+	var cbox := _score_chip("CHIPS", Color("4fa3ff"))
+	var chips_l: Label = cbox.get_meta("num")
+	chips_l.text = "$0"
+	var mbox := _score_chip("MULT", Color("ff5577"))
+	var mult_l: Label = mbox.get_meta("num")
+	mult_l.text = "1.00"
+	totals.add_child(cbox)
+	totals.add_child(_title_label("x", 30, MUTED))
+	totals.add_child(mbox)
+	score_box.add_child(totals)
+	var total_l := _title_label("= ?", 56 if not land else 40, INK)
 	total_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cv.add_child(total_l)
+	score_box.add_child(total_l)
+	var bar := _target_bar(tgt)
+	score_box.add_child(bar)
+	if land:
+		var fill_sp := Control.new()
+		fill_sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		fill_sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		score_box.add_child(fill_sp)
 	var items: Array = ap["items"]
 	var d := minf(0.22, 2.6 / maxf(1.0, items.size()))
 	var chips := 0
@@ -5002,11 +5046,11 @@ func _play_appraisal(res: Dictionary) -> void:
 	var idx := 0
 	for row in items:
 		var h := _hbox()
-		h.add_child(_title_label("+" + _money(int(row["value"])), 24, Color("4fa3ff")))
+		h.add_child(_title_label("+" + _money(int(row["value"])), 22, Color("4fa3ff")))
 		var n := String(row["name"])
 		if not (row["notes"] as Array).is_empty():
 			n += "  (" + ", ".join(row["notes"]) + ")"
-		h.add_child(_label(n, 18, INK, true))
+		h.add_child(_label(n, 16, INK, true))
 		list.add_child(h)
 		chips += int(row["value"])
 		chips_l.text = _money(chips)
@@ -5018,6 +5062,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		await _wait(d)
 	var add := 0.0
 	var times := 1.0
+	list.add_child(_step_label("2", "SETS AND PERKS ADD MULT" if not (ap["bonuses"] as Array).is_empty() else "NO SETS OR PERKS: MULT STAYS 1", Color("ff5577")))
 	for b in ap["bonuses"]:
 		var txt: String
 		if float(b["times"]) > 1.0:
@@ -5027,9 +5072,10 @@ func _play_appraisal(res: Dictionary) -> void:
 			add += float(b["add"])
 			txt = "+%s Mult" % str(snappedf(float(b["add"]), 0.01))
 		var h2 := _hbox()
-		h2.add_child(_title_label(txt, 24, Color("ff5577")))
-		h2.add_child(_label(String(b["label"]), 18, INK, true))
+		h2.add_child(_title_label(txt, 22, Color("ff5577")))
+		h2.add_child(_label(String(b["label"]), 16, INK, true))
 		list.add_child(h2)
+		sc.set_deferred("scroll_vertical", 100000)
 		mult_l.text = "%.2f" % ((1.0 + add) * times)
 		_punch(mult_l, 1.35)
 		_sfx.play("mult", 1.0 + add * 0.1)
@@ -5039,9 +5085,7 @@ func _play_appraisal(res: Dictionary) -> void:
 	var total := int(ap["total"])
 	var passed := bool(res["passed"])
 	total_l.text = "= " + _money(total)
-	var vs_l := _label(("BEATS THE TARGET OF %s" if passed else "UNDER THE TARGET OF %s") % _money(tgt), 20, GOOD if passed else BAD)
-	vs_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	cv.add_child(vs_l)
+	_target_bar_fill(bar, total, tgt, passed)
 	total_l.add_theme_color_override("font_color", GOOD if passed else BAD)
 	_sfx.play("stamp")
 	_punch(total_l, 1.6)
@@ -5050,8 +5094,8 @@ func _play_appraisal(res: Dictionary) -> void:
 		_stage.shake(0.5)
 		_coin_burst(layer, total_l)
 		var r: Dictionary = res["rewards"]
-		cv.add_child(_label(Flavor.pick(Flavor.PASS, run.ante * 3 + run.stop), 20, FLAVOR_C, true))
-		cv.add_child(_payday(r))
+		score_box.add_child(_label(Flavor.pick(Flavor.PASS, run.ante * 3 + run.stop), 16, FLAVOR_C, true))
+		score_box.add_child(_payday(r))
 		if r.has("want"):
 			# The Buyer's request: a gold stamp and a chime on top of the payday.
 			await _wait(0.35)
@@ -5062,13 +5106,13 @@ func _play_appraisal(res: Dictionary) -> void:
 		if run.phase == Run.Phase.WON:
 			label = "YOU WON. SEE RESULTS"
 			_sfx.play("win")
-		v.add_child(_mark_main(_button(label, _after_appraisal, STICKER, 28, 96)))
+		btn_box.add_child(_mark_main(_button(label, _after_appraisal, STICKER, 28 if not land else 24, 96 if not land else 76)))
 	else:
 		_sfx.play("fail")
 		_stage.shake(1.4)
 		_flash(layer, BAD)
-		cv.add_child(_label("Score short by %s. No payday. %s" % [_money(tgt - total), Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop)], 22, BAD, true))
-		v.add_child(_mark_main(_button("SEE RESULTS", _after_appraisal, BAD, 28, 96)))
+		score_box.add_child(_label("No payday. %s" % Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop), 18, BAD, true))
+		btn_box.add_child(_mark_main(_button("SEE RESULTS", _after_appraisal, BAD, 28 if not land else 24, 96 if not land else 76)))
 	_busy = false
 	if _pad:
 		_pad_focus.call_deferred(0)
@@ -5077,28 +5121,112 @@ func _play_appraisal(res: Dictionary) -> void:
 ## PAYDAY: the cash you actually get for passing, kept apart from the score.
 func _payday(r: Dictionary) -> Control:
 	var p := _panel(Color(GOOD, 0.14), GOOD, 3)
-	var v := _vbox(2)
+	var v := _vbox(0)
 	p.add_child(v)
 	var h := _hbox(8)
-	h.add_child(_title_label("PAYDAY", 34, GOOD))
+	h.add_child(_title_label("PAYDAY", 28, GOOD))
 	h.add_child(_spacer(false))
-	h.add_child(_title_label("+" + _money(int(r["total"])), 34, GOOD))
+	h.add_child(_title_label("+" + _money(int(r["total"])), 28, GOOD))
 	v.add_child(h)
-	var rows: Array = [["Stop pay", r["base"]], ["Interest (on cash you saved)", r["interest"]], ["Leftover Time", r["time"]]]
+	var parts: Array = ["stop pay %s" % _money(int(r["base"])), "interest %s" % _money(int(r["interest"])), "leftover Time %s" % _money(int(r["time"]))]
 	if r.has("want"):
-		rows.append(["Buyer's request filled! (%d/%d)" % [run.wants_done, Balance.ANTES_TO_WIN], r["want"]])
-	for row in rows:
-		var rh := _hbox(8)
-		rh.add_child(_label(String(row[0]), 18, INK))
-		rh.add_child(_spacer(false))
-		rh.add_child(_label("+" + _money(int(row[1])), 18, INK))
-		v.add_child(rh)
+		parts.append("Buyer's request %s" % _money(int(r["want"])))
+	v.add_child(_label("Real cash: " + " + ".join(parts), 15, INK, true))
 	var w := _hbox(8)
-	w.add_child(_label("WALLET", 20, GOLD))
+	w.add_child(_label("WALLET", 18, GOLD))
 	w.add_child(_spacer(false))
-	w.add_child(_title_label("%s  >  %s" % [_money(run.cash - int(r["total"])), _money(run.cash)], 26, GOLD))
+	w.add_child(_title_label("%s  >  %s" % [_money(run.cash - int(r["total"])), _money(run.cash)], 24, GOLD))
 	v.add_child(w)
 	return p
+
+
+## A numbered step line on the appraisal ("1  EACH ITEM ADDS ...").
+func _step_label(num: String, text: String, col: Color) -> Control:
+	var h := _hbox(8)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var n := _pill(num, col, 15, Color("0b0a10"))
+	n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(n)
+	h.add_child(_label(text, 15, col, true))
+	return h
+
+
+## A Balatro-style counter box: small caption over a big number (meta "num").
+func _score_chip(cap: String, col: Color) -> PanelContainer:
+	var p := _panel(col.darkened(0.55), col, 3)
+	p.custom_minimum_size.x = 150
+	var v := _vbox(-4)
+	p.add_child(v)
+	var c := _label(cap, 14, col.lightened(0.3))
+	c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(c)
+	var n := _title_label("", 38, INK)
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(n)
+	p.set_meta("num", n)
+	return p
+
+
+## Score vs target bar: empty until the score lands, then it fills, with a
+## gold notch where the target sits.
+func _target_bar(tgt: int) -> Control:
+	var v := _vbox(2)
+	var cap := _hbox(6)
+	var l := _label("SHELF SCORE vs TARGET", 14, MUTED)
+	cap.add_child(l)
+	cap.add_child(_spacer(false))
+	var verdict := _label("", 15, INK)
+	cap.add_child(verdict)
+	v.add_child(cap)
+	var track := Control.new()
+	track.custom_minimum_size.y = 26
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bg := ColorRect.new()
+	bg.color = Color(1, 1, 1, 0.08)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_child(bg)
+	var fill := ColorRect.new()
+	fill.color = GOOD
+	fill.anchor_bottom = 1.0
+	fill.anchor_right = 0.0
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_child(fill)
+	var notch := ColorRect.new()
+	notch.color = GOLD
+	notch.anchor_bottom = 1.0
+	notch.offset_left = -2
+	notch.offset_right = 2
+	notch.offset_top = -4
+	notch.offset_bottom = 4
+	notch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.add_child(notch)
+	v.add_child(track)
+	v.set_meta("fill", fill)
+	v.set_meta("notch", notch)
+	v.set_meta("verdict", verdict)
+	# Before the score lands, the notch sits at 70% so the bar reads as a goal.
+	notch.anchor_left = 0.7
+	notch.anchor_right = 0.7
+	return v
+
+
+func _target_bar_fill(bar: Control, total: int, tgt: int, passed: bool) -> void:
+	var top := float(maxi(total, tgt)) * 1.15
+	var fill: ColorRect = bar.get_meta("fill")
+	var notch: ColorRect = bar.get_meta("notch")
+	var verdict: Label = bar.get_meta("verdict")
+	var t := float(tgt) / maxf(top, 1.0)
+	notch.anchor_left = t
+	notch.anchor_right = t
+	fill.color = GOOD if passed else BAD
+	var f := float(total) / maxf(top, 1.0)
+	verdict.text = ("BEAT IT BY %s" if passed else "SHORT BY %s") % _money(absi(total - tgt))
+	verdict.add_theme_color_override("font_color", GOOD if passed else BAD)
+	if fast:
+		fill.anchor_right = f
+	else:
+		fill.create_tween().tween_property(fill, "anchor_right", f, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func _focus_on(c: Control) -> void:
