@@ -147,6 +147,7 @@ const WANT_NOTES := {
 	"gold": ["Gold doesn't tarnish. Neither do I.", "Bring me gold. It keeps. So do the things I keep."],
 	"worth": ["One serious piece. Show me you're not just shuffling junk.", "Quality over quantity. One piece. Make it count."],
 	"rookie": ["Everyone is worth the most at the start. Bring me a rookie.", "First year, first card, first mistake. Rose loved a rookie. So do I."],
+	"key": ["Firsts. I collect firsts. First issues, first appearances, first heirs.", "Bring me the issue where it all began. Everything begins somewhere."],
 	"vintage": ["Something older than you. Older than your parents, ideally.", "Bring me a card printed before anyone thought to keep them clean."],
 }
 ## True ending: every request filled in one run. The Buyer's set is complete.
@@ -216,7 +217,10 @@ static func mood(venue_id: String) -> String:
 # Worlds without a file fall back to the base (retro / Arlo) text.
 
 const LORE_FILES := {
+	"games": preload("res://scripts/data/lore/games.gd"),
+	"cards": preload("res://scripts/data/lore/cards.gd"),
 	"sports": preload("res://scripts/data/lore/sports.gd"),
+	"comics": preload("res://scripts/data/lore/comics.gd"),
 }
 const Worlds := preload("res://scripts/data/worlds.gd")
 static var _lore_cache: Dictionary = {}
@@ -263,6 +267,8 @@ static func diary(estate_id: String) -> Array:
 ## Whose diary it is ("Arlo's diary", "Grandma Rose's scrapbook"...).
 static func diary_name(estate_id: String) -> String:
 	var lw := estate_lore(estate_id)
+	if lw.has("DIARY_NAME"):
+		return String(lw["DIARY_NAME"])
 	return "%s's scrapbook" % String(lw["COLLECTOR"]) if lw.has("COLLECTOR") else "Arlo's diary"
 
 

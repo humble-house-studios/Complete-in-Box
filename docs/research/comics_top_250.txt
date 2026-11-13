@@ -1,0 +1,119 @@
+THE 250 MOST COLLECTIBLE COMICS
+Compiled Nov 2026 from general collector knowledge (CGC census and sold-price lore), not live
+price data. Five binder pages of up to 50, by era: Golden Age (1938-1955), Silver Age
+(1956-1969), Bronze Age (1970-1984), Modern (1985+), and Indie, Manga & Undergrounds.
+First release ships 20 per page (100); each page grows to 50 later without code changes
+(append lines, rerun tools/gen_worlds.py comics). Order is roughly most to least desirable.
+Newsstand, price variants, signatures and restoration are left to the variant roll in game.
+Format: rank. Title #issue | Why it matters | Year | Page | kind (comic / longbox) | tags | Publisher | Key character | Wikipedia titles (; = fallbacks)
+Tags: key = first appearance or landmark, one = a #1 issue, poly = sold polybagged.
+
+== GOLDEN AGE ==
+1. Action Comics #1 | First appearance of Superman | 1938 | GLDN | comic | key,one | DC | Superman | Action Comics 1;Action Comics
+2. Detective Comics #27 | First appearance of Batman | 1939 | GLDN | comic | key | DC | Batman | Detective Comics 27;Detective Comics
+3. Marvel Comics #1 | First Human Torch, Sub-Mariner on the cover | 1939 | GLDN | comic | key,one | Timely | Human Torch | Marvel Comics 1;Marvel Comics (comic book)
+4. Superman #1 | Superman's first solo title | 1939 | GLDN | comic | one | DC | Superman | Superman (comic book)
+5. Batman #1 | First Joker and Catwoman | 1940 | GLDN | comic | key,one | DC | Joker | Batman (comic book)
+6. Captain America Comics #1 | First Captain America, punching Hitler | 1941 | GLDN | comic | key,one | Timely | Captain America | Captain America Comics
+7. All Star Comics #8 | First Wonder Woman | 1941 | GLDN | comic | key | DC | Wonder Woman | All Star Comics
+8. Detective Comics #38 | First Robin | 1940 | GLDN | comic | key | DC | Robin | Robin (character)
+9. Whiz Comics #2 | First Captain Marvel, SHAZAM | 1940 | GLDN | comic | key | Fawcett | Captain Marvel | Whiz Comics
+10. Flash Comics #1 | First Flash and Hawkman | 1940 | GLDN | comic | key,one | DC | Flash | Flash Comics
+11. Wonder Woman #1 | Wonder Woman's first solo title | 1942 | GLDN | comic | one | DC | Wonder Woman | Wonder Woman (comic book)
+12. All-American Comics #16 | First Green Lantern | 1940 | GLDN | comic | key | DC | Green Lantern | All-American Comics
+13. Pep Comics #22 | First Archie | 1941 | GLDN | comic | key | MLJ | Archie | Pep Comics
+14. More Fun Comics #52 | First Spectre | 1940 | GLDN | comic | key | DC | Spectre | More Fun Comics
+15. Sensation Comics #1 | Wonder Woman's cover debut | 1942 | GLDN | comic | one | DC | Wonder Woman | Sensation Comics
+16. Planet Comics #1 | Rocket girls and bug-eyed monsters | 1940 | GLDN | comic | one | Fiction House | - | Planet Comics
+17. Tales from the Crypt #20 | The book that scared Congress | 1950 | GLDN | comic |  | EC | Crypt Keeper | Tales from the Crypt (comics)
+18. Four Color #9 | Donald Duck Finds Pirate Gold | 1942 | GLDN | comic |  | Dell | Donald Duck | Four Color
+19. Crime Does Not Pay #22 | The first crime comic | 1942 | GLDN | comic | one | Lev Gleason | - | Crime Does Not Pay
+20. Wartime Newsstand Longbox | A box of 1940s comics from a soldier's footlocker | 1945 | GLDN | longbox |  | Various | - | -
+
+== SILVER AGE ==
+1. Amazing Fantasy #15 | First Spider-Man | 1962 | SLVR | comic | key | Marvel | Spider-Man | Amazing Fantasy
+2. Showcase #4 | First Silver Age Flash, the age begins | 1956 | SLVR | comic | key | DC | Flash | Showcase (comic book)
+3. Fantastic Four #1 | First Fantastic Four, Marvel begins | 1961 | SLVR | comic | key,one | Marvel | Fantastic Four | Fantastic Four (comic book)
+4. Incredible Hulk #1 | First Hulk (grey) | 1962 | SLVR | comic | key,one | Marvel | Hulk | The Incredible Hulk (comic book)
+5. X-Men #1 | First X-Men and Magneto | 1963 | SLVR | comic | key,one | Marvel | X-Men | X-Men (comic book)
+6. Amazing Spider-Man #1 | Spider-Man's first solo title | 1963 | SLVR | comic | one | Marvel | Spider-Man | The Amazing Spider-Man
+7. Tales of Suspense #39 | First Iron Man | 1963 | SLVR | comic | key | Marvel | Iron Man | Tales of Suspense
+8. Journey into Mystery #83 | First Thor | 1962 | SLVR | comic | key | Marvel | Thor | Journey into Mystery
+9. Avengers #1 | First Avengers | 1963 | SLVR | comic | key,one | Marvel | Avengers | The Avengers (comic book)
+10. Brave and the Bold #28 | First Justice League | 1960 | SLVR | comic | key | DC | Justice League | The Brave and the Bold
+11. Fantastic Four #48 | First Silver Surfer and Galactus | 1966 | SLVR | comic | key | Marvel | Silver Surfer | Silver Surfer
+12. Showcase #22 | First Hal Jordan Green Lantern | 1959 | SLVR | comic | key | DC | Green Lantern | Hal Jordan
+13. Strange Tales #110 | First Doctor Strange | 1963 | SLVR | comic | key | Marvel | Doctor Strange | Strange Tales
+14. Tales to Astonish #27 | First Ant-Man (Hank Pym) | 1962 | SLVR | comic | key | Marvel | Ant-Man | Tales to Astonish
+15. Daredevil #1 | First Daredevil | 1964 | SLVR | comic | key,one | Marvel | Daredevil | Daredevil (Marvel Comics series)
+16. Fantastic Four #52 | First Black Panther | 1966 | SLVR | comic | key | Marvel | Black Panther | Black Panther (character)
+17. Avengers #4 | Captain America returns from the ice | 1964 | SLVR | comic | key | Marvel | Captain America | Captain America
+18. Amazing Spider-Man #50 | Spider-Man No More, first Kingpin | 1967 | SLVR | comic | key | Marvel | Kingpin | Kingpin (character)
+19. Batman #181 | First Poison Ivy | 1966 | SLVR | comic | key | DC | Poison Ivy | Poison Ivy (character)
+20. Spinner Rack Longbox | A drugstore spinner rack's leftovers, 1965 | 1965 | SLVR | longbox |  | Various | - | -
+
+== BRONZE AGE ==
+1. Incredible Hulk #181 | First full Wolverine | 1974 | BRNZ | comic | key | Marvel | Wolverine | Wolverine (character)
+2. Giant-Size X-Men #1 | First Storm, Colossus, Nightcrawler | 1975 | BRNZ | comic | key,one | Marvel | Storm | Giant-Size X-Men
+3. Amazing Spider-Man #129 | First Punisher | 1974 | BRNZ | comic | key | Marvel | Punisher | Punisher
+4. Iron Man #55 | First Thanos | 1973 | BRNZ | comic | key | Marvel | Thanos | Thanos
+5. House of Secrets #92 | First Swamp Thing | 1971 | BRNZ | comic | key | DC | Swamp Thing | Swamp Thing
+6. Star Wars #1 | The movie adaptation, 35 cent copy | 1977 | BRNZ | comic | one | Marvel | Luke Skywalker | Star Wars (Marvel Comics 1977)
+7. Werewolf by Night #32 | First Moon Knight | 1975 | BRNZ | comic | key | Marvel | Moon Knight | Moon Knight
+8. Marvel Premiere #15 | First Iron Fist | 1974 | BRNZ | comic | key | Marvel | Iron Fist | Iron Fist (character)
+9. Marvel Spotlight #5 | First Ghost Rider | 1972 | BRNZ | comic | key | Marvel | Ghost Rider | Ghost Rider (Johnny Blaze)
+10. Amazing Spider-Man #121 | The night Gwen Stacy died | 1973 | BRNZ | comic | key | Marvel | Gwen Stacy | The Night Gwen Stacy Died
+11. Daredevil #168 | First Elektra | 1981 | BRNZ | comic | key | Marvel | Elektra | Elektra (character)
+12. New Teen Titans #2 | First Deathstroke | 1980 | BRNZ | comic | key | DC | Deathstroke | Deathstroke
+13. Green Lantern #76 | Hard-travelling heroes | 1970 | BRNZ | comic |  | DC | Green Arrow | Green Lantern/Green Arrow
+14. Uncanny X-Men #141 | Days of Future Past | 1981 | BRNZ | comic |  | Marvel | Kitty Pryde | Days of Future Past
+15. Conan the Barbarian #1 | Sword and sorcery hits the racks | 1970 | BRNZ | comic | one | Marvel | Conan | Conan the Barbarian (comics)
+16. Howard the Duck #1 | Trapped in a world he never made | 1976 | BRNZ | comic | one | Marvel | Howard the Duck | Howard the Duck
+17. Amazing Spider-Man #252 | The black costume arrives | 1984 | BRNZ | comic | key | Marvel | Spider-Man | Venom (character);Spider-Man
+18. X-Men #94 | The new team's first regular issue | 1975 | BRNZ | comic |  | Marvel | Cyclops | Cyclops (Marvel Comics)
+19. Bronze Age Newsstand Longbox | A newsagent's back room, 1978 | 1978 | BRNZ | longbox |  | Various | - | -
+20. Incredible Hulk #180 | Wolverine's cameo on the last page | 1974 | BRNZ | comic | key | Marvel | Wolverine | Wendigo (Marvel Comics);Wolverine (character)
+
+== MODERN ==
+1. Amazing Spider-Man #300 | First full Venom | 1988 | MODN | comic | key | Marvel | Venom | Venom (character)
+2. New Mutants #98 | First Deadpool | 1991 | MODN | comic | key | Marvel | Deadpool | Deadpool
+3. Batman Adventures #12 | First Harley Quinn in comics | 1993 | MODN | comic | key | DC | Harley Quinn | Harley Quinn
+4. The Dark Knight Returns #1 | Old Batman, new rules | 1986 | MODN | comic | one | DC | Batman | The Dark Knight Returns
+5. Watchmen #1 | Who watches them? | 1986 | MODN | comic | one | DC | Rorschach | Watchmen
+6. Walking Dead #1 | The zombie survival saga begins | 2003 | MODN | comic | key,one | Image | Rick Grimes | The Walking Dead (comic book)
+7. Ultimate Fallout #4 | First Miles Morales | 2011 | MODN | comic | key | Marvel | Miles Morales | Miles Morales
+8. Spawn #1 | Image's breakout hit | 1992 | MODN | comic | key,one | Image | Spawn | Spawn (comics)
+9. Sandman #1 | Dream of the Endless | 1989 | MODN | comic | one | DC | Dream | The Sandman (comic book)
+10. Edge of Spider-Verse #2 | First Spider-Gwen | 2014 | MODN | comic | key | Marvel | Spider-Gwen | Spider-Gwen
+11. Amazing Spider-Man #361 | First Carnage | 1992 | MODN | comic | key | Marvel | Carnage | Carnage (character)
+12. Superman #75 | The death of Superman, sealed in black | 1993 | MODN | comic | poly | DC | Superman | The Death of Superman
+13. Saga #1 | Space opera, new parents | 2012 | MODN | comic | one | Image | Alana | Saga (comic book)
+14. Batman: The Killing Joke | One bad day | 1988 | MODN | comic |  | DC | Joker | Batman: The Killing Joke
+15. Uncanny X-Men #266 | First Gambit | 1990 | MODN | comic | key | Marvel | Gambit | Gambit (Marvel Comics)
+16. Ms. Marvel #1 | Kamala Khan's first series | 2014 | MODN | comic | one | Marvel | Ms. Marvel | Kamala Khan
+17. X-Men #1 | The best-selling comic ever, five covers | 1991 | MODN | comic | one | Marvel | X-Men | X-Men (comic book)
+18. Kingdom Come #1 | Painted like a cathedral | 1996 | MODN | comic | one | DC | Superman | Kingdom Come (comics)
+19. Invincible #1 | A teenager with a famous dad | 2003 | MODN | comic | key,one | Image | Invincible | Invincible (comics)
+20. Speculator Boom Longbox | A 1993 longbox of foil covers and polybags | 1993 | MODN | longbox |  | Various | - | -
+
+== INDIE, MANGA & UNDERGROUND ==
+1. Teenage Mutant Ninja Turtles #1 | Four turtles from a garage in New Hampshire | 1984 | INDY | comic | key,one | Mirage | TMNT | Teenage Mutant Ninja Turtles (Mirage Studios)
+2. Zap Comix #1 | The underground starts here | 1968 | INDY | comic | key,one | Apex Novelties | Mr. Natural | Zap Comix
+3. Akira Vol. 1 | Neo-Tokyo in colour | 1988 | INDY | comic | one | Epic | Kaneda | Akira (manga)
+4. Cerebus #1 | An aardvark in a barbarian's world | 1977 | INDY | comic | key,one | Aardvark-Vanaheim | Cerebus | Cerebus the Aardvark
+5. Hellboy: Seed of Destruction #1 | The world's greatest paranormal investigator | 1994 | INDY | comic | key,one | Dark Horse | Hellboy | Hellboy
+6. Bone #1 | Three cousins lost in a valley | 1991 | INDY | comic | one | Cartoon Books | Fone Bone | Bone (comics)
+7. Dark Horse Presents #51 | First Sin City | 1991 | INDY | comic | key | Dark Horse | Marv | Sin City
+8. Dragon Ball Vol. 1 | Goku's first adventure, first printing | 1985 | INDY | comic | key,one | Shueisha | Goku | Dragon Ball (manga)
+9. One Piece Vol. 1 | Romance Dawn | 1997 | INDY | comic | key,one | Shueisha | Luffy | One Piece
+10. The Crow #1 | Grief, rain and greasepaint | 1989 | INDY | comic | one | Caliber | The Crow | The Crow
+11. Raw #1 | The magazine that ran Maus | 1980 | INDY | comic | key | Raw Books | - | Maus
+12. ElfQuest #1 | Elves on a desert world | 1978 | INDY | comic | one | WaRP | Cutter | ElfQuest
+13. Love and Rockets #1 | Locas and Palomar | 1982 | INDY | comic | one | Fantagraphics | Maggie | Love and Rockets (comics)
+14. Usagi Yojimbo #1 | A rabbit ronin | 1987 | INDY | comic | one | Fantagraphics | Usagi | Usagi Yojimbo
+15. Asterix the Gaul | The first album | 1961 | INDY | comic | one | Dargaud | Asterix | Asterix the Gaul
+16. Explorers on the Moon | The boy reporter reaches the Moon | 1954 | INDY | comic |  | Casterman | Tintin | Explorers on the Moon
+17. Scott Pilgrim Vol. 1 | Precious little life | 2004 | INDY | comic | one | Oni | Scott Pilgrim | Scott Pilgrim
+18. Strangers in Paradise #1 | Katchoo and Francine | 1993 | INDY | comic | one | Antarctic | Katchoo | Strangers in Paradise
+19. Hate #1 | Grunge-era Seattle in ink | 1990 | INDY | comic | one | Fantagraphics | Buddy Bradley | Hate (comics)
+20. Head Shop Underground Longbox | A box from behind a 1972 record store counter | 1972 | INDY | longbox |  | Various | - | -

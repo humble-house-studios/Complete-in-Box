@@ -22,7 +22,7 @@ func test_catalog_is_sane() -> void:
 		assert_false(ids.has(d["id"]), "duplicate id " + d["id"])
 		ids[d["id"]] = true
 		assert_true(Catalog.PLATFORMS.has(d["plat"]), "bad platform on " + d["id"])
-		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax"].has(d["kind"]), "bad kind on " + d["id"])
+		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox"].has(d["kind"]), "bad kind on " + d["id"])
 		assert_between(int(d["tier"]), 0, 3)
 		assert_gt(int(d["base"]), 0)
 	for t in 4:
@@ -696,3 +696,35 @@ func test_rose_lore_is_complete() -> void:
 	it["uid"] = 3
 	assert_gt(Flavor.history(Catalog.items_of("sports")[0], it).size(), 2)
 	assert_eq(Perks.label("box_and_manual", "sports")["name"], "Top-Loaders")
+
+
+func test_comics_world_and_hector() -> void:
+	assert_eq(Catalog.items_of("comics").size(), 100)
+	for t in 4:
+		assert_gt(Catalog.defs_of_tier(t, "comics").size(), 0, "comics tier %d" % t)
+	for slot in Venues.SLOTS:
+		assert_false(Venues.unlocked(slot, 1, "comics").is_empty(), "comics has a %s venue" % slot)
+	var r := Run.new()
+	r.start(33, {"estate": "hector", "worlds": ["games", "cards", "comics"]})
+	assert_eq(r.market, "comics")
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_true(["comic", "longbox"].has(String(o["item"]["kind"])))
+	r.phase = Run.Phase.HOME
+	r.shelf.clear()
+	r.shelf_cap = 30
+	var box: Dictionary = Catalog.items_of("comics").filter(func(d): return String(d["kind"]) == "longbox")[0]
+	var lb := r.make_item(box, "CIB")
+	r.shelf.append(lb)
+	assert_true(bool(r.open_pack(int(lb["uid"]))["ok"]))
+	for it in r.shelf:
+		assert_eq(String(it["kind"]), "comic")
+	assert_eq(Flavor.letters("hector").size(), Balance.ANTES_TO_WIN)
+	assert_eq(Flavor.diary_name("hector"), "Hector's ledger")
+	assert_eq(Flavor.pass_lines("comics").size(), 12)
+	assert_eq(Flavor.fail_lines("comics").size(), 12)
+	for e in ["box", "collector", "leak"]:
+		assert_eq(Flavor.event_text("comics", e).size(), 2)
+	for w in ["games", "cards", "sports", "comics"]:
+		assert_false(Flavor.intro(w).is_empty(), "%s has an intro" % w)
+	assert_eq(Perks.label("box_and_manual", "comics")["name"], "Bags & Boards")

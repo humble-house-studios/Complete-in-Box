@@ -70,14 +70,23 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   epilogue = the collector's voice when you play their estate; PASS/FAIL, SELLER, MOOD, EVENTS,
   TIPS, PAST_*, CURSE loss ending, INTRO = whenever the run deals in that world). Read through
   `Flavor.letters/diary/pass_lines/...` with fallback to the base (Arlo) text.
-- World intros: `_world_intro` (first visit, save `intros` bitmask, replay on COLLECTION > WALL),
+- World intros: `_world_intro` plays at the start of every run (tap / SKIP; the first run after
+  launch skips it when the opening show just flew the same room), first visit on a flip; save
+  `intros` bitmask, replay on COLLECTION > WALL. Lore `INTRO` for games (title vault), cards
+  (`Stage._tcgshop`), sports (`_ballroom`), comics (`_comicshop`). The title screen and the
+  launch flight use the picked world's room (`_title_world/_title_scene/_title_hero`) until you
+  switch estate or world.
   camera spline from `Stage.intro_path(scene)`, signature grail rises, logo slam, `sting_<world>`.
   Shots: `tools/world_intro_shots.gd -- OUT world`.
 - Balance: opening a run in a non-retro world scales the whole run's targets (worlds.gd `target`:
-  cards 1.45, coins 1.4, sports 1.5) so every opening plays like retro; estates are tuned to
+  cards 1.45, coins 1.4, sports 1.5, comics 1.25) so every opening plays like retro; estates are tuned to
   within a few wins of Arlo. Tune with `godot --headless -s res://tools/tune_worlds.gd -- world|estate ID values...`.
 - Title vault: one small case per collector (`Stage.collector_cases`), open and empty once freed.
 - Binder: stamps cap at $15 (`STAMP_CAP`), ladder to 1,800 owned, WORLD SEAL (own a whole world) +$3.
+- Comics (Uncle Hector): kinds `comic` / `longbox` (rips into comics), pages GLDN SLVR BRNZ MODN
+  INDY by era, painter `scripts/gfx/comic_art.gd` (real covers from Wikipedia, else era-styled),
+  bag & board / CGX slab / longbox models in `ItemModels._comic/_longbox`, venues comiccon /
+  atticfind / comicshop / comicauction, perks key_issue, golden_age, lore `lore/comics.gd`.
 - Sports cards (Grandma Rose): kinds `scard` / `wax`, pages BASE HOOP GRID PUCK FUTB, painter
   `scripts/gfx/sports_art.gd` (3 eras, real photo/scan), venues ballroom / shoebox / dugout /
   breaks, room `Stage._ballroom`, perk renames in `Perks.THEMES`, new perks rookie_fever, hall_of_fame.

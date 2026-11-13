@@ -763,6 +763,7 @@ const SIGNS := {
 	"coinauction": {"HERITAGE": "STAX & TOWERS"},
 	"dugout": {"GAMES": "THE DUGOUT", "BUY  SELL  TRADE": "WAX  SLABS  SINGLES"},
 	"ballroom": {"COLLECTOR CON": "SUNDAY CARD SHOW"},
+	"comiccon": {"COLLECTOR CON": "COMIC CON"},
 }
 
 
@@ -922,7 +923,8 @@ func _build(id: String, items: Array) -> void:
 		"ebay": _online(items)
 		"heritage": _heritage(items)
 		"cardshow", "coinshow": _convention(items)
-		"tradenight", "cardshop": _retro(items)
+		"tradenight": _retro(items)
+		"cardshop": _tcgshop(items)
 		"tcgmarket": _online(items)
 		"coinshop": _pawn(items)
 		"coinauction": _heritage(items)
@@ -931,6 +933,10 @@ func _build(id: String, items: Array) -> void:
 		"shoebox": _garage(items)
 		"dugout": _retro(items)
 		"breaks": _online(items)
+		"comicshop": _comicshop(items)
+		"comiccon": _convention(items)
+		"atticfind": _estate(items)
+		"comicauction": _online(items)
 		"cursed": _cursed(items)
 		_: _garage(items)
 
@@ -1036,10 +1042,221 @@ func _ballroom(items: Array) -> void:
 	_view(Vector3(0, 1.5, 1.85), Vector3(0, 0.85, -0.1))
 
 
+## A few real catalog items (as display stock) standing on a shelf row.
+func _decor_row(pool: Array, center: Vector3, w: float, n: int, seed_value: int, cond := "CIB", sc := 0.95) -> void:
+	if pool.is_empty():
+		return
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	for k in n:
+		var it: Dictionary = pool[r.randi() % pool.size()].duplicate()
+		it["cond"] = cond
+		var m := ItemModels.build(it)
+		m.scale = Vector3.ONE * ITEM_SCALE * sc
+		m.position = center + Vector3((k - (n - 1) * 0.5) * (w / n), 0, r.randf_range(-0.02, 0.03))
+		m.rotation_degrees.y = r.randf_range(-6, 6)
+		world.add_child(m)
+
+
+## The card shop (TCG): a floor-to-ceiling wall of sealed booster boxes, a
+## grading counter with a loupe lamp and a slab station, glass cases of slabs,
+## play tables with mats, and the Pruitt Twins' two cases side by side.
+func _tcgshop(items: Array) -> void:
+	_setup(Color(0.1, 0.09, 0.16), Color(0.75, 0.72, 0.85), 1.2, 7.0, 22.0)
+	_room(9, 7.5, 3.2, "woodfloor051", Color(0.85, 0.8, 0.75), "plaster001", Color(0.55, 0.62, 0.8), 1.3, Rect2(), Color(0.55, 0.55, 0.6))
+	var pool := Catalog.items_of("cards")
+	var boxes := pool.filter(func(d): return String(d["kind"]) == "pack")
+	var singles := pool.filter(func(d): return String(d["kind"]) == "card")
+	# The sealed wall: four wide shelf units packed with booster boxes.
+	for i in 3:
+		var x := -3.0 + i * 3.0
+		var tops := _shelf_unit(Vector3(x, 0, -3.6), 2.8, 5, 0.42, Color(0.25, 0.22, 0.3))
+		for k in tops.size():
+			_decor_row(boxes, Vector3(x, tops[k], -3.55), 2.6, 6, 400 + i * 10 + k, "Mint", 1.2)
+	_neon("SEALED", Vector3(-1.6, 2.95, -3.9), Color(1.0, 0.85, 0.3), 60)
+	_neon("GRADING  ON  SITE", Vector3(1.8, 2.95, -3.9), Color(0.4, 0.9, 1.0), 40)
+	# The front glass counter: your table's items on top, slabs inside.
+	Psx.box(Vector3(2.8, 0.9, 0.7), Psx.mat(Color(0.2, 0.2, 0.28), Psx.tex("metalplates006")), Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(2.85, 0.04, 0.75), Psx.mat(Color(0.6, 0.85, 0.9), null, Vector2.ONE, 0.35), Vector3(0, 0.92, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.15, 0.94, -0.1), -20, 0.35)
+	# The grading counter on the right: lamp, loupe, a stack of slabs.
+	var gc := Vector3(3.0, 0, -1.6)
+	Psx.box(Vector3(0.7, 0.95, 1.8), Psx.mat(Color(0.3, 0.3, 0.36), Psx.tex("metalplates006")), gc + Vector3(0, 0.475, 0), world)
+	Psx.box(Vector3(0.75, 0.04, 1.85), Psx.mat(Color(0.9, 0.9, 0.92)), gc + Vector3(0, 0.97, 0), world)
+	_prop("lampRoundTable", gc + Vector3(0.1, 0.99, -0.6), -90, 0.45)
+	var slabbed := singles.slice(0, 40)
+	var r := RandomNumberGenerator.new()
+	r.seed = 91
+	for k in 5:
+		var it: Dictionary = slabbed[r.randi() % slabbed.size()].duplicate()
+		it["cond"] = "Mint"
+		it["grade"] = 9 + r.randi() % 2
+		var m := ItemModels.build(it)
+		m.scale = Vector3.ONE * ITEM_SCALE * 0.9
+		m.position = gc + Vector3(0.05, 0.99, -0.2 + k * 0.17)
+		m.rotation_degrees = Vector3(-70, -90, 0)
+		world.add_child(m)
+	_neon("GRADING", gc + Vector3(-0.35, 2.2, 0), Color(0.4, 0.9, 1.0), 48, -90)
+	_person(gc + Vector3(0.6, 0, 0.2), -90, Color(0.95, 0.95, 1.0), 1.45, "male_adult_17")
+	# A play table with mats and two players mid-game.
+	for tp in [Vector3(0.6, 0, -2.0)]:
+		var t := _prop("table", tp, 0, 0.0, Color(0.5, 0.45, 0.4), 1.6)
+		var ty := _top(t)
+		Psx.box(Vector3(1.4, 0.005, 0.55), Psx.mat(Color(0.2, 0.25, 0.55), Psx.tex("fabric086")), tp + Vector3(0, ty, 0), world)
+		_decor_row(singles, tp + Vector3(0, ty + 0.005, 0), 1.2, 4, 77, "Loose", 0.7)
+		_person(tp + Vector3(0, 0, -0.6), 0, Color.WHITE, 1.4, "male_adult_03")
+		_person(tp + Vector3(0, 0, 0.6), 180, Color.WHITE, 1.4, "female_adult_03")
+	# The Pruitt Twins: two cases, side by side.
+	var twins: Dictionary = {}
+	for c in collector_cases:
+		if String(c.get("name", "")) == "The Pruitt Twins":
+			twins = c
+	var holder := world
+	for k in 2:
+		var croot := Node3D.new()
+		croot.position = Vector3(-3.6 + k * 0.82, 0, -2.0)
+		croot.rotation_degrees.y = 60.0
+		croot.scale = Vector3.ONE * 0.7
+		holder.add_child(croot)
+		world = croot
+		if bool(twins.get("freed", false)):
+			_open_case(Vector3.ZERO, "Pruitt Twin #%d" % (k + 1))
+		else:
+			_grade_case(Vector3.ZERO, "female_adult_08", {"grade": "9.%d" % (2 + k), "cond": "SEALED", "lot": "#000%d" % (2 + k), "name": "PRUITT TWIN #%d" % (k + 1),
+				"ante": "PAIR", "label": "PSX CARDS"}, false)
+		world = holder
+	_spot(Vector3(-2.6, 3.0, 0.2), Vector3(-3.2, 1.0, -2.0), Color(1.0, 0.8, 1.0), 2.6, 26, 6.0)
+	_walker([Vector3(-1.2, 0, -3.05), Vector3(2.2, 0, -3.1), Vector3(-0.2, 0, -3.0)], [["browse", 180], ["reach", 180], ["browse", 180]], "male_adult_11", 0.45)
+	for x in [-2.0, 0.0, 2.0]:
+		_panel_light(Vector3(x, 3.15, -0.8), 1.4, Color(0.95, 0.97, 1.0), 5.0)
+	_light(Vector3(0, 2.6, -3.0), Color(1.0, 0.9, 0.85), 1.8, 5.0)
+	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
+
+
+## The comic shop (Panel Hoppers): a back-issue wall of bagged keys to the
+## ceiling, tables of longboxes sorted by era, a spinner rack, the counter,
+## and Uncle Hector's case in the corner, bagged, boarded and slabbed.
+func _comicshop(items: Array) -> void:
+	_setup(Color(0.12, 0.08, 0.1), Color(0.8, 0.72, 0.7), 1.2, 7.0, 22.0)
+	_room(9, 7.5, 3.3, "woodfloor043", Color(0.8, 0.72, 0.62), "bricks105", Color(0.72, 0.5, 0.45), 1.3, Rect2(), Color(0.5, 0.45, 0.42))
+	var pool := Catalog.items_of("comics")
+	var books := pool.filter(func(d): return String(d["kind"]) == "comic")
+	var boxes := pool.filter(func(d): return String(d["kind"]) == "longbox")
+	# The back-issue wall: rows of bagged books on slat-wall hooks, keys up top.
+	var wall := Psx.mat(Color(0.85, 0.85, 0.82), Psx.tex("planks012"), Vector2(6, 2))
+	Psx.box(Vector3(8.6, 3.0, 0.05), wall, Vector3(0, 1.6, -3.68), world)
+	var r := RandomNumberGenerator.new()
+	r.seed = 404
+	for row in 5:
+		var y := 0.55 + row * 0.5
+		for k in 11:
+			var it: Dictionary = books[r.randi() % books.size()].duplicate()
+			it["cond"] = "Mint"
+			if row == 4 and r.randf() < 0.5:
+				it["grade"] = 9
+			var m := ItemModels.build(it)
+			m.scale = Vector3.ONE * ITEM_SCALE * 1.15
+			m.position = Vector3(-3.9 + k * 0.78, y, -3.6)
+			world.add_child(m)
+	_neon("BACK ISSUES", Vector3(-1.6, 3.05, -3.6), Color(1.0, 0.35, 0.3), 56)
+	_neon("KEYS  ON  THE  WALL", Vector3(2.0, 3.1, -3.6), Color(0.4, 0.85, 1.0), 34)
+	# Tables of longboxes, sorted by era, books standing up inside.
+	for i in 2:
+		var tp := Vector3(-2.0 + i * 4.0, 0, -1.9)
+		var t := _prop("table", tp, 0, 0.0, Color(0.55, 0.45, 0.35), 1.8)
+		var ty := _top(t)
+		for k in 3:
+			var bx: Dictionary = boxes[(i * 3 + k) % boxes.size()].duplicate()
+			bx["cond"] = "CIB"
+			var bm := ItemModels.build(bx)
+			bm.scale = Vector3.ONE * ITEM_SCALE * 0.95
+			bm.position = tp + Vector3(-0.55 + k * 0.55, ty, 0)
+			bm.rotation_degrees.y = 0.0
+			world.add_child(bm)
+		_person(tp + Vector3(0.3, 0, -0.6), 0, Color.WHITE, 1.45, String(PEOPLE[(i * 5 + 3) % PEOPLE.size()]))
+	# A spinner rack by the door.
+	var sp := Node3D.new()
+	sp.position = Vector3(3.4, 0, 0.6)
+	world.add_child(sp)
+	Psx.cyl(0.03, 1.8, Psx.mat(Color(0.75, 0.75, 0.78)), Vector3(0, 0.9, 0), sp, 6)
+	for tier in 4:
+		for k in 4:
+			var it2: Dictionary = books[r.randi() % books.size()].duplicate()
+			it2["cond"] = "Loose"
+			var cm := ItemModels.build(it2)
+			cm.scale = Vector3.ONE * ITEM_SCALE * 0.8
+			var a := TAU * k / 4.0
+			cm.position = Vector3(sin(a) * 0.16, 0.25 + tier * 0.4, cos(a) * 0.16)
+			cm.rotation.y = a
+			sp.add_child(cm)
+	_spin.append(sp)
+	# The counter with your table's items, a register and a pull-list box.
+	Psx.box(Vector3(2.6, 0.9, 0.7), Psx.mat(Color(0.3, 0.22, 0.18), Psx.tex("wood066")), Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.6, 0.85, 0.9), null, Vector2.ONE, 0.35), Vector3(0, 0.92, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
+	_person(Vector3(1.3, 0, -0.85), -15, Color(1.0, 0.95, 0.9), 1.45, "male_adult_01")
+	# Uncle Hector's case in the corner.
+	var hector: Dictionary = {}
+	for c in collector_cases:
+		if String(c.get("name", "")) == "Uncle Hector":
+			hector = c
+	var holder := world
+	var croot := Node3D.new()
+	croot.position = Vector3(-3.5, 0, -0.5)
+	croot.rotation_degrees.y = 55.0
+	croot.scale = Vector3.ONE * 0.8
+	holder.add_child(croot)
+	world = croot
+	if bool(hector.get("freed", false)):
+		_open_case(Vector3.ZERO, "Uncle Hector")
+	else:
+		_grade_case(Vector3.ZERO, "male_adult_14", {"grade": "4.0", "cond": "GOOD", "lot": "#0004", "name": "UNCLE HECTOR",
+			"ante": "HEAVY WEAR, COMPLETE", "label": "CGX COMICS", "case": "comic"}, false)
+	world = holder
+	_spot(Vector3(-2.6, 3.1, 0.8), Vector3(-3.5, 1.0, -0.5), Color(0.8, 0.85, 1.0), 2.8, 26, 6.0)
+	_walker([Vector3(-3.0, 0, -3.0), Vector3(0.0, 0, -3.1), Vector3(3.0, 0, -3.0)], [["browse", 180], ["reach", 180], ["browse", 180]], "female_adult_11", 0.45)
+	for x in [-2.5, 0.0, 2.5]:
+		_panel_light(Vector3(x, 3.25, -1.0), 1.5, Color(1.0, 0.97, 0.92), 5.5)
+	_light(Vector3(0, 2.6, -3.0), Color(1.0, 0.9, 0.8), 1.8, 5.0)
+	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
+
+
 ## The camera flight for a world's first-visit intro: [[pos, look], ...].
 ## Ends on the venue's usual view so the reveal lands on the signature item.
 func intro_path(id: String) -> Array:
 	match id:
+		"title":
+			# The title vault: along the shelves, swing round, onto the pedestal.
+			return [
+				[Vector3(-3.2, 1.5, -3.0), Vector3(-3.0, 1.2, -4.9)],
+				[Vector3(-2.2, 1.45, -3.85), Vector3(-1.6, 1.15, -4.9)],
+				[Vector3(-0.6, 1.4, -3.9), Vector3(0.2, 1.1, -4.9)],
+				[Vector3(1.0, 1.45, -3.8), Vector3(1.9, 1.05, -4.9)],
+				[Vector3(2.5, 1.7, -2.2), Vector3(1.6, 1.0, -3.6)],
+				[Vector3(2.7, 1.9, 0.2), Vector3(-0.8, 1.2, -2.2)],  # glances past the covered case
+				[Vector3(1.4, 1.7, 2.4), Vector3(0.0, 1.0, 0.0)],
+				[Vector3(0.0, 1.4, 2.3), Vector3(0.0, 1.0, 0.0)],
+			]
+		"cardshop":
+			return [
+				[Vector3(-3.4, 2.4, -1.8), Vector3(-2.6, 2.0, -3.6)],  # up close to the sealed wall
+				[Vector3(-1.0, 2.0, -2.2), Vector3(0.6, 1.6, -3.6)],
+				[Vector3(1.8, 1.7, -1.4), Vector3(3.0, 1.1, -1.6)],  # the grading counter
+				[Vector3(0.6, 1.6, -0.4), Vector3(-3.2, 1.2, -2.0)],  # the Twins' cases
+				[Vector3(1.0, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature card on the counter
+			]
+		"comicshop":
+			return [
+				[Vector3(-3.4, 2.7, -2.0), Vector3(-2.6, 2.6, -3.6)],  # along the top row of keys
+				[Vector3(-0.8, 2.3, -2.3), Vector3(0.4, 2.0, -3.6)],
+				[Vector3(1.8, 1.9, -1.8), Vector3(2.4, 1.2, -3.6)],
+				[Vector3(1.6, 1.6, -0.4), Vector3(-3.5, 1.2, -0.5)],  # Hector in his bag
+				[Vector3(0.9, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature book on the counter
+			]
 		"ballroom":
 			return [
 				[Vector3(-5.5, 3.0, -5.0), Vector3(0.0, 3.2, -5.9)],  # past the banner and the stage
@@ -1802,7 +2019,7 @@ func _online(items: Array) -> void:
 	var top := _top(desk)
 	_crt(Vector3(0.1, top, -0.5), 0.6, Color(0.45, 0.65, 1.0))
 	var l := Label3D.new()
-	l.text = {"ebay": "eBuy", "tcgmarket": "TCGrabber", "breaks": "BREAKZ LIVE"}.get(scene_id, "LOT 0451")
+	l.text = {"ebay": "eBuy", "tcgmarket": "TCGrabber", "breaks": "BREAKZ LIVE", "comicauction": "PanelLink"}.get(scene_id, "LOT 0451")
 	l.font = FONT
 	l.font_size = 48
 	l.pixel_size = 0.004
@@ -2036,7 +2253,7 @@ func _grade_case(pos: Vector3, who: String, info: Dictionary, hero: bool) -> voi
 	Psx.box(Vector3(CASE_W * 0.92, PLINTH_H * 0.22, 0.014), Psx.mat(Color(0.7, 0.07, 0.1), null, Vector2.ONE, 0.2), Vector3(0, PLINTH_H * 0.3, 0.002), lab)
 	Psx.box(Vector3(0.2, PLINTH_H * 0.5, 0.016), Psx.mat(Color(0.08, 0.06, 0.08)), Vector3(CASE_W * 0.33, -PLINTH_H * 0.08, 0.002), lab)
 	_case_text(lab, String(info.get("label", "COLLECTOR'S CURSE GRADING")), Vector3(0, PLINTH_H * 0.3, 0.012), 22, Color(1.0, 0.92, 0.85))
-	if String(info.get("case", "")) == "slab":
+	if String(info.get("case", "")) == "slab" or String(info.get("case", "")) == "comic":
 		# Sports: the case is a giant grading slab: thick clear acrylic edges
 		# and a red-and-white flip label riding on top.
 		var acr := Psx.mat(Color(0.82, 0.9, 0.98), null, Vector2.ONE, 0.25)
@@ -2045,8 +2262,9 @@ func _grade_case(pos: Vector3, who: String, info: Dictionary, hero: bool) -> voi
 				Psx.box(Vector3(0.07, CASE_H + 0.1, 0.07), acr, Vector3(x, PLINTH_H + CASE_H * 0.5, z), root)
 		var top := PLINTH_H + CASE_H + 0.2
 		Psx.box(Vector3(CASE_W + 0.2, 0.32, 0.1), Psx.mat(Color(0.96, 0.95, 0.92)), Vector3(0, top, CASE_D * 0.5), root)
-		Psx.box(Vector3(CASE_W + 0.2, 0.08, 0.104), Psx.mat(Color(0.75, 0.08, 0.1)), Vector3(0, top + 0.12, CASE_D * 0.5), root)
-		_case_text(root, "GEM MT %s" % String(info.get("grade", "?")), Vector3(0, top - 0.03, CASE_D * 0.5 + 0.055), 44, Color(0.1, 0.07, 0.08))
+		var comic := String(info.get("case", "")) == "comic"
+		Psx.box(Vector3(CASE_W + 0.2, 0.08 if not comic else 0.32, 0.104), Psx.mat(Color(0.75, 0.08, 0.1) if not comic else Color(0.15, 0.35, 0.75)), Vector3(0, top + (0.12 if not comic else 0.0), CASE_D * 0.5), root)
+		_case_text(root, ("GEM MT %s" if not comic else "%s  WHITE PAGES") % String(info.get("grade", "?")), Vector3(0, top - 0.03, CASE_D * 0.5 + 0.055), 44, Color(0.1, 0.07, 0.08) if not comic else Color(1, 1, 1))
 	_case_text(lab, String(info.get("grade", "?")), Vector3(CASE_W * 0.33, -PLINTH_H * 0.06, 0.012), 60, Color(1.0, 0.82, 0.3))
 	var lines := "%s\nCOND: %s\nLOT %s  %s" % [String(info.get("name", "YOU")), String(info.get("cond", "LOOSE")), String(info.get("lot", "#0451")), String(info.get("ante", ""))]
 	var body := _case_text(lab, lines, Vector3(-CASE_W * 0.1, -PLINTH_H * 0.1, 0.012), 17, Color(0.1, 0.07, 0.08))

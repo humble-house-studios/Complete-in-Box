@@ -7,6 +7,8 @@ FUTB soccer & other sports. Kinds: scard (a single) and wax (packs and boxes).
 LIST = "sports_cards_top_250.txt"
 ## GRAILS per page: the top N lines of each page.
 ## Kinds painted without a fetched photo (wax art is all drawn).
+SCAN_SEARCH = True
+PHOTO_ASPECT = 0.78
 NO_PHOTO_KINDS = ("wax",)
 GRAILS = {"BASE": 2, "HOOP": 2, "GRID": 1, "PUCK": 1, "FUTB": 1}
 

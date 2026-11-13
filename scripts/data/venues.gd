@@ -165,6 +165,40 @@ const LIST := [
 		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.12,
 		"color": Color("e05fd0"),
 	},
+	# ------------------------------------------------ comics (market "comics")
+	{
+		"id": "comiccon", "name": "Comic Con Floor", "slot": "hunt", "unlock": 1, "market": "comics",
+		"blurb": "Artist alley, cosplayers, and dealers' longboxes at five bucks a book. Dig the back rows.",
+		"time": 4, "stock": 6, "price": [0.3, 0.95], "exact": false, "tier_boost": 0,
+		"cond": [12, 40, 32, 12, 4], "haggle": 0.6, "cut": 0.7, "dig": 2, "dig_label": "Flip a longbox",
+		"sell": 0.7, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("e04a3a"),
+	},
+	{
+		"id": "atticfind", "name": "Attic Find", "slot": "hunt", "unlock": 1, "market": "comics",
+		"blurb": "A dead grandpa's attic, boxes under the insulation and a family that wants them gone. Mice included.",
+		"time": 4, "stock": 5, "price": [0.15, 0.8], "exact": false, "tier_boost": 0,
+		"cond": [30, 45, 17, 6, 2], "haggle": 0.7, "cut": 0.65, "dig": 2, "dig_label": "Check under the insulation",
+		"sell": 0.0, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("a8703a"),
+	},
+	{
+		"id": "comicshop", "name": "Panel Hoppers", "slot": "shop", "unlock": 1, "market": "comics",
+		"blurb": "A comic shop with a back-issue wall to the ceiling, bins by era and a counter that sends books for grading.",
+		"time": 3, "stock": 6, "price": [1.0, 1.2], "exact": true, "tier_boost": 1,
+		"cond": [0, 20, 45, 25, 10], "haggle": 0.35, "cut": 0.85, "dig": 1, "dig_label": "Ask about the wall books",
+		"sell": 0.6, "lots": 0, "lot_size": 0, "lot_peek": 0, "grading": true, "bargain": 2,
+		"color": Color("3a7fd9"),
+	},
+	{
+		"id": "comicauction", "name": "PanelLink", "slot": "online", "unlock": 1, "market": "comics",
+		"blurb": "The comic auction site: slabbed keys, pedigree copies, live bidding and a buyer's premium.",
+		"time": 4, "stock": 5, "price": [0.95, 1.25], "exact": true, "tier_boost": 1,
+		"cond": [5, 30, 40, 18, 7], "haggle": 0.0, "cut": 1.0, "dig": 5, "dig_label": "Refresh the auctions",
+		"sell": 0.0, "lots": 0, "lot_size": 0, "lot_peek": 0,
+		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.13,
+		"color": Color("d9a43a"),
+	},
 	# ------------------------------------------------ rare coins (market "coins")
 	{
 		"id": "coinshow", "name": "Coin Show", "slot": "hunt", "unlock": 1, "market": "coins",

@@ -886,7 +886,7 @@ static func _platform_pad(model: Node3D, item: Dictionary, plat: String, col: Co
 # ---------------------------------------------------------------- cards + coins
 
 ## Real sizes (metres, longest side) of card and coin holders.
-const REAL_CC := {"card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
+const REAL_CC := {"comic": 0.26, "comic_bag": 0.275, "comic_slab": 0.33, "longbox": 0.72, "card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
 	"deck": 0.1, "flip": 0.051, "coin_slab": 0.085, "proof_case": 0.09}
 
 
@@ -915,6 +915,9 @@ static func _clear_frame(model: Node3D, size: Vector3, at: Vector3, t := 0.04) -
 ## A grader's label: company bar, grade number, name.
 static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, coin: bool) -> void:
 	var red := Color(0.8, 0.12, 0.12) if not coin else Color(0.12, 0.28, 0.6)
+	if String(item.get("kind", "")) == "comic":
+		# CGX comics: blue label (Universal), yellow for signed, purple for restored.
+		red = {"Signature Series": Color(0.95, 0.78, 0.15), "Restored": Color(0.55, 0.3, 0.7)}.get(String(item.get("variant", "")), Color(0.15, 0.35, 0.75))
 	Psx.box(Vector3(w, w * 0.24, 0.03), Psx.mat(Color(0.97, 0.97, 0.95)), at, model)
 	Psx.box(Vector3(w, w * 0.06, 0.032), Psx.mat(red), at + Vector3(0, w * 0.1, 0), model)
 	if icon_build:
@@ -924,6 +927,8 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 	var words := {10: "GEM MT", 9: "MINT", 8: "NM-MT", 7: "NM", 6: "EX-MT"}
 	var nm := String(item.get("name", "")).substr(0, 22)
 	l.text = ("%s\nMS %d" % [nm, 60 + (g - 5) * 2]) if coin else ("%s\n%s %d" % [nm, String(words.get(g, "")), g])
+	if String(item.get("kind", "")) == "comic":
+		l.text = "%s\nCGX %.1f" % [nm, {10: 9.8, 9: 9.4, 8: 8.5, 7: 7.0, 6: 6.0}.get(g, float(g))]
 	l.font_size = 22
 	l.pixel_size = w * 0.0042
 	l.modulate = Color(0.08, 0.08, 0.1)
@@ -933,12 +938,68 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 	model.add_child(l)
 
 
+## A comic: bare (a little curled), bagged and boarded (clear bag with a flap,
+## white board behind), or slabbed (thick clear case, CGX label on top).
+static func _comic(model: Node3D, item: Dictionary, label: Texture2D, cond: String, graded: bool) -> float:
+	var cw := 0.646
+	var paper := Psx.mat(Color(0.93, 0.9, 0.82))
+	if graded:
+		var sz := Vector3(cw + 0.16, 1.0 + 0.36, 0.1)
+		Psx.box(Vector3(sz.x - 0.04, sz.y - 0.04, 0.02), _clear_mat(), Vector3(0, sz.y * 0.5, -0.04), model)
+		_clear_frame(model, sz, Vector3(0, sz.y * 0.5, 0), 0.05)
+		Psx.box(Vector3(cw, 1.0, 0.01), paper, Vector3(0, 0.55, 0), model)
+		_card_face(model, item, label, Vector3(0, 0.55, 0.004), cw, 1.0)
+		_slab_label(model, Vector3(0, 1.2, 0.02), sz.x - 0.1, item, false)
+		return REAL_CC["comic_slab"]
+	if cond == "Loose" or cond == "Damaged":
+		_card_face(model, item, label, Vector3(0, 0.5, 0), cw, 1.0)
+		model.rotation_degrees.x = -10.0 if cond == "Loose" else -16.0
+		if cond == "Damaged":
+			model.rotation_degrees.z = 3.0
+		return REAL_CC["comic"]
+	# Bagged and boarded (Sealed: still in the shop's polybag, cloudier).
+	Psx.box(Vector3(cw + 0.02, 1.02, 0.008), Psx.mat(Color(0.97, 0.97, 0.95)), Vector3(0, 0.51, -0.012), model)
+	_card_face(model, item, label, Vector3(0, 0.51, 0), cw, 1.0)
+	if not icon_build:
+		var bm := StandardMaterial3D.new()
+		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm.albedo_color = Color(0.85, 0.92, 1.0, 0.14 if cond != "Sealed" else 0.3)
+		bm.roughness = 0.1
+		bm.metallic_specular = 1.0
+		bm.rim_enabled = true
+		bm.rim = 0.5
+		var bag := Psx.box(Vector3(cw + 0.06, 1.12, 0.035), bm, Vector3(0, 0.56, 0.006), model)
+		bag.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The bag's flap folded over the back at the top.
+	Psx.box(Vector3(cw + 0.06, 0.012, 0.04), _clear_mat(), Vector3(0, 1.12, 0.006), model)
+	return REAL_CC["comic_bag"]
+
+
+## A longbox: the long white cardboard box, lid on, handwritten end label.
+static func _longbox(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var b := Vector3(0.36, 0.48, 1.0)
+	var board := Psx.mat(Color(0.93, 0.92, 0.88), Psx.tex("cardboard002"), Vector2(2, 1))
+	Psx.box(b, board, Vector3(0, b.y * 0.5, 0), model)
+	Psx.box(Vector3(b.x + 0.02, 0.09, b.z + 0.02), Psx.mat(Color(0.96, 0.95, 0.92), Psx.tex("cardboard002")), Vector3(0, b.y - 0.02, 0), model)
+	Psx.quad(Vector2(b.x, b.y), _pic_mat(label, b.x / b.y), Vector3(0, b.y * 0.5, b.z * 0.5 + 0.004), model)
+	# Hand holes on the long sides.
+	for sx in [-1.0, 1.0]:
+		var hole := Psx.box(Vector3(0.006, 0.05, 0.14), Psx.mat(Color(0.2, 0.18, 0.15)), Vector3(sx * (b.x * 0.5 + 0.002), b.y * 0.7, 0), model)
+		hole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	model.rotation_degrees.y = 18.0
+	return REAL_CC["longbox"]
+
+
 static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 	# Sports singles and wax use the card and pack holders (same real sizes).
 	var kind: String = {"scard": "card", "wax": "pack"}.get(String(item.get("kind", "")), String(item.get("kind", "")))
 	var cond := String(item.get("cond", "Loose"))
 	var graded := int(item.get("grade", 0)) > 0
 	var tags: Array = item.get("tags", [])
+	if kind == "comic":
+		return _comic(model, item, label, cond, graded)
+	if kind == "longbox":
+		return _longbox(model, item, label)
 	if kind == "card":
 		var cw := 0.716
 		if graded:

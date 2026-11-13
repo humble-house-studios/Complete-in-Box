@@ -264,9 +264,11 @@ func _sync_stage() -> void:
 		return
 	match screen:
 		"title":
+			# The title screen stands in your world's signature room (the vault
+			# for retro) until you switch estates.
 			_stage.vault_case = _vault_info()
 			_stage.collector_cases = _collector_cases()
-			_stage.show_scene("title", [_hero_item()])
+			_stage.show_scene(_title_scene(), [_title_hero()])
 			_sfx.music("title")
 		"home":
 			# Between stops you're home: your living room and your shelf (the
@@ -358,6 +360,24 @@ func _teaser_items(venue_id: String) -> Array:
 
 
 ## The big sealed box spinning on the title screen.
+## The world the title screen shows: the one your next run opens in.
+func _title_world() -> String:
+	return _pick_world()
+
+
+## Retro: the title vault. Other worlds: their intro room.
+func _title_scene() -> String:
+	var w := _title_world()
+	if w == "games":
+		return "title"
+	return String(Flavor.intro(w).get("scene", "title"))
+
+
+func _title_hero() -> Dictionary:
+	var w := _title_world()
+	return _hero_item() if w == "games" else _signature_item(w)
+
+
 func _hero_item() -> Dictionary:
 	if _title_item.is_empty():
 		var grails := Catalog.defs_of_tier(3, "games")
@@ -2554,18 +2574,12 @@ func _start_intro() -> void:
 	if hero != null:
 		hero_y = hero.position.y
 		hero.position.y = 5.0
-	# Camera path: along the shelves, swing round, settle on the pedestal.
-	# A slow, low glide along the shelves, round the room, onto the pedestal.
-	var path := [
-		[Vector3(-3.2, 1.5, -3.0), Vector3(-3.0, 1.2, -4.9)],
-		[Vector3(-2.2, 1.45, -3.85), Vector3(-1.6, 1.15, -4.9)],
-		[Vector3(-0.6, 1.4, -3.9), Vector3(0.2, 1.1, -4.9)],
-		[Vector3(1.0, 1.45, -3.8), Vector3(1.9, 1.05, -4.9)],
-		[Vector3(2.5, 1.7, -2.2), Vector3(1.6, 1.0, -3.6)],
-		[Vector3(2.7, 1.9, 0.2), Vector3(-0.8, 1.2, -2.2)],  # glances past the covered case
-		[Vector3(1.4, 1.7, 2.4), Vector3(0.0, 1.0, 0.0)],
-		[Vector3(0.0, 1.4, 2.3), Vector3(0.0, 1.0, 0.0)],
-	]
+	# Camera path: a slow glide through your world's room (the title vault
+	# for retro), round past the collector's case, onto the signature piece.
+	var path: Array = _stage.intro_path(_title_scene())
+	if path.is_empty():
+		path = _stage.intro_path("title")
+	_intro_world = _title_world()
 	_cine_at(path, 0.0)
 	Art.throttle = true
 	# Letterbox bars for the film look.
@@ -2595,7 +2609,7 @@ func _start_intro() -> void:
 	if _intro_skip:
 		return
 	# 2. The long glide (black lifts slowly as it starts).
-	var fly_time := 16.0
+	var fly_time := 16.0 if _title_scene() == "title" else 12.0
 	var fly := create_tween().set_parallel(true)
 	fly.tween_property(black, "color:a", 0.0, 3.0).set_trans(Tween.TRANS_SINE)
 	fly.tween_method(func(t: float) -> void: _cine_at(path, t), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -2629,6 +2643,8 @@ func _start_intro() -> void:
 
 var _wintro: Control
 var _wintro_skip := false
+## The world the launch show just flew through ("" once a run has started).
+var _intro_world := ""
 var _wintro_done: Callable
 
 
@@ -2640,11 +2656,18 @@ func _intro_seen(world: String) -> bool:
 	return (int(_save.get("intros", 0)) >> Worlds.index_of(world)) & 1 == 1
 
 
-## The first time a run enters a world with an intro, play it (once the
-## loading card has lifted), then let the home screen carry on.
+## Every run opens with its world's intro (once the loading card has
+## lifted), then the home screen carries on. Tap or SKIP to get past it. The
+## first run after launch skips it when the opening show just flew through
+## the same room.
 func _maybe_world_intro() -> void:
-	if run == null or fast or _intro_seen(run.market) or Flavor.intro(run.market).is_empty():
+	if run == null or fast or Flavor.intro(run.market).is_empty():
 		return
+	if _intro_world == run.market:
+		_intro_world = ""
+		_save["intros"] = int(_save.get("intros", 0)) | (1 << Worlds.index_of(run.market))
+		return
+	_intro_world = ""
 	while _veil != null and is_instance_valid(_veil):
 		await get_tree().process_frame
 	if run != null and screen == "home":
@@ -2693,6 +2716,9 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	_wintro.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_wintro.mouse_filter = Control.MOUSE_FILTER_STOP
 	_overlay.add_child(_wintro)
+	_wintro.gui_input.connect(func(e: InputEvent) -> void:
+		if (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed):
+			_skip_world_intro())
 	var black := ColorRect.new()
 	black.color = Color(0, 0, 0, 1)
 	black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -4304,6 +4330,7 @@ const PERK_CAT_OF := {
 	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market", "slab_fan": "market",
 	"glass_case": "time", "dollar_bin": "hunt", "haggle_king": "hunt", "hot_streak": "market",
 	"archivist": "time", "long_box": "time", "rookie_fever": "appraisal", "hall_of_fame": "appraisal",
+	"key_issue": "appraisal", "golden_age": "appraisal",
 }
 
 

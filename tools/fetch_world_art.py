@@ -55,7 +55,7 @@ def wiki_images(titles):
     for i in range(0, len(titles), 40):
         chunk = titles[i:i + 40]
         j = api("https://en.wikipedia.org/w/api.php", {"action": "query", "titles": "|".join(chunk), "prop": "pageimages",
-                                                        "pithumbsize": 400, "redirects": 1})
+                                                        "pithumbsize": 400, "redirects": 1, "pilicense": "any"})
         q = j.get("query", {})
         back = {}
         for n in q.get("normalized", []) + q.get("redirects", []):
@@ -124,26 +124,38 @@ def main():
     by_rank = {(r["code"], r["rank"]): r for r in rows}
     out_dir = os.path.join(ROOT, "assets", "temp_test", world)
     got = 0
-    imgs = wiki_images([r["wiki"] for r in rows if r["wiki"] and r["wiki"] != "-"])
+    titles = []
+    for r in rows:
+        titles += [t.strip() for t in r["wiki"].split(";") if t.strip() and t.strip() != "-"]
+    imgs = wiki_images(titles)
     print("lead images", len(imgs))
     for d in items:
         r = by_rank[(d["plat"], d["rank"])]
-        title = r["wiki"]
-        if not title or title == "-" or d["kind"] in getattr(conf, "NO_PHOTO_KINDS", ()):
+        cands = [t.strip() for t in r["wiki"].split(";") if t.strip() and t.strip() != "-"]
+        if not cands or d["kind"] in getattr(conf, "NO_PHOTO_KINDS", ()):
             continue
+        title = next((t for t in cands if imgs.get(t)), cands[0])
         rel = "assets/temp_test/%s/%s_photo.png" % (world, d["id"])
-        if force or not os.path.exists(os.path.join(ROOT, rel)):
+        if force or not (os.path.exists(os.path.join(ROOT, rel)) or os.path.exists(os.path.join(ROOT, rel.replace("_photo.", "_scan.")))):
             url = imgs.get(title, "")
             if url:
                 data = get(url)
                 if data:
                     try:
-                        save(data, os.path.join(ROOT, rel), 0.78 if d["kind"] == "scard" else 1.0)
+                        cover = getattr(conf, "COVER_ASPECT", 0.0)
+                        im = Image.open(io.BytesIO(data))
+                        ar = im.size[0] / max(1, im.size[1])
+                        if cover > 0 and abs(ar - cover) < 0.12:
+                            # Shaped like the item's own cover: use it as the whole front.
+                            rel = rel.replace("_photo.", "_scan.")
+                            save(data, os.path.join(ROOT, rel), cover)
+                        else:
+                            save(data, os.path.join(ROOT, rel), getattr(conf, "PHOTO_ASPECT", 0.78))
                         log(rel, url)
                         got += 1
                     except Exception as e:  # bad image: skip it
                         print("skip", d["id"], e)
-        if d["kind"] == "scard" and r["year"] < 1975:
+        if getattr(conf, "SCAN_SEARCH", False) and d["kind"] == "scard" and r["year"] < 1975:
             rel2 = "assets/temp_test/%s/%s_scan.png" % (world, d["id"])
             if force or not os.path.exists(os.path.join(ROOT, rel2)):
                 surname = r["name"].split()[-1]

@@ -80,6 +80,10 @@ static func cover_size(item: Dictionary) -> Vector2i:
 	match String(item.get("kind", "game")):
 		"card", "scard":
 			a = 0.716
+		"comic":
+			a = 0.646
+		"longbox":
+			a = 0.75
 		"coin":
 			a = 1.0
 		"pack", "wax":
