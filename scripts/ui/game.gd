@@ -4064,8 +4064,15 @@ func _slot_reel(card: Control, tier: int, order: int) -> void:
 	var r: Control = SLOT_REEL.new()
 	r.tier = tier
 	r.tier_col = Catalog.TIER_COLORS[clampi(tier, 0, 3)]
-	r.delay = 0.08 + order * 0.14
-	r.dur = 0.65 + randf() * 0.25
+	r.delay = 0.08 + order * 0.16
+	r.dur = 1.35 + randf() * 0.35 + (0.35 if tier >= 2 else 0.0)
+	# The strip is dealt from the real odds at this stop, so you see what
+	# you could have pulled flash past.
+	r.odds = run.pull_odds(int(run.venue.get("tier_boost", 0))) if run != null and not run.venue.is_empty() else [70, 25, 5, 0]
+	var cols: Array = []
+	for p in run.active_plats if run != null else []:
+		cols.append(Catalog.platform(String(p))["color"])
+	r.plat_cols = cols
 	r.blocked = func() -> bool: return _veil != null and is_instance_valid(_veil)
 	r.sound = _reel_sound
 	card.add_child(r)

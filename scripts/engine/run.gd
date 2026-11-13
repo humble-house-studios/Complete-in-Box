@@ -331,7 +331,9 @@ func _active_pool(tier: int) -> Array:
 	return out
 
 
-func _roll_tier(boost: int) -> int:
+## Current rarity weights [common, uncommon, rare, grail] for a pull with this
+## boost, pity and grail cooldown included (the slot reel shows these odds).
+func pull_odds(boost: int) -> Array:
 	var w: Array = (Balance.tier_weights(ante + boost) as Array).duplicate()
 	# Pity: every dry pull nudges the rare and grail odds up a little.
 	var p := mini(dry, Balance.PITY_CAP)
@@ -339,7 +341,11 @@ func _roll_tier(boost: int) -> int:
 	w[3] = float(w[3]) + p * Balance.PITY_GRAIL * (1.0 if ante >= 2 else 0.0)
 	if grail_cool > 0:
 		w[3] = float(w[3]) * Balance.GRAIL_COOL_MULT
-	var t := _weighted(w)
+	return w
+
+
+func _roll_tier(boost: int) -> int:
+	var t := _weighted(pull_odds(boost))
 	if t >= 2:
 		dry = 0
 	else:
