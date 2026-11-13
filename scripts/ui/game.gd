@@ -2081,14 +2081,9 @@ func _show_preview(item: Dictionary, kind: String, i: int) -> void:
 			money.add_child(_pill("DEAL", GOOD, 13))
 		money.add_child(_sticker(_money(int(o["price"])), STICKER, 24))
 	elif kind == "shelf":
-		var g := run.gain(item)
-		var gv := _vbox(2)
-		gv.add_child(_pill(("UP " if g > 0 else "DOWN " if g < 0 else "EVEN ") + _signed(g), _gain_color(g), 14))
-		if run.sell_rate() > 0.0:
-			gv.add_child(_label("sell " + _signed(run.flip_now(item)), 15, _gain_color(run.flip_now(item))))
-		money.add_child(gv)
-		money.add_child(_spacer(false))
-		money.add_child(_sticker(_money(run.market_value(item)), GOLD, 24))
+		var vr := _value_rows(item, 17)
+		vr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		money.add_child(vr)
 	v.add_child(money)
 	var hint := _hbox(4)
 	hint.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -2142,7 +2137,7 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 	var tier := int(item.get("tier", 0))
 	var bg := PANEL if state == "" else PANEL.darkened(0.3)
 	var small := is_landscape()
-	var b := _card_shell(w, (262 if state == "" else 236) - (64 if small else 0), pcol, func(): _open_shelf_item(int(item["uid"]), state), bg)
+	var b := _card_shell(w, (300 if state == "" else 236) - (56 if small else 0), pcol, func(): _open_shelf_item(int(item["uid"]), state), bg)
 	_preview_on(b, item, "shelf" if state == "" else state)
 	var v := _card_inner(b)
 	v.add_theme_constant_override("separation", 5 if not small else 3)
@@ -2203,19 +2198,39 @@ func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
 		v.add_child(sp)
 		_ignore_mouse(b)
 		return b
-	var bottom := _hbox(4)
-	var gv := _vbox(1)
-	var g := run.gain(item)
-	gv.add_child(_pill(("UP " if g > 0 else "DOWN " if g < 0 else "EVEN ") + _signed(g), _gain_color(g), 13))
-	if run.sell_rate() > 0.0:
-		var f := run.flip_now(item)
-		gv.add_child(_label("sell " + _signed(f), 14, _gain_color(f)))
-	bottom.add_child(gv)
-	bottom.add_child(_spacer(false))
-	bottom.add_child(_sticker(_money(run.market_value(item)), GOLD, 20))
-	v.add_child(bottom)
+	v.add_child(_value_rows(item, 14 if not small else 13))
 	_ignore_mouse(b)
 	return b
+
+
+## Plain lines so the numbers can't be mixed up:
+## WORTH = its value (what it counts for at the appraisal),
+## YOU PAID, then UP / DOWN = how far WORTH has moved past what you paid,
+## THEY PAY = the cash this seller actually hands you (green = profit).
+func _value_rows(item: Dictionary, fs: int) -> Control:
+	var g := GridContainer.new()
+	g.columns = 2
+	g.add_theme_constant_override("h_separation", 6)
+	g.add_theme_constant_override("v_separation", 0)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gn := run.gain(item)
+	var rows := [
+		["WORTH", _money(run.market_value(item)), GOLD],
+		["YOU PAID", _money(int(item.get("paid", 0))), INK],
+		["UP" if gn > 0 else "DOWN" if gn < 0 else "EVEN", _signed(gn), _gain_color(gn)],
+	]
+	if run.sell_rate() > 0.0:
+		var f := run.flip_now(item)
+		rows.append(["THEY PAY", _money(run.sell_price(item)), _gain_color(f)])
+	elif screen == "venue":
+		rows.append(["THEY PAY", "-", MUTED])
+	for r in rows:
+		g.add_child(_label(String(r[0]), fs - 1, MUTED))
+		var val := _label(String(r[1]), fs + (3 if r[0] == "WORTH" else 0), r[2])
+		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		val.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		g.add_child(val)
+	return g
 
 
 func _empty_tile(w: float) -> Control:
@@ -4576,7 +4591,7 @@ func _open_shelf_item(uid: int, state: String) -> void:
 	lines.append(["Worth %s now: %s since you bought it." % [_money(run.market_value(item)), _signed(gn)], _gain_color(gn)])
 	if run.sell_rate() > 0.0:
 		var fl := run.flip_now(item)
-		lines.append(["Sell here now: %s, a %s of %s." % [_money(run.sell_price(item)), "profit" if fl >= 0 else "loss", _money(absi(fl))], _gain_color(fl)])
+		lines.append(["This seller pays %s: a %s of %s on what you paid." % [_money(run.sell_price(item)), "profit" if fl >= 0 else "loss", _money(absi(fl))], _gain_color(fl)])
 	var actions: Array = []
 	if screen == "venue":
 		if run.sell_rate() > 0.0:
@@ -5983,7 +5998,7 @@ func _stat_block(item: Dictionary) -> Control:
 		_stat_row(g, "VALUE NOW", _label("%s  %s%s" % [_money(run.market_value(item)), _signed(gn), pct], 18, _gain_color(gn)))
 		if run.sell_rate() > 0.0:
 			var fl := run.flip_now(item)
-			_stat_row(g, "SELL NOW", _label("%s here = %s %s" % [_money(run.sell_price(item)), _signed(fl), "profit" if fl >= 0 else "loss"], 18, _gain_color(fl)))
+			_stat_row(g, "SELL HERE", _label("they pay %s = %s %s" % [_money(run.sell_price(item)), _signed(fl), "profit" if fl >= 0 else "loss"], 18, _gain_color(fl)))
 	var same := 0
 	for it in run.shelf:
 		if String(it["plat"]) == String(item["plat"]) and int(it["uid"]) != int(item["uid"]):
