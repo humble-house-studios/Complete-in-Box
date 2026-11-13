@@ -226,6 +226,9 @@ The web build in Safari is the test for every platform.
   trading cards: category colour (`PERK_CATS`), striped art, effect badge.
 - Scrolling: `_scroll_col` remembers its position across rebuilds, fades its
   edges when there's more, and a drag never counts as a tap (`_guarded`).
+  Finger scrolling is ours (`_touch_scroll`: 1:1 drag over anything in the list,
+  momentum fling `_flings`); Godot's own is off via `scroll_deadzone = TOUCH_OWN` on
+  every ScrollContainer, so give new ones that too.
 - NEW RUN opens the how-to-play guide first (`_open_guide`, pages in `GUIDE`):
   swipeable cards with big pictures and short funny lines; a toggle on the last
   page turns it off (`guide_off` in the save). HOW TO PLAY opens it too.
@@ -240,8 +243,9 @@ The web build in Safari is the test for every platform.
   to play; D-pad moves anywhere. Landscape screens: each stick drives its own side
   panel (`_side_stick`: first push hops the highlight there, then smooth scroll with
   the highlight following, stepping where it can't scroll). Phones / popups: LEFT stick
-  moves the highlight (`_stick_nav`), RIGHT stick scrolls the list it's in. Axes are read from any pad (`_axis`); on the
-  item card the left stick turns the model and the right stick scrolls the info.
+  moves the highlight (`_stick_nav`), RIGHT stick scrolls the list it's in. Axes are read from any pad (`_axis`); stick scrolling
+  eases in and glides to a stop (`_glide`). Item card: either stick left/right turns
+  the model, up/down scrolls the info.
   Godot's ui_* stick events are removed at startup so the sticks are ours.
   Text is bigger in landscape (`FONT_SCALE` 1.36, `_fsz` floor of 15),
   Start skips the intro or starts a run. Pad mode shows a cyan focus frame,
@@ -252,8 +256,7 @@ The web build in Safari is the test for every platform.
   table fits; highlighting a tile (pad focus, or mouse hover on desktop) pops a
   trading-card preview (`_show_preview`) that fills the
   middle gap (`_gap` rect); A / click opens the full card.
-  Right stick turns the item card's model by hand (Y tilts); auto spin resumes
-  after 3 s.
+  Sticks turn the item card's model by hand; auto spin resumes after 3 s.
 - Landscape = three columns (`_land_cols`): tall panels left and right, the 3D
   room in the middle strip (camera `look_down`), the main action button under it.
 - Screen changes go through `_transition` (a quick dip to black) so rebuilds

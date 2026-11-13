@@ -579,6 +579,123 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag or (event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0):
 		if event.position.distance_to(_press_pos) > 18.0:
 			_drag_moved = true
+	_touch_scroll(event)
+
+
+# ================================================================ touch scrolling
+## Finger scrolling for every list (Godot's built-in one is turned off with a
+## huge deadzone): the list follows the finger 1:1 from the first move, even
+## over panels inside it, and a flick keeps it gliding with momentum.
+
+const TOUCH_OWN := 100000
+var _tsc: ScrollContainer
+var _t_from := Vector2.ZERO
+var _t_acc := Vector2.ZERO
+var _t_vel := Vector2.ZERO
+var _t_us := 0
+var _t_drag := false
+var _flings: Array = []  # [scroll, velocity, position]
+
+
+func _touch_scroll(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var st := event as InputEventScreenTouch
+		if st.index != 0:
+			return
+		if st.pressed:
+			_tsc = _scroll_at(st.position)
+			_t_drag = false
+			_t_vel = Vector2.ZERO
+			_t_from = st.position
+			_t_us = Time.get_ticks_usec()
+			if _tsc != null:
+				# A touch catches a gliding list.
+				_flings = _flings.filter(func(f): return f[0] != _tsc)
+				_t_acc = Vector2(_tsc.scroll_horizontal, _tsc.scroll_vertical)
+		else:
+			if _tsc != null and is_instance_valid(_tsc) and _t_drag:
+				# Only fling if the finger was still moving when it lifted.
+				if (Time.get_ticks_usec() - _t_us) < 90000 and _t_vel.length() > 80.0:
+					_flings.append([_tsc, _t_vel, _t_acc])
+			_tsc = null
+			_t_drag = false
+	elif event is InputEventScreenDrag and _tsc != null:
+		var sd := event as InputEventScreenDrag
+		if sd.index != 0:
+			return
+		if not is_instance_valid(_tsc) or not _tsc.is_inside_tree():
+			_tsc = null
+			return
+		var vert := _tsc.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+		var hor := _tsc.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+		if not _t_drag:
+			var d := sd.position - _t_from
+			if (absf(d.y) if vert else absf(d.x)) < 8.0 and d.length() < 12.0:
+				return
+			_t_drag = true
+			_drag_moved = true
+		var rel := sd.relative
+		var now := Time.get_ticks_usec()
+		var dt := maxf(0.004, (now - _t_us) / 1000000.0)
+		_t_us = now
+		var step := Vector2(-rel.x if hor else 0.0, -rel.y if vert else 0.0)
+		_t_vel = _t_vel.lerp(step / dt, 0.35)
+		_t_acc = _scroll_set(_tsc, _t_acc + step)
+
+
+## Moves a list to a (float) spot, kept inside its range; returns the spot.
+func _scroll_set(sc: ScrollContainer, to: Vector2) -> Vector2:
+	var vb := sc.get_v_scroll_bar()
+	var hb := sc.get_h_scroll_bar()
+	to.x = clampf(to.x, 0.0, maxf(0.0, hb.max_value - hb.page))
+	to.y = clampf(to.y, 0.0, maxf(0.0, vb.max_value - vb.page))
+	sc.scroll_horizontal = int(round(to.x))
+	sc.scroll_vertical = int(round(to.y))
+	return to
+
+
+func _fling_update(delta: float) -> void:
+	if _flings.is_empty():
+		return
+	var keep: Array = []
+	for f in _flings:
+		var sc: ScrollContainer = f[0]
+		if not is_instance_valid(sc) or not sc.is_inside_tree():
+			continue
+		var vel: Vector2 = f[1]
+		var pos: Vector2 = f[2]
+		var to := pos + vel * delta
+		var got := _scroll_set(sc, to)
+		vel *= exp(-delta * 3.2)
+		if got != to:
+			vel = Vector2.ZERO  # hit the end
+		if vel.length() > 25.0:
+			keep.append([sc, vel, got])
+	_flings = keep
+
+
+## The list under a point on the top layer (innermost if they nest).
+func _scroll_at(p: Vector2) -> ScrollContainer:
+	var layer: Control = _sheet if sheet_open() else _root_box
+	for i in range(_overlay.get_child_count() - 1, -1, -1):
+		var c := _overlay.get_child(i) as Control
+		if c != null and c.is_visible_in_tree() and c.mouse_filter == Control.MOUSE_FILTER_STOP and c.get_global_rect().has_point(p):
+			layer = c
+			break
+	var found: Array = []
+	_scrolls_in(layer, found)
+	var best: ScrollContainer = null
+	for sc in found:
+		if (sc as Control).is_visible_in_tree() and (sc as Control).get_global_rect().has_point(p):
+			best = sc
+	return best
+
+
+func _scrolls_in(n: Node, out: Array) -> void:
+	for c in n.get_children():
+		if c is ScrollContainer:
+			out.append(c)
+		_scrolls_in(c, out)
 
 
 # ================================================================ controller
@@ -999,8 +1116,46 @@ var _trig_l := false
 var _trig_r := false
 
 
+## Smooth stick scrolling: the speed eases in, sub-pixel steps add up (no
+## jerky whole-pixel jumps at high frame rates), and it glides to a stop.
+var _glides := {}
+
+
+func _glide(src: String, sc: ScrollContainer, v: float, delta: float) -> bool:
+	var g: Dictionary = _glides.get(src, {})
+	if sc == null or not is_instance_valid(sc) or not sc.is_inside_tree():
+		_glides.erase(src)
+		return false
+	if g.get("sc") != sc or absf(float(g.get("acc", 0.0)) - sc.scroll_vertical) > 3.0:
+		g = {"sc": sc, "vel": float(g.get("vel", 0.0)) if g.get("sc") == sc else 0.0, "acc": float(sc.scroll_vertical)}
+	var target := v * absf(v) * 1700.0 if absf(v) > 0.15 else 0.0
+	var vel := lerpf(float(g["vel"]), target, 1.0 - exp(-delta * (12.0 if target != 0.0 else 7.0)))
+	if target == 0.0 and absf(vel) < 12.0:
+		_glides.erase(src)
+		return false
+	var bar := sc.get_v_scroll_bar()
+	var acc := clampf(float(g["acc"]) + vel * delta, 0.0, maxf(0.0, bar.max_value - bar.page))
+	if (acc <= 0.0 and vel < 0.0) or (acc >= bar.max_value - bar.page and vel > 0.0):
+		vel = 0.0
+	g["vel"] = vel
+	g["acc"] = acc
+	_glides[src] = g
+	sc.scroll_vertical = int(round(acc))
+	return true
+
+
 func _pad_scroll(delta: float) -> void:
-	var ry := _axis(JOY_AXIS_RIGHT_Y) if _inspecting() else 0.0
+	# Item card: either stick's up/down reads the info (left/right turns it).
+	var ry := 0.0
+	if _inspecting():
+		var ly := _axis(JOY_AXIS_LEFT_Y)
+		ry = _axis(JOY_AXIS_RIGHT_Y)
+		if absf(ly) > absf(ry):
+			ry = ly
+		if absf(ry) < 0.3:
+			ry = 0.0
+	elif _glides.has("card"):
+		_glides.erase("card")
 	var lt := _axis(JOY_AXIS_TRIGGER_LEFT) > 0.5
 	var rt := _axis(JOY_AXIS_TRIGGER_RIGHT) > 0.5
 	var page := 0
@@ -1010,20 +1165,21 @@ func _pad_scroll(delta: float) -> void:
 		page = 1
 	_trig_l = lt
 	_trig_r = rt
-	if absf(ry) < 0.2 and page == 0:
+	if page == 0:
+		if ry != 0.0 or _glides.has("card"):
+			_glide("card", _active_scroll(), ry, delta)
 		return
 	var sc := _active_scroll()
 	if sc == null:
 		return
-	if page != 0:
-		var tw := create_tween()
-		tw.tween_property(sc, "scroll_vertical", sc.scroll_vertical + int(page * sc.size.y * 0.8), 0.18).set_trans(Tween.TRANS_SINE)
-	else:
-		sc.scroll_vertical += int(ry * absf(ry) * 1400.0 * delta)
+	_glides.clear()
+	var tw := create_tween()
+	tw.tween_property(sc, "scroll_vertical", sc.scroll_vertical + int(page * sc.size.y * 0.8), 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _inspecting() -> bool:
-	return sheet_open() and _spin_model != null and is_instance_valid(_spin_model) and _spin_model.is_inside_tree()
+	# The item card is up (with or without its 3D model: LITE has none).
+	return sheet_open() and _sheet.has_meta("inspect")
 
 
 ## Left stick moves the highlight like the D-pad; the right stick smoothly
@@ -1125,7 +1281,7 @@ func _side_stick(side: String, delta: float) -> void:
 		var bar := sc.get_v_scroll_bar()
 		var room := (sc.scroll_vertical < bar.max_value - bar.page - 1.0) if dir.y > 0.0 else (sc.scroll_vertical > 0)
 		if room:
-			sc.scroll_vertical += int(v.y * absf(v.y) * 1600.0 * delta)
+			_glide(side, sc, v.y, delta)
 			_follow[side] = 0.12
 			return
 	if fresh:
@@ -1183,7 +1339,9 @@ func _pad_sticks(delta: float) -> void:
 		if sc == null:
 			continue
 		if absf(v) > 0.18:
-			sc.scroll_vertical += int(v * absf(v) * 1600.0 * delta)
+			_glide(side, sc, v, delta)
+			_follow[side] = 0.12
+		elif _glide(side, sc, 0.0, delta):
 			_follow[side] = 0.12
 		elif _follow[side] > 0.0:
 			_follow[side] -= delta
@@ -1513,10 +1671,10 @@ func _scroll_col(parent: Control, ratio: float) -> VBoxContainer:
 	stack.clip_contents = true
 	back.add_child(stack)
 	var sc := ScrollContainer.new()
+	sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 	sc.follow_focus = false
 	sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	sc.scroll_deadzone = 10
 	stack.add_child(sc)
 	var v := _vbox(14)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -3885,6 +4043,7 @@ func _build_showcase() -> void:
 	# Your items in a strip: highlight one for its trading card, A for full.
 	if not run.shelf.is_empty():
 		var sc := ScrollContainer.new()
+		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 		sc.follow_focus = false
 		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		sc.custom_minimum_size = Vector2(0, 210 if is_landscape() else 272)
@@ -4650,6 +4809,7 @@ func _build_room_view() -> void:
 		items.append(i)
 	if not items.is_empty():
 		var sc := ScrollContainer.new()
+		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 		sc.follow_focus = true
 		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		sc.custom_minimum_size = Vector2(0, 200)
@@ -5238,6 +5398,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		list_box.add_child(_label(String(e), 16, Color("4fd9a0"), true))
 	list_box.add_child(_step_label("1", "EACH ITEM ADDS ITS WORTH AS CHIPS", Color("4fa3ff")))
 	var sc := ScrollContainer.new()
+	sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 	sc.follow_focus = false
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.custom_minimum_size.y = 120 if not land else 0
@@ -5733,6 +5894,7 @@ func _open_estates() -> void:
 	top.add_child(close)
 	v.add_child(top)
 	var sc := ScrollContainer.new()
+	sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var list := _vbox(8)
@@ -6155,6 +6317,7 @@ func _build_won() -> void:
 		g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(g)
 		var sc := ScrollContainer.new()
+		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		sc.custom_minimum_size.x = 560
 		sc.follow_focus = true
@@ -6379,6 +6542,7 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.gui_input.connect(_on_dim_input)
+	dim.set_meta("inspect", true)
 	_overlay.add_child(dim)
 	_sheet = dim
 	if _sfx != null and not fast:
@@ -6495,6 +6659,7 @@ func _open_inspect(title: String, lines: Array, actions: Array, item: Dictionary
 	right.add_child(tags)
 	# Info: stats + lines, scrolls if the screen is short.
 	var sc := ScrollContainer.new()
+	sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 	sc.follow_focus = false
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	sc.custom_minimum_size = Vector2(0, 120 if is_landscape() else 290)
@@ -6643,6 +6808,7 @@ func _on_spin_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_lazy_update(delta)
+	_fling_update(delta)
 	_room_walk_update(delta)
 	if _pad:
 		_pad_repeat(delta)
@@ -6660,17 +6826,20 @@ func _process(delta: float) -> void:
 	else:
 		# Right stick turns it by hand, as fast as you push; the slow auto
 		# spin waits a few seconds after you let go.
-		var rx := _axis(JOY_AXIS_LEFT_X) if _pad else 0.0
-		var ry := _axis(JOY_AXIS_LEFT_Y) if _pad else 0.0
+		# Either stick left/right turns it (up/down scrolls the info).
+		var rx := 0.0
+		if _pad:
+			rx = _axis(JOY_AXIS_LEFT_X)
+			var rx2 := _axis(JOY_AXIS_RIGHT_X)
+			if absf(rx2) > absf(rx):
+				rx = rx2
 		if absf(rx) > 0.15:
 			_manual_t = 3.0
 			_spin_vel = 0.0
 			_spin_model.rotation.y += rx * absf(rx) * 4.5 * delta
-		if absf(ry) > 0.25:
-			_manual_t = 3.0
-			_spin_model.rotation.x = clampf(_spin_model.rotation.x + ry * 2.0 * delta, -0.6, 0.6)
 		if _manual_t > 0.0:
 			_manual_t -= delta
+			_spin_model.rotation.x = lerpf(_spin_model.rotation.x, 0.0, delta * 2.0)
 		else:
 			_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
 			_spin_model.rotation.y += (0.14 + _spin_vel) * delta
