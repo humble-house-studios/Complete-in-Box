@@ -35,7 +35,7 @@ shiny, gold, one piece worth $X). Shown as a P.S. on that ante's letter, `_want_
 on the route and in venues, WANTED pills on matching items (`Run.wants`). On the shelf
 at any passed appraisal that ante = `rewards["want"]` cash (PAYDAY row + gold toast).
 All 8 in one run (`Run.wants_done`) = true ending (`Flavor.TRUE_EPILOGUE`); save keys
-`best_wants`, `true_ends`. The first ante's Buyer's terms skip picky / skeptic.
+`best_wants`, `true_ends` (title vault case then stands open and empty: `vault_case.freed`). The first ante's Buyer's terms skip picky / skeptic.
 
 ## Doorbell events + Arlo's diary
 Coming home before stops 2 and 3 can bring an event (`Run.event`, `_roll_event`,

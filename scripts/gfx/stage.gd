@@ -1897,6 +1897,34 @@ func _vault_case(pos: Vector3, rot_y: float) -> void:
 	world.add_child(root)
 	world = root
 	var sheet := Psx.mat(Color(0.78, 0.74, 0.68), Psx.tex("fabric086"), Vector2(2, 3))
+	if bool(vault_case.get("freed", false)):
+		# True ending seen: the case stands open and empty, the plastic cut
+		# and slumped on the plinth, the twine in coils on the floor.
+		var brass := Psx.mat(Color(0.75, 0.6, 0.3), null, Vector2.ONE, 0.15)
+		Psx.box(Vector3(CASE_W + 0.14, PLINTH_H, CASE_D + 0.14), Psx.mat(Color(0.16, 0.05, 0.08), Psx.tex("fabric061"), Vector2(2, 1)), Vector3(0, PLINTH_H * 0.5, 0), root)
+		Psx.box(Vector3(CASE_W + 0.18, 0.03, CASE_D + 0.18), brass, Vector3(0, PLINTH_H, 0), root)
+		var cap := CapsuleMesh.new()
+		cap.radius = 0.27
+		cap.height = 1.1
+		cap.radial_segments = 14
+		cap.rings = 6
+		var bag := Psx.mesh(cap, _shrink_wrap(), Vector3(0.05, PLINTH_H + 0.12, 0.0), root)
+		bag.rotation_degrees = Vector3(0, 20, 84)
+		bag.scale = Vector3(0.7, 1.0, 0.35)
+		var twine := Psx.mat(Color(0.55, 0.38, 0.2), Psx.tex("fabric028"), Vector2(6, 1))
+		for k in 3:
+			var t := TorusMesh.new()
+			t.inner_radius = 0.12 + k * 0.03
+			t.outer_radius = t.inner_radius + 0.025
+			Psx.mesh(t, twine, Vector3(0.5 + k * 0.18, 0.015, 0.45 - k * 0.1), root)
+		# The glass front, swung open.
+		var glass := _glass()
+		var door := Psx.box(Vector3(CASE_W, CASE_H, 0.02), glass, Vector3(CASE_W * 0.5 + 0.25, PLINTH_H + CASE_H * 0.5, CASE_D * 0.5 + 0.2), root)
+		door.rotation_degrees.y = -70
+		_vault_plaque(root, "SET COMPLETE", "RELEASED. THANK YOU.")
+		world = holder
+		_light(pos + Vector3(0, 2.6, 0.6), Color(1.0, 0.86, 0.55), 1.6, 3.0, 0.1)
+		return
 	if vault_case.is_empty():
 		# Plinth under the sheet.
 		Psx.box(Vector3(CASE_W + 0.14, PLINTH_H, CASE_D + 0.14), Psx.mat(Color(0.16, 0.05, 0.08), Psx.tex("fabric061"), Vector2(2, 1)), Vector3(0, PLINTH_H * 0.5, 0), root)

@@ -436,6 +436,10 @@ func _make_lot() -> Dictionary:
 	var worth := 0
 	for i in size:
 		var it := roll_item(boost, venue["cond"], true)
+		if int(it["tier"]) >= 3 and ante < 6:
+			# A grail in an early lot prices the whole box out of reach: hold it back.
+			var swap := make_item(_pick_def(2), String(it["cond"]))
+			it = swap
 		items.append(it)
 		worth += market_value(it)
 	var pr: Array = Balance.LOT_PRICE if venue["id"] != "storage" else venue["price"]

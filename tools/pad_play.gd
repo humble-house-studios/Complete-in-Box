@@ -627,7 +627,7 @@ func _venue() -> void:
 			else:
 				await _reach_all("shelf card")
 				if run.can_list():
-					await _nav_press(_has_text("List for"), "List")
+					await _nav_press(_has_text("List it"), "List")
 				elif run.can_grade() and run.cash > 80 and int(run.appraise()["total"]) > run.target() * 1.4:
 					await _nav_press(_has_text("grading"), "Grade")
 				else:

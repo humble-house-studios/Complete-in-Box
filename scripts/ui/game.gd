@@ -4662,7 +4662,10 @@ func _open_offer(i: int) -> void:
 		lines.append(["Your gut says %s to %s. Could be more. Could be junk." % [_money(int(est[0])), _money(int(est[1]))], MUTED])
 	if bool(o["bin"]) and not run.has_perk("bubble_wrap"):
 		lines.append(["Online: might arrive a condition worse than listed.", MUTED])
-	var actions: Array = [["Buy for %s" % _money(int(o["price"])), func(): _do_buy(i), STICKER]]
+	var pr := int(o["price"])
+	var actions: Array = [["Buy for %s" % _money(pr), func(): _do_buy(i), STICKER] if run.cash >= pr else ["Buy for %s  (short %s)" % [_money(pr), _money(pr - run.cash)], func(): _do_buy(i), Color("5a3a3a")]]
+	if run.cash < pr and float(run.venue["haggle"]) > 0.0 and not bool(o["haggled"]):
+		lines.append(["Too pricey? A good haggle knocks %d%% off." % int(round((1.0 - float(run.venue["cut"])) * 100.0)), MUTED])
 	if float(run.venue["haggle"]) > 0.0 and not bool(o["haggled"]) and run.time_left > 0:
 		actions.append(["Haggle  (1 Time, %d%% odds)" % int(round(_haggle_odds() * 100.0)), func(): _do_haggle(i), PANEL_HI])
 	elif bool(o["haggled"]):
@@ -4707,7 +4710,8 @@ func _open_lot(i: int) -> void:
 		var it: Dictionary = items[k]
 		lines.append(["- %s (%s %s)" % [it["name"], Catalog.platform(String(it["plat"]))["short"], it["cond"]], GOLD])
 	lines.append(["The rest is a mystery. No room on the shelf? Extras get sold at 40%.", MUTED])
-	_open_sheet("Mystery lot", lines, [["Buy the lot for %s" % _money(int(lot["price"])), func(): _do_lot(i), GOLD]])
+	var lp := int(lot["price"])
+	_open_sheet("Mystery lot", lines, [["Buy the lot for %s" % _money(lp), func(): _do_lot(i), GOLD] if run.cash >= lp else ["Buy the lot for %s  (short %s)" % [_money(lp), _money(lp - run.cash)], func(): _do_lot(i), Color("5a3a3a")]])
 
 
 func _do_lot(i: int) -> void:
@@ -4729,7 +4733,11 @@ func _open_auction(i: int) -> void:
 		lines.append(["Your max bid: %s (%s)" % [_money(int(a["my_max"])), "winning" if run.winning(i) else "outbid"], GOOD if run.winning(i) else BAD])
 	lines.append(["Your max is held until it ends. Snipers may jump in at the last second.", MUTED])
 	var nb := run.next_bid(i)
-	_open_sheet(String(item["name"]), lines, [["Bid up to %s" % _money(nb), func(): _do_bid(i), Color("4fd9a0")]], item)
+	var extra := nb - int(a["my_max"])
+	var act: Array = ["Bid up to %s" % _money(nb), func(): _do_bid(i), Color("4fd9a0")]
+	if run.cash < extra:
+		act = ["Bid up to %s  (short %s)" % [_money(nb), _money(extra - run.cash)], func(): _do_bid(i), Color("5a3a3a")]
+	_open_sheet(String(item["name"]), lines, [act], item)
 
 
 func _do_bid(i: int) -> void:
@@ -5472,6 +5480,8 @@ func _check_binder_reward(id: String) -> void:
 
 ## What the title vault's corner case shows: {} = still covered (no losses yet).
 func _vault_info() -> Dictionary:
+	if int(_save.get("true_ends", 0)) > 0:
+		return {"freed": true}
 	var n := int(_save.get("sealed", 0))
 	if n <= 0:
 		return {}
