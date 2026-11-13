@@ -42,6 +42,8 @@ const SOUNDS := {
 	"type": [["key1", "key2", "key3", "key4", "key5", "key6"], -13.0],
 	"pc_boot": [["pc_boot"], -7.0],
 	"pc_off": [["pc_off"], -5.0],
+	"doorbell": [["doorbell"], -8.0],
+	"knock": [["knock"], -6.0],
 }
 
 ## Music per screen/venue slot, plus optional ambience bed per venue.

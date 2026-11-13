@@ -2350,7 +2350,14 @@ func _header() -> void:
 			pip.color = Color("ffb347") if run.time_left > 0 else Color(BAD, 0.6)
 			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			pips.add_child(pip)
-		h.add_child(pips)
+		# Labelled, so the orange bars read as Time (haggles and digs spend it).
+		var tbox := _vbox(-2)
+		tbox.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tbox.add_child(pips)
+		var tl := _label("TIME %d" % run.time_left, 12, Color("ffb347") if run.time_left > 0 else BAD)
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tbox.add_child(tl)
+		h.add_child(tbox)
 	if _shown_cash < 0 or fast:
 		_shown_cash = run.cash
 	_cash_label = _title_label(_money(_shown_cash), 34, GOLD)
@@ -3742,11 +3749,20 @@ func _route_tab(col: VBoxContainer) -> void:
 	else:
 		tv.add_child(_label("The Buyer's terms this round: %s" % boss["name"], 16, MUTED, true))
 	col.add_child(top)
+	_event_panel(col)
 	var wp := _want_panel()
 	if wp != null:
 		col.add_child(wp)
 	if run.letters_read > 0:
-		col.add_child(_button("HOME PC  •  REREAD MAIL (%d)" % run.letters_read, _open_letter.bind(run.letters_read - 1), Color("1d3a26"), 18, 72))
+		var mail := _hbox(10)
+		var mb := _button("HOME PC  •  MAIL (%d)" % run.letters_read, _open_letter.bind(run.letters_read - 1), Color("1d3a26"), 18, 72)
+		mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mail.add_child(mb)
+		if run.diary_read > 0:
+			var db := _button("ARLO'S DIARY (%d)" % run.diary_read, _open_diary, Color("4a3a22"), 18, 72)
+			db.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			mail.add_child(db)
+		col.add_child(mail)
 	_pivot_panel(col)
 	_market_panel(col)
 	_section(col, "WHERE TO?")
@@ -3757,6 +3773,108 @@ func _route_tab(col: VBoxContainer) -> void:
 		dev.add_child(_button("DEV +$100", _dev_cash, Color("444055"), 18, 60))
 		dev.add_child(_button("DEV +1 ANTE", _dev_ante, Color("444055"), 18, 60))
 		col.add_child(dev)
+
+
+## Whoever's at the door (or what turned up around the house): a choice card
+## on the route tab. Arlo's diary pages open as a note.
+func _event_panel(col: VBoxContainer) -> void:
+	var e := run.event
+	if e.is_empty():
+		return
+	var id := String(e["id"])
+	var col_c: Color = {"diary": Color("e3d3ae"), "box": Color("ff9a3d"), "trade": Color("5fb3ff"), "collector": GOOD, "leak": COLD_C}[id]
+	var p := _panel(Color(0.07, 0.05, 0.03, 0.92), Color(col_c, 0.8), 3)
+	var v := _vbox(6)
+	p.add_child(v)
+	var head: String = {"diary": "FOUND AROUND THE HOUSE", "box": "DING-DONG", "trade": "DING-DONG", "collector": "DING-DONG", "leak": "DRIP... DRIP..."}[id]
+	v.add_child(_pill(head, col_c, 16))
+	var title := ""
+	var body := ""
+	var yes := ""
+	var no := "Shut the door"
+	var item: Dictionary = {}
+	match id:
+		"diary":
+			var pg: Array = Flavor.DIARY[clampi(int(e["page"]), 0, Flavor.DIARY.size() - 1)]
+			title = "A page of Arlo's diary"
+			body = "Found it %s. Something's folded inside." % String(pg[0])
+			yes = "READ IT"
+			no = ""
+		"box":
+			item = e["item"]
+			title = "The neighbour's clearing out"
+			body = "\"Box of my son's old stuff. %s, sight unseen. Don't tell him.\" Something %s rattles inside." % [_money(int(e["price"])), Catalog.platform(String(item["plat"]))["short"]]
+			yes = "BUY THE BOX  %s" % _money(int(e["price"]))
+		"trade":
+			item = e["item"]
+			var mine := run.find_item(int(e["give"]))
+			title = "A kid wants to trade"
+			body = "\"I'll swap you my %s for your %s. Deal?\" Theirs is worth %s; yours is worth %s." % [item["name"], mine.get("name", "?"), _money(run.market_value(item)), _money(run.market_value(mine)) if not mine.is_empty() else "?"]
+			yes = "SWAP"
+		"collector":
+			var it := run.find_item(int(e["give"]))
+			title = "A collector saw your shelf"
+			body = "\"I'll give you %s cash for that %s. Right now.\" It's worth %s, and it scores on your shelf." % [_money(int(e["price"])), it.get("name", "?"), _money(run.market_value(it)) if not it.is_empty() else "?"]
+			yes = "SELL IT  %s" % _money(int(e["price"]))
+			no = "Not for sale"
+		"leak":
+			var it2 := run.find_item(int(e["give"]))
+			title = "The roof is leaking"
+			body = "Right over your %s. A tarp costs %s. Or it gets wet, and wet means Damaged." % [it2.get("name", "?"), _money(int(e["price"]))]
+			yes = "BUY A TARP  %s" % _money(int(e["price"]))
+			no = "Let it drip"
+	v.add_child(_title_label(title, 26, col_c))
+	v.add_child(_label(body, 18, INK, true))
+	var row := _hbox(10)
+	var ok := _button(yes, _event_yes, Color(col_c).darkened(0.45), 20, 80)
+	ok.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(ok)
+	if no != "":
+		var nb := _button(no, _event_no, PANEL_HI, 18, 80)
+		nb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(nb)
+	v.add_child(row)
+	col.add_child(p)
+
+
+func _event_yes() -> void:
+	var e := run.event.duplicate()
+	if e.is_empty():
+		return
+	var res := run.event_accept()
+	if not bool(res.get("ok", false)):
+		_act(res)
+		return
+	match String(e["id"]):
+		"diary":
+			_sfx.play("dig")
+			var pg: Array = Flavor.DIARY[clampi(int(e["page"]), 0, Flavor.DIARY.size() - 1)]
+			_open_sheet("Arlo's diary  •  page %d of %d" % [int(e["page"]) + 1, Flavor.DIARY.size()], [
+				["\"%s\"" % String(pg[1]), FLAVOR_C],
+				[String(res["msg"]), GOOD],
+			], [])
+			request_refresh()
+		"box", "trade":
+			var it: Dictionary = res["item"]
+			_sfx.play("lot")
+			_play_lot_reveal([it], run.market_value(it), String(res["msg"]), "OPENING THE BOX..." if String(e["id"]) == "box" else "THE SWAP...")
+		_:
+			_act(res, "coin")
+
+
+## Every diary page found this run, oldest first.
+func _open_diary() -> void:
+	var lines: Array = []
+	for i in mini(run.diary_read, Flavor.DIARY.size()):
+		lines.append(["Page %d  (%s)" % [i + 1, String(Flavor.DIARY[i][0])], MUTED])
+		lines.append(["\"%s\"" % String(Flavor.DIARY[i][1]), FLAVOR_C])
+	_open_sheet("Arlo's diary  •  %d of %d pages" % [run.diary_read, Flavor.DIARY.size()], lines, [])
+
+
+func _event_no() -> void:
+	var leak := String(run.event.get("id", "")) == "leak"
+	var res := run.event_decline()
+	_act(res, "buzz" if leak else "close")
 
 
 ## Your shelf's score right now against the next target, as a bar.
@@ -3948,6 +4066,7 @@ const PERK_CAT_OF := {
 	"piggy_bank": "money", "flipper": "money", "power_seller": "money", "sticker_gun": "money",
 	"extra_hour": "time", "moms_basement": "time", "time_capsule": "time",
 	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market", "slab_fan": "market",
+	"glass_case": "time", "dollar_bin": "hunt", "haggle_king": "hunt", "hot_streak": "market",
 }
 
 
@@ -3981,7 +4100,10 @@ func _perk_card(id: String, w: float, owned: bool) -> Button:
 	var nm := _title_label(String(d["name"]), 22, INK)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(nm)
-	var desc := _label(String(d["desc"]), 16, Color("ddd5ea"), true)
+	var dtext := String(d["desc"])
+	if owned and id == "haggle_king":
+		dtext = "Grows with every haggle you win. Now: +%s Mult." % str(snappedf(0.25 * int(run.stats.get("haggles", 0)), 0.01))
+	var desc := _label(dtext, 16, Color("ddd5ea"), true)
 	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	desc.max_lines_visible = 3
 	v.add_child(desc)
@@ -5043,6 +5165,9 @@ func _after_appraisal_now() -> void:
 		Run.Phase.APPRAISAL:
 			run.advance()
 			screen = "home"
+			if not run.event.is_empty() and _sfx != null:
+				var eid := String(run.event["id"])
+				_sfx.play("dig" if eid == "diary" else ("knock" if eid == "leak" else "doorbell"))
 		Run.Phase.WON:
 			screen = "won"
 		_:
@@ -5050,7 +5175,7 @@ func _after_appraisal_now() -> void:
 	request_refresh()
 
 
-func _play_lot_reveal(items: Array, worth: int, msg: String) -> void:
+func _play_lot_reveal(items: Array, worth: int, msg: String, title: String = "OPENING THE LOT...") -> void:
 	_busy = true
 	_skip = false
 	var layer := ColorRect.new()
@@ -5069,7 +5194,7 @@ func _play_lot_reveal(items: Array, worth: int, msg: String) -> void:
 	center.add_child(p)
 	var v := _vbox(10)
 	p.add_child(v)
-	v.add_child(_title_label("OPENING THE LOT...", 32, GOLD))
+	v.add_child(_title_label(title, 32, GOLD))
 	var reels: Array = []
 	for it in items:
 		var l := _label("? ? ?", 24, MUTED)

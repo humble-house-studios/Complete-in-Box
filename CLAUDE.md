@@ -37,6 +37,16 @@ at any passed appraisal that ante = `rewards["want"]` cash (PAYDAY row + gold to
 All 8 in one run (`Run.wants_done`) = true ending (`Flavor.TRUE_EPILOGUE`); save keys
 `best_wants`, `true_ends`. The first ante's Buyer's terms skip picky / skeptic.
 
+## Doorbell events + Arlo's diary
+Coming home before stops 2 and 3 can bring an event (`Run.event`, `_roll_event`,
+`event_accept` / `event_decline`): neighbour's mystery box, a kid's trade, a collector
+offering cash for a shelf piece, a roof leak (pay for a tarp or the item goes Damaged),
+or a page of Arlo's diary (`Flavor.DIARY`, 8 pages, `Run.diary_read`, +cash; his side
+of the story, hints the twist and that the full want list ends the curse). Card on the
+route tab (`_event_panel`), doorbell / knock sounds, diary reread (`_open_diary`).
+New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won haggles,
+`stats["haggles"]`), Oddity Hunter, Cursed Cartridge (x2 Mult, -2 shelf).
+
 ## Replay: estates, grade tiers, binder rewards
 All data in `scripts/data/unlocks.gd` (no class_name, preload as `Unlocks`).
 - ESTATES = starting decks (Arlo, Aunt June, Cousin Dale, Grandma Rose, Uncle Hector,

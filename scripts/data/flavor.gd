@@ -142,6 +142,19 @@ const WANT_NOTES := {
 ## True ending: every request filled in one run. The Buyer's set is complete.
 const TRUE_EPILOGUE := ["the complete set", "You filled every line on my want list. Every one. Arlo never managed that. Nobody did.\n\nThe set is complete. I don't need a keeper anymore.\n\nThe vault door is open. The cases are unlocking one by one. I can hear them breathing.\n\nThank you. Leave the plastic on the shelf. You won't need it.\n\n- Arlo"]
 
+## Arlo's diary: pages turn up around the house between stops (doorbell events).
+## His side of the story; it hints at the twist and at the true ending.
+const DIARY := [
+	["under the couch cushion", "Day 1. Inherited Uncle Mort's shelf today. And his debt. Someone called c0mplete_set sent a very polite email. Mort never mentioned him. Mort never mentioned much."],
+	["taped behind the TV", "The appraiser came by. Tall. Smells like new plastic. He looked at me the way I look at a sealed copy in a glass case."],
+	["in a cart's manual", "Found a key in Mort's coat. Unit 66. I didn't open it. Something behind the door was breathing. Slowly. Like shrink wrap in the heat."],
+	["in the freezer, of all places", "Rick at the flea market says he's seen me before. Says I looked older then. I've never been to that flea market."],
+	["inside a jewel case", "Started keeping a list of everything c0mplete_set asks for. It's the same list Mort kept. The envelopes are in Mort's handwriting."],
+	["folded in the basement fuse box", "If you're reading this, you're family. He only writes to family. Fill his want list. Every line, in one go. It's the only thing that makes him stop."],
+	["pinned under the shelf", "Came up short today. Eleven dollars short. The appraiser measured me with a tailor's tape. The plastic is already in the hall closet. It's my size."],
+	["in the box art of a game you don't remember buying", "I'm sorry, kid. I'll be the one writing to you now. I won't have a choice. Fill the list. Keep the plastic off. - A."],
+]
+
 ## After the last ante: the debt is "paid".
 const EPILOGUE := ["welcome to the hobby", "Debt cleared. Congratulations.\n\nI've forwarded you the mailing list. Somebody out there just inherited a shelf. Write to them soon. Be kind. At first."]
 

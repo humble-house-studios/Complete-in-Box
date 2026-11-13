@@ -36,6 +36,12 @@ const LIST := [
 	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
 	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
 	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
+	{"id": "glass_case", "name": "Glass Case", "cost": 6, "desc": "Items held 3+ stops appraise for x1.5."},
+	{"id": "hot_streak", "name": "Hot Streak", "cost": 6, "desc": "+0.5 Mult per item from a HOT platform."},
+	{"id": "dollar_bin", "name": "Dollar Bin Hero", "cost": 5, "desc": "Items you paid $3 or less for appraise +$10."},
+	{"id": "haggle_king", "name": "Haggle King", "cost": 6, "desc": "Grows: +0.25 Mult for every haggle you win this run."},
+	{"id": "oddity_hunter", "name": "Oddity Hunter", "cost": 7, "desc": "+0.4 Mult per variant copy (First Print, Misprint, Black Label...)."},
+	{"id": "cursed_cart", "name": "Cursed Cartridge", "cost": 8, "desc": "x2 Mult, but -2 shelf slots. It hums at night."},
 	# Binder rewards: only in the shop once your collection unlocks them ("lock").
 	{"id": "plastic_wrap", "lock": "binder", "name": "Plastic Wrap", "cost": 6, "desc": "Sealed items appraise for x2."},
 	{"id": "dust_sheet", "lock": "binder", "name": "Dust Sheet", "cost": 5, "desc": "Damaged items appraise for x2.5."},

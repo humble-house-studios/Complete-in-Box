@@ -574,3 +574,31 @@ func test_first_round_terms_are_mild() -> void:
 	for s in 40:
 		var r := _new_run(100 + s)
 		assert_false(["picky", "skeptic"].has(r.boss_id), "ante 1 boss %s" % r.boss_id)
+
+
+func test_doorbell_events_resolve_cleanly() -> void:
+	var r := _new_run(11)
+	r.enter_venue(String(r.venue_choices[0]))
+	r.end_stop()
+	r.phase = Run.Phase.APPRAISAL
+	for ev in ["box", "trade", "collector", "leak", "diary"]:
+		var it := _item(r, "fes_zeldo", "Loose")
+		r.shelf.append(it)
+		r.cash = 200
+		match ev:
+			"box": r.event = {"id": "box", "item": _item(r, "fes_robo2", "CIB"), "price": 10}
+			"trade": r.event = {"id": "trade", "item": _item(r, "fes_robo2", "CIB"), "give": int(it["uid"])}
+			"collector": r.event = {"id": "collector", "give": int(it["uid"]), "price": 50}
+			"leak": r.event = {"id": "leak", "give": int(it["uid"]), "price": 5}
+			"diary": r.event = {"id": "diary", "page": 0, "cash": 6}
+		r.phase = Run.Phase.HOME
+		var res := r.event_accept()
+		assert_true(bool(res["ok"]), ev + ": " + String(res["msg"]))
+		assert_true(r.event.is_empty(), ev + " cleared")
+	# Letting the roof drip damages the item.
+	var wet := _item(r, "fes_zeldo", "CIB")
+	r.shelf.append(wet)
+	r.event = {"id": "leak", "give": int(wet["uid"]), "price": 5}
+	r.event_decline()
+	assert_eq(String(wet["cond"]), "Damaged")
+	assert_eq(r.diary_read, 1)

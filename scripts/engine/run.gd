@@ -67,6 +67,10 @@ var last_appraisal: Dictionary = {}
 ## for the true ending. wants_done counts the filled ones.
 var want: Dictionary = {}
 var wants_done: int = 0
+## Someone at the door when you get home (stops 2 and 3): a choice to take or
+## leave ({id, ...}, see _roll_event). diary_read = Arlo's diary pages found.
+var event: Dictionary = {}
+var diary_read: int = 0
 ## Collector's Curse: how many of the Buyer's letters you've opened (one per ante).
 var letters_read: int = 0
 ## Meta progression: which estate you inherited, the grade tier (0..4, each
@@ -501,6 +505,8 @@ func buy_perk(id: String) -> Dictionary:
 	perk_offers.erase(id)
 	if id == "moms_basement":
 		shelf_cap += 2
+	if id == "cursed_cart":
+		shelf_cap -= 2
 	return _ok("Got %s." % Perks.get_def(id)["name"])
 
 
@@ -512,6 +518,8 @@ func sell_perk(id: String) -> Dictionary:
 	cash += back
 	if id == "moms_basement":
 		shelf_cap -= 2
+	if id == "cursed_cart":
+		shelf_cap += 2
 	return _ok("Sold %s for $%d." % [Perks.get_def(id)["name"], back])
 
 
@@ -790,6 +798,7 @@ func haggle(index: int) -> Dictionary:
 	var old := int(o["price"])
 	if rng.randf() < chance:
 		o["price"] = maxi(1, int(round(old * float(venue["cut"]))))
+		stats["haggles"] = int(stats.get("haggles", 0)) + 1
 		var res := _ok("Deal! $%d -> $%d." % [old, o["price"]])
 		res["success"] = true
 		return res
@@ -1167,6 +1176,7 @@ func advance() -> void:
 		_roll_want()
 	_roll_trends()
 	_prepare_home()
+	_roll_event()
 
 
 # ================================================================ appraisal
@@ -1213,9 +1223,15 @@ func appraise() -> Dictionary:
 		if boss_active("picky") and (cond == "Damaged" or cond == "Loose"):
 			v *= 0.5
 			notes.append("Picky x0.5")
+		if int(it["held"]) >= 3 and has_perk("glass_case"):
+			v *= 1.5
+			notes.append("Glass Case x1.5")
 		if has_perk("sticker_gun"):
 			v += 8.0
 			notes.append("Sticker +$8")
+		if has_perk("dollar_bin") and int(it.get("paid", 0)) <= 3:
+			v += 10.0
+			notes.append("Dollar Bin +$10")
 		if String(it.get("variant", "Standard")) != "Standard":
 			notes.append("%s x%s" % [Catalog.variant_label(it), str(snappedf(Catalog.variant_mult(it), 0.01))])
 		var iv := maxi(0, int(round(v)))
@@ -1294,12 +1310,25 @@ func appraise() -> Dictionary:
 			slabs += 1
 	_perk_add(bonuses, "slab_fan", 0.75 * slabs, "Slab Fan")
 	_perk_add(bonuses, "holo_hunter", 0.6 * shiny, "Shiny Hunter")
+	var hot_n := 0
+	var odd := 0
+	for it in shelf:
+		if hot.has(String(it["plat"])):
+			hot_n += 1
+		if String(it.get("variant", "Standard")) != "Standard":
+			odd += 1
+	_perk_add(bonuses, "hot_streak", 0.5 * hot_n, "Hot Streak")
+	_perk_add(bonuses, "oddity_hunter", 0.4 * odd, "Oddity Hunter")
+	_perk_add(bonuses, "haggle_king", 0.25 * int(stats.get("haggles", 0)), "Haggle King")
 	for b in bonuses:
-		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars", "Shiny Hunter", "Full Page", "Slab Fan"]:
+		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars", "Shiny Hunter", "Full Page", "Slab Fan", "Hot Streak", "Oddity Hunter", "Haggle King"]:
 			add += float(b["add"])
 	if has_perk("curator") and per_plat.size() >= 5:
 		times *= 2.0
 		bonuses.append({"label": "Curator", "add": 0.0, "times": 2.0})
+	if has_perk("cursed_cart"):
+		times *= 2.0
+		bonuses.append({"label": "Cursed Cartridge", "add": 0.0, "times": 2.0})
 	var mult := (1.0 + add) * times
 	var total := int(round(chips * mult))
 	return {"items": items, "bonuses": bonuses, "chips": chips, "mult": snappedf(mult, 0.01), "total": total}
@@ -1412,6 +1441,134 @@ func want_text() -> String:
 ## The Buyer's note that goes with the request (story flavour).
 func want_note() -> String:
 	return Flavor.pick(Flavor.WANT_NOTES.get(String(want.get("id", "")), Flavor.WANT_NOTES["plat"]), seed_value + ante)
+
+
+# ================================================================ doorbell
+
+const EVENT_CHANCE := 0.55
+const BOX_CONDS := [15, 45, 25, 10, 5]
+
+
+## Maybe someone knocks while you're home between stops. Arlo's diary pages
+## turn up regularly (one every few stops) until all eight are found.
+func _roll_event() -> void:
+	event = {}
+	if stop == 0 or endless:
+		return
+	var diary_due := diary_read < Flavor.DIARY.size() and diary_read < ante and rng.randf() < 0.6
+	if not diary_due and rng.randf() > EVENT_CHANCE:
+		return
+	if diary_due:
+		event = {"id": "diary", "page": diary_read, "cash": 4 + ante * 2}
+		return
+	var kinds := ["box", "box", "trade", "collector", "leak"]
+	for tries in 6:
+		var k: String = kinds[rng.randi_range(0, kinds.size() - 1)]
+		match k:
+			"box":
+				var it := roll_item(1, BOX_CONDS)
+				it["variant"] = Catalog.roll_variant(Catalog.get_def(String(it["id"])), rng, {"slot": "hunt"})
+				var price := maxi(2, int(round(market_value(it) * rng.randf_range(0.35, 1.15))))
+				if price <= cash:
+					event = {"id": "box", "item": it, "price": price}
+					return
+			"trade":
+				if shelf.size() >= 2:
+					var worst: Dictionary = shelf[0]
+					for s in shelf:
+						if market_value(s) < market_value(worst):
+							worst = s
+					var theirs := roll_item(1, [5, 40, 35, 15, 5])
+					event = {"id": "trade", "item": theirs, "give": int(worst["uid"])}
+					return
+			"collector":
+				var pool: Array = shelf.filter(func(s): return market_value(s) >= 10)
+				if not pool.is_empty():
+					var pick: Dictionary = pool[rng.randi_range(0, pool.size() - 1)]
+					event = {"id": "collector", "give": int(pick["uid"]), "price": int(round(market_value(pick) * rng.randf_range(1.3, 1.7)))}
+					return
+			"leak":
+				var wet: Array = shelf.filter(func(s): return s["cond"] == "Loose" or s["cond"] == "CIB")
+				if not wet.is_empty():
+					var pick2: Dictionary = wet[rng.randi_range(0, wet.size() - 1)]
+					var fee := maxi(3, int(round(market_value(pick2) * 0.3)))
+					if fee <= cash:
+						event = {"id": "leak", "give": int(pick2["uid"]), "price": fee}
+						return
+
+
+## Say yes to whoever's at the door.
+func event_accept() -> Dictionary:
+	if event.is_empty() or phase != Phase.HOME:
+		return _fail("Nobody's there.")
+	var e := event
+	match String(e["id"]):
+		"diary":
+			diary_read += 1
+			cash += int(e["cash"])
+			event = {}
+			return _ok("Tucked in the page: $%d in old bills." % int(e["cash"]))
+		"box":
+			if cash < int(e["price"]):
+				return _fail("Need $%d." % int(e["price"]))
+			if free_slots() <= 0:
+				return _fail("Shelf's full. Make room first.")
+			cash -= int(e["price"])
+			var it: Dictionary = e["item"]
+			it["paid"] = int(e["price"])
+			shelf.append(it)
+			stats["bought"] += 1
+			event = {}
+			var res := _ok("Inside: %s (worth $%d)." % [it["name"], market_value(it)])
+			res["item"] = it
+			return res
+		"trade":
+			var i := _shelf_index(int(e["give"]))
+			if i < 0:
+				event = {}
+				return _fail("You don't have that anymore.")
+			var mine: Dictionary = shelf[i]
+			var theirs: Dictionary = e["item"]
+			theirs["paid"] = int(mine["paid"])
+			shelf[i] = theirs
+			event = {}
+			var r2 := _ok("Swapped %s for %s." % [mine["name"], theirs["name"]])
+			r2["item"] = theirs
+			return r2
+		"collector":
+			var j := _shelf_index(int(e["give"]))
+			if j < 0:
+				event = {}
+				return _fail("You don't have that anymore.")
+			var sold: Dictionary = shelf[j]
+			shelf.remove_at(j)
+			cash += int(e["price"])
+			var extra := _record_sale(sold, int(e["price"]))
+			event = {}
+			return _ok("Sold %s for $%d.%s" % [sold["name"], int(e["price"]), extra])
+		"leak":
+			if cash < int(e["price"]):
+				return _fail("Need $%d." % int(e["price"]))
+			cash -= int(e["price"])
+			event = {}
+			return _ok("Tarp's up. Everything stays dry.")
+	return _fail("?")
+
+
+## Say no (or shut the door).
+func event_decline() -> Dictionary:
+	if event.is_empty():
+		return _fail("Nobody's there.")
+	var e := event
+	event = {}
+	if String(e["id"]) == "leak":
+		var i := _shelf_index(int(e["give"]))
+		if i >= 0:
+			shelf[i]["cond"] = "Damaged"
+			return _ok("Drip. Drip. %s is Damaged now." % shelf[i]["name"])
+	if String(e["id"]) == "diary":
+		diary_read += 1
+	return _ok("You close the door.")
 
 
 # ================================================================ the curse

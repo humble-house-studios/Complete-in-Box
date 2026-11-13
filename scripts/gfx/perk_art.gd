@@ -17,6 +17,8 @@ const THEMES := {
 	"whale": "ocean", "lunchbox": "kitchen", "console_wars": "versus",
 	"pack_rat": "cardboard", "holo_hunter": "neon", "gold_bug": "vault",
 	"plastic_wrap": "vault", "dust_sheet": "basement", "full_page": "paper", "slab_fan": "metal",
+	"glass_case": "vault", "hot_streak": "comic", "dollar_bin": "kraft", "haggle_king": "comic",
+	"oddity_hunter": "neon", "cursed_cart": "basement",
 	"up_shelf": "basement", "up_time": "clock", "up_perk_slot": "cardboard", "up_interest": "money", "up_reroll": "comic",
 }
 ## Pictures for perks added after subjects.gd was generated (existing renders only).
@@ -25,6 +27,12 @@ const EXTRA_PERKS := {
 	"dust_sheet": ["card_file_box", "books"],
 	"full_page": ["open_book", "check_mark_button"],
 	"slab_fan": ["hundred_points", "sports_medal"],
+	"glass_case": ["framed_picture", "gem_stone"],
+	"hot_streak": ["fire", "chart_increasing"],
+	"dollar_bin": ["coin", "card_file_box"],
+	"haggle_king": ["handshake", "crown"],
+	"oddity_hunter": ["eyes", "magnifying_glass_tilted_right"],
+	"cursed_cart": ["coffin", "video_game", "skull"],
 }
 const BADGE_FONT := "res://assets/fonts/cover/Bangers-Regular.ttf"
 
