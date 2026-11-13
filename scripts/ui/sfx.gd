@@ -38,6 +38,10 @@ const SOUNDS := {
 	"door": [["drop", "metal"], -6.0],
 	"shimmer": [["shimmer"], -8.0],
 	"settle": [["settle"], -10.0],
+	# The home PC (synthesized by tools/gen_pc_sfx.py).
+	"type": [["key1", "key2", "key3", "key4", "key5", "key6"], -13.0],
+	"pc_boot": [["pc_boot"], -7.0],
+	"pc_off": [["pc_off"], -5.0],
 }
 
 ## Music per screen/venue slot, plus optional ambience bed per venue.

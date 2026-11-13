@@ -70,3 +70,4 @@ assets/textures/fabric061.png | https://ambientcg.com/view?id=Fabric061 | 2026-1
 assets/sprites/subject (Microsoft Fluent 3D emoji, MIT; curated by tools/gen_subjects.py) | https://github.com/microsoft/fluentui-emoji | 2026-11-12
 assets/models/props/arcade | https://opengameart.org/content/mini-arcade | 2026-11-12
 assets/models/people_rb (Microsoft Rocketbox avatars, MIT; baked by tools/gen_people.sh) | https://github.com/microsoft/Microsoft-Rocketbox | 2026-11-12
+assets/audio/sfx (key1-6, pc_boot, pc_off) | synthesized in-house (numpy, tools/gen_pc_sfx.py) | 2026-11-12

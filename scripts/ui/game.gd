@@ -5190,6 +5190,38 @@ func _vault_info() -> Dictionary:
 		"lot": "#%04d" % int(_save["seal_lot"]), "lot_n": int(_save["seal_lot"]), "ante": "ANTE %d" % int(_save["seal_ante"])}
 
 
+var _letter_scr: Control
+
+
+## Keyboard clacks while a letter types itself out, at a human-ish rhythm.
+func _type_sfx(body: Label) -> void:
+	while is_instance_valid(body) and body.is_inside_tree() and body.visible_ratio < 1.0:
+		_sfx.play("type", randf_range(0.9, 1.1))
+		var gap := randf_range(0.06, 0.11)
+		if randf() < 0.12:
+			gap += randf_range(0.08, 0.18)  # a word break
+		await get_tree().create_timer(gap).timeout
+
+
+## LOG OFF: the CRT switches off (picture squashes to a line, then a dot).
+func _log_off() -> void:
+	if _sfx != null:
+		_sfx.play("pc_off")
+	var scr := _letter_scr
+	if fast or scr == null or not is_instance_valid(scr):
+		_close_sheet()
+		return
+	scr.pivot_offset = scr.size * 0.5
+	var tw := scr.create_tween()
+	tw.tween_property(scr, "scale", Vector2(1.0, 0.015), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(scr, "scale", Vector2(0.0, 0.015), 0.1).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_interval(0.05)
+	await tw.finished
+	# Only close if this letter is still the open sheet.
+	if is_instance_valid(scr) and sheet_open() and _sheet.is_ancestor_of(scr):
+		_close_sheet()
+
+
 ## The home computer: a green CRT panel.
 func _crt_panel() -> PanelContainer:
 	var p := PanelContainer.new()
@@ -5221,7 +5253,7 @@ func _maybe_letter() -> void:
 
 ## Shows letter i on the home computer (-1 = the ending message), typed out.
 ## OLDER / NEWER flip through the ones you've had so far.
-func _open_letter(i: int) -> void:
+func _open_letter(i: int, boot := true) -> void:
 	_close_sheet()
 	if _pad:
 		_pad_focus.call_deferred(0)
@@ -5235,12 +5267,13 @@ func _open_letter(i: int) -> void:
 	_overlay.add_child(dim)
 	_sheet = dim
 	if _sfx != null and not fast:
-		_sfx.play("open")
+		_sfx.play("pc_boot" if boot else "click")
 	var cc := CenterContainer.new()
 	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.add_child(cc)
 	var land := is_landscape()
 	var scr := _crt_panel()
+	_letter_scr = scr
 	scr.custom_minimum_size = Vector2(minf(660.0, get_viewport_rect().size.x - _margins.x - _margins.z - 24.0), 0)
 	cc.add_child(scr)
 	var v := _vbox(8 if not land else 4)
@@ -5261,9 +5294,15 @@ func _open_letter(i: int) -> void:
 	var body := _label(String(letter[1]), 22 if not land else 19, CRT_C, true)
 	v.add_child(body)
 	if not fast:
-		# Typed out like an old terminal; tap the screen to finish it.
+		# Typed out like an old terminal (with keyboard clacks); tap to finish it.
+		# A fresh boot warms the screen up first, while the drive spins.
 		body.visible_ratio = 0.0
 		var tw := body.create_tween()
+		if boot:
+			tw.tween_interval(0.9)
+			scr.modulate = Color(1, 1, 1, 0.0)
+			scr.create_tween().tween_property(scr, "modulate:a", 1.0, 0.5).set_trans(Tween.TRANS_SINE)
+		tw.tween_callback(_type_sfx.bind(body))
 		tw.tween_property(body, "visible_ratio", 1.0, clampf(String(letter[1]).length() * 0.018, 0.8, 4.5))
 		dim.gui_input.connect(func(e: InputEvent) -> void:
 			if (e is InputEventMouseButton and (e as InputEventMouseButton).pressed) or (e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed):
@@ -5272,14 +5311,14 @@ func _open_letter(i: int) -> void:
 				body.visible_ratio = 1.0)
 	var nav := _hbox(10)
 	if i > 0:
-		var older := _button("< OLDER", _open_letter.bind(i - 1), Color("1d3a26"), 20, 80)
+		var older := _button("< OLDER", _open_letter.bind(i - 1, false), Color("1d3a26"), 20, 80)
 		older.custom_minimum_size.x = 150
 		nav.add_child(older)
 	if i >= 0 and i < n - 1:
-		var newer := _button("NEWER >", _open_letter.bind(i + 1), Color("1d3a26"), 20, 80)
+		var newer := _button("NEWER >", _open_letter.bind(i + 1, false), Color("1d3a26"), 20, 80)
 		newer.custom_minimum_size.x = 150
 		nav.add_child(newer)
-	var off := _mark_main(_button("LOG OFF", _close_sheet_sfx, Color("2e6b40"), 24, 88))
+	var off := _mark_main(_button("LOG OFF", _log_off, Color("2e6b40"), 24, 88))
 	off.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nav.add_child(off)
 	v.add_child(nav)
