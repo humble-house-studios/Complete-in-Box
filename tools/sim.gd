@@ -4,6 +4,7 @@ extends SceneTree
 ## Prints lines starting with "SIM" (CI shows them as notices).
 
 const Bot := preload("res://tools/bot.gd")
+const Pro := preload("res://tools/pro_bot.gd")
 const RUNS := 300
 
 
@@ -11,6 +12,7 @@ func _init() -> void:
 	if not OS.get_cmdline_user_args().has("meta"):
 		_sim(false, "SIM")
 		_sim(true, "SIM flip")
+		_pro()
 		quit()
 		return
 	# Estates and tiers: a quicker pass each, to keep them in the same ballpark.
@@ -36,6 +38,22 @@ func _quick(opts: Dictionary, tag: String) -> void:
 		if bool(r["won"]):
 			wins += 1
 	print("%s runs=%d wins=%d avg_ante=%.2f" % [tag, n, wins, float(ante_sum) / n])
+
+
+## The pro bot plays like a sharp human who knows true values: a good player
+## should win a fair share of tier-0 runs (aim: around half for this bot).
+func _pro() -> void:
+	var wins := 0
+	var ante_sum := 0
+	var n := 100
+	for i in n:
+		var run := Run.new()
+		run.start(1000 + i)
+		var r: Dictionary = Pro.new(run, 5 + i).play_run()
+		ante_sum += int(r["ante"])
+		if bool(r["won"]):
+			wins += 1
+	print("SIM pro runs=%d wins=%d (%.0f%%) avg_ante=%.2f" % [n, wins, 100.0 * wins / n, float(ante_sum) / n])
 
 
 func _sim(flip: bool, tag: String) -> void:

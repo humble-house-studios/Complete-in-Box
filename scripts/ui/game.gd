@@ -63,7 +63,9 @@ var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound"
 	# Meta: freed estates (bitmask, Arlo = 1), highest tier unlocked, last picks,
 	# best tier won with each estate (-1 = never won).
 	"estates": 1, "max_tier": 0, "last_estate": 0, "last_tier": 0,
-	"won_arlo": -1, "won_june": -1, "won_dale": -1, "won_rose": -1, "won_hector": -1, "won_twins": -1}
+	"won_arlo": -1, "won_june": -1, "won_dale": -1, "won_rose": -1, "won_hector": -1, "won_twins": -1,
+	# Most of the Buyer's want list filled in one run, and true endings seen.
+	"best_wants": 0, "true_ends": 0}
 const Unlocks := preload("res://scripts/data/unlocks.gd")
 ## What the last win unlocked: {"freed": estate index or -1, "tier": new tier or -1}.
 var _won_news: Dictionary = {}
@@ -1779,6 +1781,9 @@ func _tag_row(item: Dictionary, fs: int = 16) -> HFlowContainer:
 	if v != "Standard":
 		var vc: Color = Catalog.VARIANTS[v]["color"]
 		row.add_child(_pill(Catalog.variant_label(item).to_upper(), vc, fs, DARK_TXT if vc.get_luminance() > 0.45 else INK))
+	if run != null and run.wants(item) and (String(run.want["id"]) != "worth" or run.shows_exact() or not run.find_item(int(item.get("uid", -1))).is_empty()):
+		# (A "worth $X+" request mustn't give away a guess-priced item's value.)
+		row.add_child(_pill("WANTED", Color("c9a227"), fs))
 	return row
 
 
@@ -2932,6 +2937,8 @@ func _records_card() -> Control:
 		h.add_child(_pill("BEST ANTE %d" % int(_save["best_ante"]), Color("c77dff"), 14))
 		h.add_child(_pill("BEST SHELF %s" % _money(int(_save["best_appraisal"])), GOLD, 14))
 		h.add_child(_pill("WINS %d" % int(_save["wins"]), GOOD, 14))
+		if int(_save.get("best_wants", 0)) > 0:
+			h.add_child(_pill("WANTS %d/8" % int(_save["best_wants"]), Color("c9a227"), 14))
 	else:
 		h.add_child(_label("No runs yet. The vault is waiting.", 16, MUTED))
 	h.add_child(_spacer(false))
@@ -3727,6 +3734,7 @@ func _route_tab(col: VBoxContainer) -> void:
 	var td: Dictionary = Unlocks.TIERS[run.tier]
 	tr2.add_child(_pill(String(td["name"]), td["color"], 14))
 	tv.add_child(tr2)
+	tv.add_child(_score_bar())
 	var boss := Venues.boss(run.boss_id)
 	if run.is_boss_stop():
 		tv.add_child(_pill("THE BUYER'S TERMS: " + String(boss["name"]).to_upper(), BAD, 16))
@@ -3734,18 +3742,75 @@ func _route_tab(col: VBoxContainer) -> void:
 	else:
 		tv.add_child(_label("The Buyer's terms this round: %s" % boss["name"], 16, MUTED, true))
 	col.add_child(top)
+	var wp := _want_panel()
+	if wp != null:
+		col.add_child(wp)
 	if run.letters_read > 0:
-		col.add_child(_button("HOME PC  •  %d MESSAGE%s FROM c0mplete_set" % [run.letters_read, "" if run.letters_read == 1 else "S"], _open_letter.bind(run.letters_read - 1), Color("1d3a26"), 18, 72))
+		col.add_child(_button("HOME PC  •  REREAD MAIL (%d)" % run.letters_read, _open_letter.bind(run.letters_read - 1), Color("1d3a26"), 18, 72))
 	_pivot_panel(col)
 	_market_panel(col)
 	_section(col, "WHERE TO?")
 	for id in run.venue_choices:
 		col.add_child(_venue_button(String(id)))
-	if DEV:
+	if DEV and Lite.dev:
 		var dev := _hbox()
 		dev.add_child(_button("DEV +$100", _dev_cash, Color("444055"), 18, 60))
 		dev.add_child(_button("DEV +1 ANTE", _dev_ante, Color("444055"), 18, 60))
 		col.add_child(dev)
+
+
+## Your shelf's score right now against the next target, as a bar.
+func _score_bar() -> Control:
+	var total := int(run.appraise()["total"])
+	var tgt := run.target()
+	var v := _vbox(2)
+	var h := _hbox(6)
+	h.add_child(_label("YOUR SHELF NOW", 15, MUTED))
+	h.add_child(_spacer(false))
+	var ok := total >= tgt
+	h.add_child(_label(("%s  -  clears it" if ok else "%s  -  %s short") % ([_money(total)] if ok else [_money(total), _money(tgt - total)]), 17, GOOD if ok else BAD))
+	v.add_child(h)
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 12)
+	bar.max_value = 1.0
+	bar.value = clampf(float(total) / maxf(1.0, float(tgt)), 0.0, 1.0)
+	bar.add_theme_stylebox_override("background", _box(Color(1, 1, 1, 0.08), 4))
+	bar.add_theme_stylebox_override("fill", _box(GOOD if ok else STICKER, 4))
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(bar)
+	return v
+
+
+## The Buyer's request for this round: what, how far along, and the bonus.
+func _want_panel(compact := false) -> Control:
+	if run == null or run.want.is_empty():
+		return null
+	var done := bool(run.want.get("done", false))
+	var wp := run.want_progress()
+	var col := Color("c9a227")
+	var p := _panel(Color(0.12, 0.09, 0.03, 0.88), Color(col, 0.7), 2)
+	var v := _vbox(2)
+	p.add_child(v)
+	var h := _hbox(8)
+	h.add_child(_pill("WANT LIST %d/%d" % [run.wants_done, Balance.ANTES_TO_WIN], col, 14))
+	h.add_child(_label("FILLED  +%s PAID" % _money(int(run.want["reward"])) if done else "THE BUYER WANTS", 16, GOOD if done else GOLD))
+	h.add_child(_spacer(false))
+	if not done:
+		h.add_child(_title_label("+" + _money(int(run.want["reward"])), 24, GOOD))
+	v.add_child(h)
+	if not done:
+		var have := int(wp[0])
+		var need := int(wp[1])
+		var line := _hbox(8)
+		var t := _label(run.want_text().capitalize() if false else run.want_text(), 20 if not compact else 17, INK, true)
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(t)
+		line.add_child(_pill("%d/%d" % [have, need], GOOD if have >= need else Color("6b6380"), 16, DARK_TXT if have >= need else INK))
+		v.add_child(line)
+		if not compact:
+			v.add_child(_label("On your shelf at any appraisal this round. Fill all eight in one run for the true ending." if have < need else "Ready! Pass the next appraisal to collect.", 15, MUTED, true))
+	return p
 
 
 func _perks_tab(col: VBoxContainer, w: float) -> void:
@@ -4372,6 +4437,9 @@ func _build_venue() -> void:
 	if run.is_boss_stop():
 		var boss := Venues.boss(run.boss_id)
 		main.add_child(_label("BOSS %s: %s" % [String(boss["name"]).to_upper(), boss["desc"]], 16, BAD, true))
+	var wpan := _want_panel(true)
+	if wpan != null and not bool(run.want.get("done", false)):
+		main.add_child(wpan)
 	var look := _button("LOOK AROUND THE %s" % ("ROOM" if not is_landscape() else "VENUE"), _set_room_view.bind(true), Color("2f5d7a"), 18, 64 if is_landscape() else 72)
 	if is_landscape() and _land_center != null and is_instance_valid(_land_center) and _land_center.is_inside_tree():
 		_land_center.add_child(look)
@@ -4597,7 +4665,9 @@ func _open_shelf_item(uid: int, state: String) -> void:
 		if run.sell_rate() > 0.0:
 			actions.append(["Sell for %s (%s)" % [_money(run.sell_price(item)), _signed(run.flip_now(item))], func(): _act(run.sell(uid), "coin"), GOOD])
 		if run.can_list():
-			actions.append(["List for auction", func(): _act(run.list_item(uid), "tick"), Color("4fd9a0")])
+			var lr := run.list_range(item)
+			lines.append(["Listing: sells when you leave for about %s-%s after fees. Until then it doesn't count toward this appraisal." % [_money(int(lr[0])), _money(int(lr[1]))], MUTED])
+			actions.append(["List it (~%s-%s)" % [_money(int(lr[0])), _money(int(lr[1]))], func(): _act(run.list_item(uid), "tick"), Color("4fd9a0")])
 		if run.can_repair() and item["cond"] == "Damaged":
 			actions.append(["Repair for %s" % _money(run.repair_cost(item)), func(): _act(run.repair(uid), "haggle"), PANEL_HI])
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
@@ -4647,10 +4717,20 @@ func _pivot_panel(col: VBoxContainer) -> void:
 	v.add_child(_title_label(String(lines[to][0]), 30, m["color"]))
 	v.add_child(_label(String(lines[to][1]), 18, INK, true))
 	v.add_child(_label("Flip now: sell your whole shelf for %s (%d%% of value), get %d starter pieces and +%d Time at your next stop. Your perks stay. There's no going back." % [_money(run.pivot_value()), int(Balance.PIVOT_RATE * 100), Balance.PIVOT_STARTERS, Balance.PIVOT_TIME], 17, MUTED, true))
-	var b := _button("FLIP EVERYTHING INTO %s  >" % String(m["short"]), func(): _do_pivot(to), Color(m["color"]).darkened(0.35), 22, 88)
+	var b := _button("FLIP EVERYTHING INTO %s  >" % String(m["short"]), func(): _confirm_pivot(to), Color(m["color"]).darkened(0.35), 22, 88)
 	v.add_child(b)
 	v.add_child(_label("Or ignore this and head out: you'll stay in %s." % String(Catalog.MARKETS[run.market]["name"]).to_lower(), 16, MUTED, true))
 	col.add_child(p)
+
+
+## No going back from a market flip, so say exactly what it costs first.
+func _confirm_pivot(to: String) -> void:
+	var m: Dictionary = Catalog.MARKETS[to]
+	var total := int(run.appraise()["total"])
+	_open_sheet("Flip into %s?" % String(m["name"]).to_lower(), [
+		["Sell all %d items for %s cash. Your shelf scores %s right now; you'll restart it with %d starter pieces." % [run.shelf.size() + run.grading.size(), _money(run.pivot_value()), _money(total), Balance.PIVOT_STARTERS], INK],
+		["Next target: %s. Perks stay. There's no going back." % _money(run.target()), BAD if run.pivot_value() < run.target() else MUTED],
+	], [["FLIP IT ALL", func(): _do_pivot(to), m["color"]]])
 
 
 func _do_pivot(to: String) -> void:
@@ -4679,6 +4759,9 @@ func finish_stop() -> void:
 	if int(res["appraisal"]["total"]) > int(_save["best_appraisal"]):
 		_save["best_appraisal"] = int(res["appraisal"]["total"])
 	_save["best_ante"] = maxi(int(_save["best_ante"]), run.ante)
+	_save["best_wants"] = maxi(int(_save.get("best_wants", 0)), run.wants_done)
+	if run.phase == Run.Phase.WON and run.wants_done >= Balance.ANTES_TO_WIN:
+		_save["true_ends"] = int(_save.get("true_ends", 0)) + 1
 	if run.phase == Run.Phase.WON:
 		_save["wins"] = int(_save["wins"]) + 1
 		_record_win()
@@ -4831,6 +4914,12 @@ func _play_appraisal(res: Dictionary) -> void:
 		var r: Dictionary = res["rewards"]
 		cv.add_child(_label(Flavor.pick(Flavor.PASS, run.ante * 3 + run.stop), 20, FLAVOR_C, true))
 		cv.add_child(_payday(r))
+		if r.has("want"):
+			# The Buyer's request: a gold stamp and a chime on top of the payday.
+			await _wait(0.35)
+			_sfx.play("mult", 1.4)
+			_toast_msg("WANT LIST %d/%d  •  The Buyer is pleased. +%s" % [run.wants_done, Balance.ANTES_TO_WIN, _money(int(r["want"]))], GOLD)
+			_flash(layer, Color("c9a227"))
 		var label := "CONTINUE"
 		if run.phase == Run.Phase.WON:
 			label = "YOU WON. SEE RESULTS"
@@ -4857,7 +4946,10 @@ func _payday(r: Dictionary) -> Control:
 	h.add_child(_spacer(false))
 	h.add_child(_title_label("+" + _money(int(r["total"])), 34, GOOD))
 	v.add_child(h)
-	for row in [["Stop pay", r["base"]], ["Interest (on cash you saved)", r["interest"]], ["Leftover Time", r["time"]]]:
+	var rows: Array = [["Stop pay", r["base"]], ["Interest (on cash you saved)", r["interest"]], ["Leftover Time", r["time"]]]
+	if r.has("want"):
+		rows.append(["Buyer's request filled! (%d/%d)" % [run.wants_done, Balance.ANTES_TO_WIN], r["want"]])
+	for row in rows:
 		var rh := _hbox(8)
 		rh.add_child(_label(String(row[0]), 18, INK))
 		rh.add_child(_spacer(false))
@@ -5283,6 +5375,7 @@ func _log_off() -> void:
 	var scr := _letter_scr
 	if fast or scr == null or not is_instance_valid(scr):
 		_close_sheet()
+		request_refresh()
 		return
 	scr.pivot_offset = scr.size * 0.5
 	var tw := scr.create_tween()
@@ -5293,6 +5386,7 @@ func _log_off() -> void:
 	# Only close if this letter is still the open sheet.
 	if is_instance_valid(scr) and sheet_open() and _sheet.is_ancestor_of(scr):
 		_close_sheet()
+	request_refresh()
 
 
 ## The home computer: a green CRT panel.
@@ -5331,8 +5425,14 @@ func _open_letter(i: int, boot := true) -> void:
 	if _pad:
 		_pad_focus.call_deferred(0)
 	var letter: Array = Flavor.EPILOGUE if i < 0 else Flavor.LETTERS[clampi(i, 0, Flavor.LETTERS.size() - 1)]
+	if i < 0 and run != null and run.wants_done >= Balance.ANTES_TO_WIN:
+		letter = Flavor.TRUE_EPILOGUE
 	if i == 0 and run != null and run.estate_id != "arlo":
 		letter = ["re: the %s estate" % String(Unlocks.estate(run.estate_id)["short"]).capitalize(), String(Unlocks.estate(run.estate_id)["letter"])]
+	letter = letter.duplicate()
+	if i >= 0 and run != null and i == run.ante - 1 and not run.want.is_empty() and run.phase == Run.Phase.HOME:
+		# This round's request rides along at the bottom of the letter.
+		letter[1] = String(letter[1]) + "\n\nP.S. %s\nWANTED: %s. Have it on your shelf at any appraisal this round: +$%d." % [run.want_note(), run.want_text().to_upper(), int(run.want["reward"])]
 	var dim := ColorRect.new()
 	dim.color = Color(0.0, 0.01, 0.0, 0.84)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -5421,6 +5521,7 @@ func _build_over() -> void:
 	var first := int(_save.get("sealed", 0)) <= 1
 	var sub := _label("You came up short. Now you know what the Buyer collects." if first else "You came up short. The Buyer adds you to the collection.", 20, FLAVOR_C, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ink_outline(sub)
 	col.add_child(sub)
 	if not land:
 		var gap := _stage_gap(160)
@@ -5431,6 +5532,14 @@ func _build_over() -> void:
 	gr.add_child(_pill("GRADE  " + String(cg["grade"]), GOLD, 26))
 	gr.add_child(_pill(String(cg["cond"]), CURSE_C, 26, INK))
 	col.add_child(gr)
+	var tip := _loss_tip()
+	if tip != "":
+		var tp := _panel(Color(0.1, 0.03, 0.04, 0.9), Color(CURSE_C, 0.6), 2)
+		var tv := _vbox(2)
+		tp.add_child(tv)
+		tv.add_child(_label("NEXT TIME", 16, CURSE_C))
+		tv.add_child(_label(tip, 18, INK, true))
+		col.add_child(tp)
 	_end_stats(col)
 	_wall_pick_button(col)
 	col.add_child(_mark_main(_button("NEW RUN", start_new_run, STICKER, 32, 104 if not land else 88)))
@@ -5464,17 +5573,53 @@ func _build_won() -> void:
 	col.add_child(t)
 	var sub := _label("You beat all %d antes. The debt is paid. A new message is waiting on the computer..." % Balance.ANTES_TO_WIN, 22 if not land else 19, INK, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ink_outline(sub)
 	col.add_child(sub)
 	if not land:
 		var gap := _stage_gap(160)
 		gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		col.add_child(gap)
+	if run.wants_done >= Balance.ANTES_TO_WIN:
+		var te := _pill("WANT LIST COMPLETE  •  TRUE ENDING", Color("c9a227"), 22)
+		te.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(te)
+	else:
+		var hint := _label("Want list %d/%d. Fill every request in one run to see what the Buyer really wants." % [run.wants_done, Balance.ANTES_TO_WIN], 18, FLAVOR_C, true)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_ink_outline(hint)
+		col.add_child(hint)
 	_won_unlocks(col)
 	_end_stats(col)
 	col.add_child(_button("READ THE NEW MESSAGE", _open_letter.bind(-1), Color("1d3a26"), 22, 88 if not land else 72))
 	_wall_pick_button(col)
 	col.add_child(_button("KEEP GOING (ENDLESS)", _go_endless, STICKER, 28, 100 if not land else 80))
 	col.add_child(_button("NEW RUN", _on_new_run, PANEL_HI, 24, 88 if not land else 72))
+
+
+## A dark outline so a line stays readable over the 3D room.
+func _ink_outline(l: Label) -> void:
+	l.add_theme_constant_override("outline_size", 8)
+	l.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.05, 0.95))
+
+
+## One concrete lesson from how this run ended.
+func _loss_tip() -> String:
+	var ap: Dictionary = run.last_appraisal
+	var chips := int(ap.get("chips", 0))
+	var mult := float(ap.get("mult", 1.0))
+	var need := run.target()
+	var empty := run.shelf_cap - run.slots_used()
+	if run.cash >= need / 4 and run.cash >= 30:
+		return "You walked out with %s in your wallet. Cash doesn't score: only what's on the shelf does. Spend it before the appraisal." % _money(run.cash)
+	if empty >= 3:
+		return "%d empty shelf slots at the appraisal. Even cheap finds add chips: fill every slot." % empty
+	if mult < 1.6:
+		return "Your Mult was only x%s. Put 3+ items from one console on the shelf for a Set, add a console + game + accessory for x1.5, and buy Mult perks." % str(mult)
+	if run.perks.size() < 2:
+		return "Only %d perk%s. Perks are the engine: buy them at Home between stops." % [run.perks.size(), "" if run.perks.size() == 1 else "s"]
+	if run.is_boss_stop():
+		return "The Buyer's terms bit hardest at the Online stop. Check THE BUYER'S TERMS on the route card and plan for it a stop early."
+	return "Chips %s x Mult %s fell short of %s. Swap your cheapest pieces for better ones at the Hunt, where prices are guesses." % [_money(chips), str(mult), _money(need)]
 
 
 func _go_endless() -> void:
@@ -5492,6 +5637,7 @@ func _end_stats(parent: Container = null) -> void:
 		["Estate", "%s  •  %s" % [Unlocks.estate(run.estate_id)["name"], Unlocks.TIERS[run.tier]["name"]]],
 		["Reached", "Ante %d, stop %d" % [run.ante, run.stop + 1]],
 		["Best shelf score", _money(int(s["best_appraisal"]))],
+		["Buyer's want list", "%d / %d filled" % [run.wants_done, Balance.ANTES_TO_WIN]],
 		["Cash in wallet", _money(run.cash)],
 		["Items bought / sold", "%d / %d" % [s["bought"], s["sold"]]],
 		["Flip profit", _money(int(s["profit"]))],

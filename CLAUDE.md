@@ -28,6 +28,15 @@ the sheet is on the floor and your last sealed self is inside (save keys `sealed
 `seal_grade`, `seal_cond`, `seal_ante`, `seal_lot`; `_vault_info`). The guide's PAY THE
 APPRAISER page uses its `secret` lines until then.
 
+## The Buyer's want list
+One request per ante (`Run.want`, `_roll_want`, kinds per market in `Run.WANT_KINDS`:
+N pieces of a platform, console + game, Mint/Sealed, Rare+, graded, accessories, packs,
+shiny, gold, one piece worth $X). Shown as a P.S. on that ante's letter, `_want_panel`
+on the route and in venues, WANTED pills on matching items (`Run.wants`). On the shelf
+at any passed appraisal that ante = `rewards["want"]` cash (PAYDAY row + gold toast).
+All 8 in one run (`Run.wants_done`) = true ending (`Flavor.TRUE_EPILOGUE`); save keys
+`best_wants`, `true_ends`. The first ante's Buyer's terms skip picky / skeptic.
+
 ## Replay: estates, grade tiers, binder rewards
 All data in `scripts/data/unlocks.gd` (no class_name, preload as `Unlocks`).
 - ESTATES = starting decks (Arlo, Aunt June, Cousin Dale, Grandma Rose, Uncle Hector,
@@ -315,8 +324,13 @@ The web build in Safari is the test for every platform.
 - Tests: `godot --headless -s addons/gut/gut_cmdln.gd` (run in CI before every
   build; a failing test or script error blocks the deploy).
 - Balance: `godot --headless -s res://tools/sim.gd` — a greedy bot plays 300
-  runs and prints where they die. CI shows it as a notice. A good human should
-  beat the bot comfortably.
+  runs and prints where they die, then `tools/pro_bot.gd` (true values, swaps,
+  lists, grades, picks perks) plays 100 ("SIM pro", aim ~50-60% wins at tier 0).
+  CI shows it as a notice. A good human should beat the greedy bot comfortably.
+- Play it yourself from the shell: `tools/play_driver.gd` (xvfb, real 3D) reads
+  commands from DIR/cmd.txt (tap TEXT, list, shot NAME, state, eval EXPR, bot N to
+  fast-forward with the pro bot) and writes DIR/out.txt + screenshots.
+- DEV buttons at Home only show with `?dev=1` on the page address (`Lite.dev`).
 - Screenshots: `xvfb-run -a -s "-screen 0 1280x1280x24" godot --rendering-driver opengl3 -s res://tools/screenshot.gd -- OUT_DIR [landscape]`.
   Use these to check the look after any visual change.
 - After each change: push to `main`, wait for the build to pass (fix it if it

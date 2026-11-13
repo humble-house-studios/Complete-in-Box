@@ -14,6 +14,8 @@ static var nocrt := false
 static var perf := false
 ## Shows an FPS / last-input readout (TV app, or ?debug=1).
 static var debug := false
+## Dev buttons at Home (+$100, +1 ante): ?dev=1 on the web, always off in apps.
+static var dev := false
 static var _ready := false
 
 
@@ -34,6 +36,7 @@ static func init() -> void:
 	nocrt = lite or q.contains("nocrt=1")
 	perf = perf or lite or q.contains("perf=1")
 	debug = q.contains("debug=1")
+	dev = q.contains("dev=1")
 
 
 ## Graphics setting from the title screen: 0 full, 1 fast, 2 lite.

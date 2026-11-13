@@ -13,6 +13,28 @@ const COND := {
 	"Sealed": ["Factory sealed. Seams intact.", "Still in the shrink wrap.", "Sealed. The price sticker's from 1997.", "Never opened. Never will be."],
 }
 
+## Hardware and disc games get their own notes (no "blow in the cart" on a mouse).
+const HW_COND := {
+	"console": {
+		"Damaged": ["Yellowed. Something rattles inside.", "Powers on if you slap it.", "Missing the flap over the ports.", "Smells like a burnt fuse."],
+		"Loose": ["Just the unit. No cables.", "Works. Mostly. Fan's loud.", "Console only, a few scuffs.", "Sticker residue on the lid."],
+		"CIB": ["Box, styrofoam, cables, the lot.", "Complete with the little warranty card.", "In the box it came in. Corners soft."],
+		"Mint": ["Barely used. Cables still twist-tied.", "Like it came out of a display case."],
+		"Sealed": ["Factory sealed. Never plugged in.", "Still in the shrink wrap. Heavy."],
+	},
+	"acc": {
+		"Damaged": ["Cable chewed by a dog.", "Stick drifts left. Always left.", "Sticky buttons. Don't ask."],
+		"Loose": ["Just the accessory. Cable's tangled.", "No box. Works fine.", "Loose but clean.", "Name on a sticker on the back."],
+		"CIB": ["In the box with the little manual.", "Complete with the twist tie.", "Boxed. Card insert intact."],
+		"Mint": ["Barely touched. Still shiny.", "Looks like it never got plugged in."],
+		"Sealed": ["Still on the blister card.", "Sealed. The price sticker's from 1997."],
+	},
+	"disc": {
+		"Damaged": ["Scratched like a vinyl record.", "Cracked case. Disc looks okay. Ish.", "Someone used it as a coaster."],
+		"Loose": ["Just the disc. Light scratches.", "Disc only, in a paper sleeve.", "Loose disc, resurfaced once."],
+	},
+}
+
 const TIER := [
 	"",
 	"Collectors nod at this one.",
@@ -104,6 +126,22 @@ const LETTERS := [
 	["one empty slot", "There's a case in my vault with one empty slot. Velvet. A little gold plaque. It's been empty since Arlo stopped answering my messages.\n\nDo you know what goes in it?"],
 	["the final appraisal", "Clear this ante and the debt is paid. I promise. Arlo promised too, back when he had my job.\n\nYou see, I never died. I just got graded. 9.8, still in the plastic. And every set needs someone to keep it complete.\n\n- your uncle"],
 ]
+## The Buyer's want list: a note for each kind of request (P.S. in the letter).
+const WANT_NOTES := {
+	"plat": ["My set has a gap on that shelf. Fill it.", "Arlo always found these. Let's see if it runs in the family.", "I'm short a few for that console. Don't make me wait."],
+	"setup": ["A console with nothing to play is a doorstop. A game with no console is a coaster. Bring me both.", "I want the whole picture: machine and cartridge, together, the way they were sold."],
+	"mint": ["Untouched. Unopened. The way I like my collectors.", "Something nobody ever played. There's a purity in that."],
+	"rare": ["Bring me something people lie awake about.", "The common stuff I have. Twelve of each. Find me a real one."],
+	"graded": ["Slab it. Number it. A thing isn't real until it's graded.", "I want a grade on it. Everything gets a grade eventually."],
+	"acc": ["The little things. Cables, pads, the bits everyone throws away.", "Nobody keeps the accessories. That's why I want them."],
+	"pack": ["Sealed. Unsearched. Whatever is in there stays in there.", "Bring me a pack nobody's opened. I like a mystery that stays one."],
+	"shiny": ["Something that catches the light. Like a fresh slab.", "Holo. First edition. Something that shines."],
+	"gold": ["Gold doesn't tarnish. Neither do I.", "Bring me gold. It keeps. So do the things I keep."],
+	"worth": ["One serious piece. Show me you're not just shuffling junk.", "Quality over quantity. One piece. Make it count."],
+}
+## True ending: every request filled in one run. The Buyer's set is complete.
+const TRUE_EPILOGUE := ["the complete set", "You filled every line on my want list. Every one. Arlo never managed that. Nobody did.\n\nThe set is complete. I don't need a keeper anymore.\n\nThe vault door is open. The cases are unlocking one by one. I can hear them breathing.\n\nThank you. Leave the plastic on the shelf. You won't need it.\n\n- Arlo"]
+
 ## After the last ante: the debt is "paid".
 const EPILOGUE := ["welcome to the hobby", "Debt cleared. Congratulations.\n\nI've forwarded you the mailing list. Somebody out there just inherited a shelf. Write to them soon. Be kind. At first."]
 
@@ -120,7 +158,14 @@ static func cond_line(item: Dictionary) -> String:
 	var kc: Dictionary = CC_COND.get(String(item.get("kind", "")), {})
 	if not kc.is_empty():
 		return pick(kc.get(String(item.get("cond", "Loose")), kc["Loose"]), str(item.get("uid", item.get("id", ""))) + String(item.get("cond", "")))
-	return pick(COND.get(String(item.get("cond", "Loose")), COND["Loose"]), str(item.get("uid", item.get("id", ""))) + String(item.get("cond", "")))
+	var cond := String(item.get("cond", "Loose"))
+	var key := str(item.get("uid", item.get("id", ""))) + cond
+	var kind := String(item.get("kind", "game"))
+	if HW_COND.has(kind):
+		return pick(HW_COND[kind].get(cond, HW_COND[kind]["Loose"]), key)
+	if (item.get("tags", []) as Array).has("disc") and HW_COND["disc"].has(cond):
+		return pick(HW_COND["disc"][cond], key)
+	return pick(COND.get(cond, COND["Loose"]), key)
 
 
 static func tier_line(item: Dictionary) -> String:

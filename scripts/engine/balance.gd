@@ -4,7 +4,7 @@ extends RefCounted
 
 const ANTES_TO_WIN := 8
 ## Appraisal target for stop 1 of each ante; later stops multiply it.
-const ANTE_TARGET := [30, 70, 160, 350, 750, 1600, 3400, 7000]
+const ANTE_TARGET := [30, 70, 150, 320, 650, 1300, 2600, 5000]
 const ENDLESS_GROWTH := 2.2
 const STOP_TARGET_MULT := [1.0, 1.4, 1.8]
 

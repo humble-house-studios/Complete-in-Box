@@ -524,3 +524,53 @@ func test_binder_rewards_and_new_perks() -> void:
 	var plain := int(r.appraise()["total"])
 	r.perks.append("dust_sheet")
 	assert_gt(int(r.appraise()["total"]), plain)
+
+
+# ---------------------------------------------------------------- want list
+
+func test_want_list_rolls_every_ante_and_pays_once() -> void:
+	var r := _new_run(7)
+	assert_false(r.want.is_empty(), "a request on day one")
+	assert_ne(r.want_text(), "")
+	# Force a request we can fill with a known item.
+	r.want = {"id": "mint", "plat": "", "n": 1, "worth": 0, "done": false, "ante": 1, "reward": 9}
+	assert_eq(int(r.want_progress()[0]), 0)
+	r.shelf.append(_item(r, "fes_zeldo", "Sealed"))
+	assert_eq(int(r.want_progress()[0]), 1)
+	assert_true(r.wants(r.shelf[-1]))
+	r.enter_venue(String(r.venue_choices[0]))
+	var cash := r.cash
+	var res := r.end_stop()
+	assert_true(bool(res["passed"]))
+	assert_eq(int(res["rewards"].get("want", 0)), 9)
+	assert_eq(r.wants_done, 1)
+	assert_true(bool(r.want["done"]))
+	assert_gt(r.cash, cash)
+	# A filled request doesn't pay twice.
+	r.advance()
+	r.enter_venue(String(r.venue_choices[0]))
+	var res2 := r.end_stop()
+	assert_false(res2["rewards"].has("want"))
+
+
+func test_every_want_kind_has_text_and_a_note() -> void:
+	var r := _new_run(3)
+	for m in Run.WANT_KINDS:
+		for k in Run.WANT_KINDS[m]:
+			r.want = {"id": k, "plat": "FES", "n": 2, "worth": 50, "done": false, "ante": 1, "reward": 5}
+			assert_ne(r.want_text(), "", k)
+			assert_true(Flavor.WANT_NOTES.has(k), "note for " + k)
+	# A new ante brings a new request.
+	r.want = {}
+	r.ante = 1
+	r.stop = 2
+	r.phase = Run.Phase.APPRAISAL
+	r.advance()
+	assert_false(r.want.is_empty())
+	assert_eq(int(r.want["ante"]), 2)
+
+
+func test_first_round_terms_are_mild() -> void:
+	for s in 40:
+		var r := _new_run(100 + s)
+		assert_false(["picky", "skeptic"].has(r.boss_id), "ante 1 boss %s" % r.boss_id)

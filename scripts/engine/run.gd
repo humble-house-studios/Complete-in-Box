@@ -62,6 +62,11 @@ var lots: Array = []  # {items, price, peek, bought}
 var auctions: Array = []  # {item, bid, rival, my_max, won}
 
 var last_appraisal: Dictionary = {}
+## The Buyer's want list: one request per ante ({id, plat, n, reward, done}).
+## Fill it at any appraisal this ante for a bonus; fill all eight in one run
+## for the true ending. wants_done counts the filled ones.
+var want: Dictionary = {}
+var wants_done: int = 0
 ## Collector's Curse: how many of the Buyer's letters you've opened (one per ante).
 var letters_read: int = 0
 ## Meta progression: which estate you inherited, the grade tier (0..4, each
@@ -110,6 +115,7 @@ func start(p_seed: int = 0, opts: Dictionary = {}) -> void:
 	rumor = _random_platform()
 	_roll_trends()
 	_roll_boss()
+	_roll_want()
 	_prepare_home()
 
 
@@ -245,7 +251,12 @@ func _random_platform(exclude: Array = []) -> String:
 
 
 func _roll_boss() -> void:
-	boss_id = String(Venues.BOSSES[rng.randi_range(0, Venues.BOSSES.size() - 1)]["id"])
+	# The first round's terms are mild: the ones that cut your score wait.
+	var opts: Array = []
+	for b in Venues.BOSSES:
+		if ante > 1 or not ["picky", "skeptic"].has(String(b["id"])):
+			opts.append(String(b["id"]))
+	boss_id = String(opts[rng.randi_range(0, opts.size() - 1)])
 
 
 # ================================================================ rolling stock
@@ -578,6 +589,7 @@ func pivot(to: String) -> Dictionary:
 	_pick_active_platforms()
 	rumor = _random_platform()
 	_roll_trends()
+	_roll_want()
 	var starters: Array = []
 	for i in Balance.PIVOT_STARTERS:
 		var it := make_item(_pick_def(1 if i == 0 else 0), "CIB" if i == 0 else "Loose")
@@ -936,6 +948,21 @@ func list_item(uid: int) -> Dictionary:
 	return _ok("Listed %s. Sells when the stop ends." % item["name"])
 
 
+## What a listing of this item should net you here: [low, high] after fees.
+func list_range(item: Dictionary) -> Array:
+	var listed: Array = venue.get("list", [0.6, 1.5])
+	var fee := float(venue.get("fee", 0.13))
+	if boss_active("fees"):
+		fee = 0.25
+	var m := float(market_value(item))
+	if has_perk("power_seller"):
+		fee = 0.0
+		m *= 1.15
+	if boss_active("lowball"):
+		m *= 0.6
+	return [maxi(1, int(round(m * float(listed[0]) * (1.0 - fee)))), maxi(1, int(round(m * float(listed[1]) * (1.0 - fee))))]
+
+
 func unlist(uid: int) -> Dictionary:
 	for i in listings.size():
 		if int(listings[i]["uid"]) == uid:
@@ -1101,6 +1128,12 @@ func end_stop() -> Dictionary:
 		var base := int(Balance.STOP_REWARD[stop]) + ante
 		var tl := time_left * Balance.TIME_LEFT_REWARD
 		rewards = {"base": base, "interest": interest, "time": tl, "total": base + interest + tl}
+		var wp := want_progress()
+		if not want.is_empty() and not bool(want["done"]) and int(wp[0]) >= int(wp[1]):
+			want["done"] = true
+			wants_done += 1
+			rewards["want"] = int(want["reward"])
+			rewards["total"] = int(rewards["total"]) + int(want["reward"])
 		cash += int(rewards["total"])
 		for it in shelf:
 			it["held"] = int(it["held"]) + 1
@@ -1131,6 +1164,7 @@ func advance() -> void:
 		stop = 0
 		ante += 1
 		_roll_boss()
+		_roll_want()
 	_roll_trends()
 	_prepare_home()
 
@@ -1274,6 +1308,110 @@ func appraise() -> Dictionary:
 func _perk_add(bonuses: Array, id: String, amount: float, label: String) -> void:
 	if has_perk(id) and amount > 0.0:
 		bonuses.append({"label": label, "add": snappedf(amount, 0.01), "times": 1.0})
+
+
+# ================================================================ the want list
+
+const WANT_KINDS := {
+	"games": ["plat", "plat", "setup", "mint", "rare", "graded", "acc", "worth"],
+	"cards": ["plat", "plat", "pack", "mint", "rare", "graded", "shiny", "worth"],
+	"coins": ["plat", "plat", "mint", "rare", "graded", "gold", "worth"],
+}
+
+
+## A new request from the Buyer for this ante, picked to be doable but not free.
+func _roll_want() -> void:
+	var kinds: Array = WANT_KINDS.get(market, WANT_KINDS["games"])
+	var k := String(kinds[rng.randi_range(0, kinds.size() - 1)])
+	if ante <= 1 and (k == "graded" or k == "rare"):
+		k = "plat"
+	var w := {"id": k, "plat": "", "n": 1, "worth": 0, "done": false, "ante": ante}
+	match k:
+		"plat":
+			# Lean towards a platform you already own a piece of.
+			var owned: Array = []
+			for it in shelf:
+				var p := String(it["plat"])
+				if is_active_plat(p) and not WILDCARD_PLATS.has(p) and not owned.has(p):
+					owned.append(p)
+			w["plat"] = String(owned[rng.randi_range(0, owned.size() - 1)]) if not owned.is_empty() and rng.randf() < 0.6 else _random_platform(WILDCARD_PLATS)
+			w["n"] = clampi(2 + ante / 3, 2, 4)
+		"mint":
+			w["n"] = 1 if ante < 4 else 2
+		"acc":
+			w["n"] = 2 if ante < 5 else 3
+		"worth":
+			w["worth"] = maxi(20, int(round(target() * 0.22 / 5.0)) * 5)
+	w["reward"] = 4 + ante * 3
+	want = w
+
+
+## [have, need] for the current request on this shelf.
+func want_progress() -> Array:
+	if want.is_empty():
+		return [0, 1]
+	var have := 0
+	var need := int(want.get("n", 1))
+	match String(want["id"]):
+		"setup":
+			var kinds := {}
+			for it in shelf:
+				var p := String(it["plat"])
+				if not kinds.has(p):
+					kinds[p] = {}
+				kinds[p][String(it["kind"])] = true
+			for p in kinds:
+				var kk: Dictionary = kinds[p]
+				have = maxi(have, int(kk.has("console")) + int(kk.has("game")))
+			need = 2
+		_:
+			for it in shelf:
+				if wants(it):
+					have += 1
+	return [mini(have, need), need]
+
+
+## True when this item counts towards the Buyer's request.
+func wants(item: Dictionary) -> bool:
+	if want.is_empty() or bool(want.get("done", false)):
+		return false
+	var cond := String(item.get("cond", ""))
+	match String(want["id"]):
+		"plat": return String(item["plat"]) == String(want["plat"])
+		"setup": return String(item["kind"]) == "console" or String(item["kind"]) == "game"
+		"mint": return cond == "Mint" or cond == "Sealed"
+		"rare": return int(item["tier"]) >= 2
+		"graded": return int(item.get("grade", 0)) > 0
+		"acc": return String(item["kind"]) == "acc"
+		"pack": return String(item["kind"]) == "pack"
+		"shiny": return ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless"].has(String(item.get("variant", "")))
+		"gold": return String(Catalog.get_def(String(item["id"])).get("metal", "")) == "gold"
+		"worth": return market_value(item) >= int(want["worth"])
+	return false
+
+
+## What the Buyer is asking for, in a few words.
+func want_text() -> String:
+	if want.is_empty():
+		return ""
+	var n := int(want.get("n", 1))
+	match String(want["id"]):
+		"plat": return "%d %s pieces" % [n, Catalog.platform(String(want["plat"]))["short"]]
+		"setup": return "a console + a game for it"
+		"mint": return ("something Mint or Sealed" if n == 1 else "%d Mint or Sealed pieces" % n)
+		"rare": return "anything Rare or better"
+		"graded": return "a graded slab"
+		"acc": return "%d accessories" % n
+		"pack": return "a sealed pack or box"
+		"shiny": return "a shiny card (holo / 1st Ed.)"
+		"gold": return "a gold coin"
+		"worth": return "one piece worth $%d+" % int(want["worth"])
+	return ""
+
+
+## The Buyer's note that goes with the request (story flavour).
+func want_note() -> String:
+	return Flavor.pick(Flavor.WANT_NOTES.get(String(want.get("id", "")), Flavor.WANT_NOTES["plat"]), seed_value + ante)
 
 
 # ================================================================ the curse
