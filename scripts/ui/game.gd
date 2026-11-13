@@ -59,7 +59,14 @@ var _refresh_queued := false
 var _busy := false
 var _skip := false
 var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound": 1, "guide_off": 0, "gfx": -1,
-	"sealed": 0, "seal_grade": 0, "seal_cond": 0, "seal_ante": 0, "seal_lot": 0}
+	"sealed": 0, "seal_grade": 0, "seal_cond": 0, "seal_ante": 0, "seal_lot": 0,
+	# Meta: freed estates (bitmask, Arlo = 1), highest tier unlocked, last picks,
+	# best tier won with each estate (-1 = never won).
+	"estates": 1, "max_tier": 0, "last_estate": 0, "last_tier": 0,
+	"won_arlo": -1, "won_june": -1, "won_dale": -1, "won_rose": -1, "won_hector": -1, "won_twins": -1}
+const Unlocks := preload("res://scripts/data/unlocks.gd")
+## What the last win unlocked: {"freed": estate index or -1, "tier": new tier or -1}.
+var _won_news: Dictionary = {}
 const SEAL_CONDS := ["DAMAGED", "LOOSE", "COMPLETE IN BOX", "MINT"]
 var _stage: Stage
 var _gap: Control
@@ -3160,6 +3167,13 @@ func _show_how_to() -> void:
 
 ## NEW RUN on the title: the quick guide first (until they turn it off).
 func _on_new_run() -> void:
+	if int(_save["estates"]) > 1 or int(_save["max_tier"]) > 0:
+		_open_estates()
+		return
+	_guide_then_start()
+
+
+func _guide_then_start() -> void:
 	if int(_save.get("guide_off", 0)) == 1:
 		start_new_run()
 	else:
@@ -3544,7 +3558,8 @@ func _guide_bar(name: String, fill: float, amount: String, col: Color) -> Contro
 # ================================================================ run flow
 
 func start_new_run(seed_value: int = 0) -> void:
-	_transition(_start_new_run.bind(seed_value), "OPENING UP THE GARAGE", "Uncle Arlo's house. His shelf. His debt.")
+	var est: Dictionary = Unlocks.ESTATES[_pick_estate()]
+	_transition(_start_new_run.bind(seed_value), "OPENING UP THE GARAGE", String(est["loading"]))
 
 
 func _start_new_run(seed_value: int) -> void:
@@ -3552,7 +3567,7 @@ func _start_new_run(seed_value: int) -> void:
 	_dest = ""
 	_scroll_mem.clear()
 	run = Run.new()
-	run.start(seed_value)
+	run.start(seed_value, _run_opts())
 	_wall_picked = false
 	_view_run = false
 	_paused_screen = ""
@@ -3668,6 +3683,12 @@ func _route_tab(col: VBoxContainer) -> void:
 	tr.add_child(_label("target", 16, MUTED))
 	tr.add_child(_title_label(_money(run.target()), 30, INK))
 	tv.add_child(tr)
+	var est := Unlocks.estate(run.estate_id)
+	var tr2 := _hbox(6)
+	tr2.add_child(_pill(String(est["short"]) + "'S ESTATE", Color("3a3150"), 14, INK))
+	var td: Dictionary = Unlocks.TIERS[run.tier]
+	tr2.add_child(_pill(String(td["name"]), td["color"], 14))
+	tv.add_child(tr2)
 	var boss := Venues.boss(run.boss_id)
 	if run.is_boss_stop():
 		tv.add_child(_pill("THE BUYER'S TERMS: " + String(boss["name"]).to_upper(), BAD, 16))
@@ -3823,7 +3844,7 @@ const PERK_CAT_OF := {
 	"price_guide": "hunt", "silver_tongue": "hunt", "early_bird": "hunt", "eagle_eye": "hunt", "lucky_lots": "hunt", "coupon": "hunt",
 	"piggy_bank": "money", "flipper": "money", "power_seller": "money", "sticker_gun": "money",
 	"extra_hour": "time", "moms_basement": "time", "time_capsule": "time",
-	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market",
+	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market", "slab_fan": "market",
 }
 
 
@@ -4542,6 +4563,7 @@ func finish_stop() -> void:
 	_save["best_ante"] = maxi(int(_save["best_ante"]), run.ante)
 	if run.phase == Run.Phase.WON:
 		_save["wins"] = int(_save["wins"]) + 1
+		_record_win()
 	elif run.phase == Run.Phase.OVER:
 		# Sealed: remembered so the title vault's case shows you from now on.
 		var cg := run.curse_grade()
@@ -4843,6 +4865,245 @@ func _close_reveal() -> void:
 		layer.queue_free()
 
 
+# ================================================================ estates, tiers, binder rewards
+
+func _estate_free(i: int) -> bool:
+	return (int(_save["estates"]) >> i) & 1 == 1
+
+
+## The estate the next run uses (last pick, if it's still free).
+func _pick_estate() -> int:
+	var i := clampi(int(_save["last_estate"]), 0, Unlocks.ESTATES.size() - 1)
+	return i if _estate_free(i) else 0
+
+
+func _pick_tier() -> int:
+	return clampi(int(_save["last_tier"]), 0, int(_save["max_tier"]))
+
+
+func _run_opts() -> Dictionary:
+	if not _coll_loaded:
+		_coll_loaded = true
+		_load_collection()
+	var br := Unlocks.binder_rewards(_coll_owned)
+	return {"estate": String(Unlocks.ESTATES[_pick_estate()]["id"]), "tier": _pick_tier(),
+		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"]}
+
+
+## A win frees the next sealed collector and opens the next grade tier.
+func _record_win() -> void:
+	_won_news = {"freed": -1, "tier": -1}
+	var key := "won_" + run.estate_id
+	_save[key] = maxi(int(_save.get(key, -1)), run.tier)
+	if run.tier + 1 < Unlocks.TIERS.size() and run.tier + 1 > int(_save["max_tier"]):
+		_save["max_tier"] = run.tier + 1
+		_won_news["tier"] = run.tier + 1
+	for i in Unlocks.ESTATES.size():
+		if not _estate_free(i):
+			_save["estates"] = int(_save["estates"]) | (1 << i)
+			_won_news["freed"] = i
+			break
+
+
+## The won screen's news: who you freed, which tier opened.
+func _won_unlocks(parent: Container) -> void:
+	if _won_news.is_empty():
+		return
+	var p := _panel(Color(0.1, 0.08, 0.04, 0.92), GOLD, 3)
+	var v := _vbox(6)
+	p.add_child(v)
+	var fi := int(_won_news.get("freed", -1))
+	if fi >= 0:
+		var e: Dictionary = Unlocks.ESTATES[fi]
+		v.add_child(_title_label("FREED FROM THE VAULT: " + String(e["name"]).to_upper(), 28, GOLD))
+		v.add_child(_label("You bought them out of their case. Their estate is yours to play: " + String(e["effect"]), 19, INK, true))
+	var ti := int(_won_news.get("tier", -1))
+	if ti >= 0:
+		var td: Dictionary = Unlocks.TIERS[ti]
+		v.add_child(_title_label("NEW TIER: " + String(td["name"]), 28, td["color"]))
+		v.add_child(_label(String(td["desc"]) + " Plus every rule below it.", 19, INK, true))
+	if fi < 0 and ti < 0:
+		v.add_child(_title_label("THE VAULT IS EMPTY", 28, GOLD))
+		v.add_child(_label("Every collector is free and every tier is open. Chase BLACK LABEL with each estate.", 19, INK, true))
+	parent.add_child(p)
+
+
+## NEW RUN once there's more than one choice: pick the estate and the tier.
+func _open_estates() -> void:
+	_close_sheet()
+	if _pad:
+		_pad_focus.call_deferred(0)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.015, 0.04, 0.88)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.add_child(dim)
+	_sheet = dim
+	if _sfx != null and not fast:
+		_sfx.play("open")
+	var land := is_landscape()
+	var panel := PanelContainer.new()
+	var st := _box(Color(0.09, 0.075, 0.11, 0.98), 8, CURSE_C, 3)
+	st.content_margin_left = 20
+	st.content_margin_right = 20
+	st.content_margin_top = 16
+	st.content_margin_bottom = 16
+	panel.add_theme_stylebox_override("panel", st)
+	panel.anchor_left = 0.5 if land else 0.0
+	panel.anchor_right = 0.5 if land else 1.0
+	panel.offset_left = -470.0 if land else _margins.x + 6
+	panel.offset_right = 470.0 if land else -_margins.z - 6
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 1.0
+	panel.offset_top = _margins.y + (20 if not land else 8)
+	panel.offset_bottom = -_margins.w - (20 if not land else 8)
+	dim.add_child(panel)
+	var v := _vbox(10 if not land else 6)
+	panel.add_child(v)
+	var top := _hbox(10)
+	top.add_child(_title_label("CHOOSE YOUR INHERITANCE", 34 if not land else 30, CURSE_C))
+	top.add_child(_spacer(false))
+	var close := _button("X", _close_sheet_sfx, PANEL_HI, 22, 64)
+	close.custom_minimum_size.x = 72
+	top.add_child(close)
+	v.add_child(top)
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var list := _vbox(8)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(list)
+	v.add_child(sc)
+	var pick := _pick_estate()
+	for i in Unlocks.ESTATES.size():
+		list.add_child(_estate_card(i, i == pick))
+	# Tier picker.
+	var t := _pick_tier()
+	var td: Dictionary = Unlocks.TIERS[t]
+	var row := _hbox(10)
+	var prev := _button("<", _set_tier.bind(t - 1), PANEL_HI, 28, 80)
+	prev.custom_minimum_size.x = 90
+	prev.disabled = t <= 0
+	row.add_child(prev)
+	var mid := _vbox(0)
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var tn := _title_label(String(td["name"]), 30, td["color"])
+	tn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mid.add_child(tn)
+	var tl := _label(String(td["desc"]) + ("" if t == 0 else "  (+ all below)"), 17, MUTED, true)
+	tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mid.add_child(tl)
+	row.add_child(mid)
+	var nxt := _button(">", _set_tier.bind(t + 1), PANEL_HI, 28, 80)
+	nxt.custom_minimum_size.x = 90
+	nxt.disabled = t >= int(_save["max_tier"])
+	row.add_child(nxt)
+	v.add_child(row)
+	if int(_save["max_tier"]) < Unlocks.TIERS.size() - 1:
+		var hint := _label("Win a run at %s to unlock %s." % [Unlocks.TIERS[int(_save["max_tier"])]["name"], Unlocks.TIERS[int(_save["max_tier"]) + 1]["name"]], 16, MUTED, true)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(hint)
+	v.add_child(_mark_main(_button("CLAIM THE ESTATE  >", func():
+		_close_sheet()
+		_guide_then_start(), STICKER, 28, 96 if not land else 80)))
+
+
+func _estate_card(i: int, sel: bool) -> Button:
+	var e: Dictionary = Unlocks.ESTATES[i]
+	var free := _estate_free(i)
+	var col := GOLD if sel else (Color("7fb8ff") if free else Color(0.35, 0.33, 0.42))
+	var b := _card_shell(0, 118, col, _set_estate.bind(i) if free else func(): _toast_msg("Sealed in the Buyer's vault. Win a run to free the next collector.", MUTED), Color(0.16, 0.12, 0.05, 0.96) if sel else Color(0.08, 0.07, 0.1, 0.94))
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var m := MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 18)
+	m.add_theme_constant_override("margin_right", 14)
+	m.add_theme_constant_override("margin_top", 8)
+	m.add_theme_constant_override("margin_bottom", 8)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(m)
+	var v := _vbox(2)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(v)
+	var h := _hbox(8)
+	h.add_child(_title_label(String(e["name"]).to_upper() if free else "SEALED", 26, INK if free else MUTED))
+	h.add_child(_spacer(false))
+	var best := int(_save.get("won_" + String(e["id"]), -1))
+	if free and best >= 0:
+		var td: Dictionary = Unlocks.TIERS[best]
+		h.add_child(_pill("BEAT " + String(td["name"]), td["color"], 14))
+	elif sel:
+		h.add_child(_pill("PICKED", GOLD, 14))
+	v.add_child(h)
+	if free:
+		v.add_child(_label(String(e["line"]), 17, FLAVOR_C, true))
+		v.add_child(_label(String(e["effect"]), 17, INK, true))
+	else:
+		v.add_child(_label("A shape under a dust sheet in the Buyer's vault. Win a run to free the next collector.", 17, MUTED, true))
+	_ignore_mouse(m)
+	return b
+
+
+func _set_estate(i: int) -> void:
+	_save["last_estate"] = i
+	_write_save()
+	_sfx.play("tick")
+	_open_estates()
+
+
+func _set_tier(t: int) -> void:
+	_save["last_tier"] = clampi(t, 0, int(_save["max_tier"]))
+	_write_save()
+	_sfx.play("tick")
+	_open_estates()
+
+
+## Binder rewards panel at the top of the BINDER tab.
+func _binder_rewards_panel(col: Control) -> void:
+	var br := Unlocks.binder_rewards(_coll_owned)
+	var p := _panel(Color(0.06, 0.05, 0.08, 0.9), Color("7fb8ff", 0.5), 2)
+	var v := _vbox(4)
+	p.add_child(v)
+	var h := _hbox(8)
+	h.add_child(_title_label("BINDER REWARDS", 24, Color("7fb8ff")))
+	h.add_child(_spacer(false))
+	h.add_child(_label("%d owned" % _coll_owned.size(), 18, MUTED))
+	v.add_child(h)
+	for r in Unlocks.BINDER:
+		var got := _coll_owned.size() >= int(r[0])
+		var row := _hbox(8)
+		var tag := _pill(str(r[0]), GOOD if got else Color(0.35, 0.33, 0.42), 14)
+		tag.custom_minimum_size.x = 64
+		row.add_child(tag)
+		row.add_child(_label(String(r[3]), 17, INK if got else MUTED, true))
+		v.add_child(row)
+	v.add_child(_label("PAGE STAMPS: own half of a console's page for +$1 at the start of every run. Stamped: %d (+$%d)." % [br["stamps"], br["stamps"]], 17, GOLD, true))
+	col.add_child(p)
+
+
+## Owned count just went up: announce any binder reward or page stamp it earned.
+func _check_binder_reward(id: String) -> void:
+	var n := _coll_owned.size()
+	for r in Unlocks.BINDER:
+		if int(r[0]) == n:
+			_toast_msg("BINDER REWARD: %s (from your next run)." % String(r[3]), Color("7fb8ff"))
+			if _sfx != null and not fast:
+				_sfx.play("grail")
+	var d := Catalog.get_def(id)
+	if d.is_empty() or String(d["plat"]) == "MISC":
+		return
+	var plat := String(d["plat"])
+	var tot := 0
+	var got := 0
+	for e in Catalog.ITEMS:
+		if String(e["plat"]) == plat:
+			tot += 1
+			if _coll_owned.has(String(e["id"])):
+				got += 1
+	if got == Unlocks.page_need(tot):
+		_toast_msg("PAGE STAMP: %s. +$1 at the start of every run." % String(Catalog.platform(plat)["name"]), GOLD)
+
+
 # ================================================================ the Buyer's mail
 
 ## What the title vault's corner case shows: {} = still covered (no losses yet).
@@ -4891,6 +5152,8 @@ func _open_letter(i: int) -> void:
 	if _pad:
 		_pad_focus.call_deferred(0)
 	var letter: Array = Flavor.EPILOGUE if i < 0 else Flavor.LETTERS[clampi(i, 0, Flavor.LETTERS.size() - 1)]
+	if i == 0 and run != null and run.estate_id != "arlo":
+		letter = ["re: the %s estate" % String(Unlocks.estate(run.estate_id)["short"]).capitalize(), String(Unlocks.estate(run.estate_id)["letter"])]
 	var dim := ColorRect.new()
 	dim.color = Color(0.0, 0.01, 0.0, 0.84)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -4989,21 +5252,43 @@ func _build_over() -> void:
 
 
 func _build_won() -> void:
-	_root_box.add_child(_spacer())
-	var t := _title_label("CERTIFIED LEGEND", 64, GOLD)
+	var land := is_landscape()
+	var col: VBoxContainer = _root_box
+	if land:
+		# The vault on the left, everything else in a scrolling column on the right.
+		var row := _hbox(16)
+		row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_root_box.add_child(row)
+		var g := _stage_gap(160)
+		g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(g)
+		var sc := ScrollContainer.new()
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.custom_minimum_size.x = 560
+		sc.follow_focus = true
+		sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		row.add_child(sc)
+		col = _vbox(10)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sc.add_child(col)
+	else:
+		_root_box.add_child(_spacer())
+	var t := _title_label("CERTIFIED LEGEND", 64 if not land else 50, GOLD)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_root_box.add_child(t)
-	var sub := _label("You beat all %d antes. The debt is paid. A new message is waiting on the computer..." % Balance.ANTES_TO_WIN, 22, INK, true)
+	col.add_child(t)
+	var sub := _label("You beat all %d antes. The debt is paid. A new message is waiting on the computer..." % Balance.ANTES_TO_WIN, 22 if not land else 19, INK, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_root_box.add_child(sub)
-	var gap := _stage_gap(160)
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_root_box.add_child(gap)
-	_end_stats()
-	_root_box.add_child(_button("READ THE NEW MESSAGE", _open_letter.bind(-1), Color("1d3a26"), 22, 88))
-	_wall_pick_button()
-	_root_box.add_child(_button("KEEP GOING (ENDLESS)", _go_endless, STICKER, 28, 100))
-	_root_box.add_child(_button("NEW RUN", start_new_run, PANEL_HI, 24, 88))
+	col.add_child(sub)
+	if not land:
+		var gap := _stage_gap(160)
+		gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		col.add_child(gap)
+	_won_unlocks(col)
+	_end_stats(col)
+	col.add_child(_button("READ THE NEW MESSAGE", _open_letter.bind(-1), Color("1d3a26"), 22, 88 if not land else 72))
+	_wall_pick_button(col)
+	col.add_child(_button("KEEP GOING (ENDLESS)", _go_endless, STICKER, 28, 100 if not land else 80))
+	col.add_child(_button("NEW RUN", _on_new_run, PANEL_HI, 24, 88 if not land else 72))
 
 
 func _go_endless() -> void:
@@ -5018,6 +5303,7 @@ func _end_stats(parent: Container = null) -> void:
 	p.add_child(v)
 	var s := run.stats
 	var rows := [
+		["Estate", "%s  •  %s" % [Unlocks.estate(run.estate_id)["name"], Unlocks.TIERS[run.tier]["name"]]],
 		["Reached", "Ante %d, stop %d" % [run.ante, run.stop + 1]],
 		["Best appraisal", _money(int(s["best_appraisal"]))],
 		["Items bought / sold", "%d / %d" % [s["bought"], s["sold"]]],
@@ -5732,6 +6018,8 @@ func _coll_mark(item: Dictionary, owned: bool) -> void:
 	if owned and not _coll_owned.has(id):
 		_coll_owned[id] = true
 		_coll_dirty = true
+		if run != null and not _view_run:
+			_check_binder_reward(id)
 
 
 func _on_wall(id: String) -> bool:
@@ -5920,6 +6208,7 @@ func _wall_tile(item: Dictionary, w: float) -> Button:
 
 
 func _build_binder(col: Control, avail: float) -> void:
+	_binder_rewards_panel(col)
 	var codes: Array = Catalog.PLATFORMS.keys()
 	var code := String(codes[clampi(_binder_plat, 0, codes.size() - 1)])
 	var plat := Catalog.platform(code)
@@ -5938,7 +6227,12 @@ func _build_binder(col: Control, avail: float) -> void:
 	var pn := _title_label(String(plat["name"]), 28, (plat["color"] as Color).lightened(0.3))
 	pn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mid.add_child(pn)
-	var pc := _label("%d / %d found" % [got, items.size()], 18, MUTED)
+	var own := 0
+	for d in items:
+		if _coll_owned.has(String(d["id"])):
+			own += 1
+	var need := Unlocks.page_need(items.size())
+	var pc := _label("%d / %d found  •  %s" % [got, items.size(), ("PAGE STAMPED" if own >= need else "own %d/%d for a stamp" % [own, need])], 18, GOLD if own >= need else MUTED)
 	pc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mid.add_child(pc)
 	nav.add_child(mid)

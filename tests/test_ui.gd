@@ -231,3 +231,30 @@ func test_landscape_layout_builds() -> void:
 	await wait_frames(2)
 	assert_eq(game.screen, "home")
 	get_window().content_scale_size = Vector2i(720, 1280)
+
+
+func test_winning_frees_an_estate_and_opens_the_picker() -> void:
+	var keep: Dictionary = game._save.duplicate()
+	game._save["estates"] = 1
+	game._save["max_tier"] = 0
+	game.start_new_run(12)
+	await wait_frames(2)
+	game._close_sheet()
+	game.run.phase = Run.Phase.WON
+	game._record_win()
+	assert_eq(int(game._save["estates"]), 3, "Aunt June freed")
+	assert_eq(int(game._save["max_tier"]), 1)
+	game.screen = "won"
+	game.request_refresh()
+	await wait_frames(2)
+	assert_true(_has_text(game, "FREED FROM THE VAULT"))
+	game._on_new_run()
+	await wait_frames(2)
+	assert_true(game.sheet_open())
+	assert_true(_has_text(game, "CHOOSE YOUR INHERITANCE"))
+	game._set_estate(1)
+	await wait_frames(1)
+	assert_eq(game._pick_estate(), 1)
+	game._close_sheet()
+	game._save = keep
+	game._write_save()

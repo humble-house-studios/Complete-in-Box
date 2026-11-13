@@ -16,7 +16,15 @@ const THEMES := {
 	"bubble_wrap": "ocean", "nostalgia": "crt", "curator": "vault", "coupon": "kraft", "eagle_eye": "sky",
 	"whale": "ocean", "lunchbox": "kitchen", "console_wars": "versus",
 	"pack_rat": "cardboard", "holo_hunter": "neon", "gold_bug": "vault",
+	"plastic_wrap": "vault", "dust_sheet": "basement", "full_page": "paper", "slab_fan": "metal",
 	"up_shelf": "basement", "up_time": "clock", "up_perk_slot": "cardboard", "up_interest": "money", "up_reroll": "comic",
+}
+## Pictures for perks added after subjects.gd was generated (existing renders only).
+const EXTRA_PERKS := {
+	"plastic_wrap": ["wrapped_gift", "sparkles"],
+	"dust_sheet": ["card_file_box", "books"],
+	"full_page": ["open_book", "check_mark_button"],
+	"slab_fan": ["hundred_points", "sports_medal"],
 }
 const BADGE_FONT := "res://assets/fonts/cover/Bangers-Regular.ttf"
 
@@ -40,7 +48,7 @@ static func make(id: String, accent: Color, badge: String, h: float) -> Control:
 	a.custom_minimum_size = Vector2(0, h)
 	a.clip_contents = true
 	a.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var refs: Array = Subjects.PERKS.get(id, [])
+	var refs: Array = Subjects.PERKS.get(id, EXTRA_PERKS.get(id, []))
 	var g := RandomNumberGenerator.new()
 	g.seed = a.rng_seed
 	for i in refs.size():

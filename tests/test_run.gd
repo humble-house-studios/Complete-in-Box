@@ -451,3 +451,76 @@ func test_curse_grade_follows_how_close_you_came() -> void:
 	assert_eq(String(r.curse_grade()["cond"]), "MINT")
 	assert_eq(String(r.curse_grade()["grade"]), "9.8")
 	assert_eq(Flavor.LETTERS.size(), Balance.ANTES_TO_WIN)
+
+
+func test_estates_change_the_start() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	for e in U.ESTATES:
+		var r := Run.new()
+		r.start(77, {"estate": e["id"]})
+		assert_eq(r.estate_id, String(e["id"]))
+		assert_eq(r.shelf.size(), int(e["starters"]), "%s starters" % e["id"])
+		for pid in e["perks"]:
+			assert_true(r.has_perk(String(pid)), "%s starts with %s" % [e["id"], pid])
+			assert_false(Perks.get_def(String(pid)).is_empty())
+		assert_eq(r.shelf_cap, Balance.START_SHELF + int(e["shelf"]))
+	var rose := Run.new()
+	rose.start(5, {"estate": "rose"})
+	assert_eq(String(rose.shelf[0]["cond"]), "CIB")
+
+
+func test_tiers_stack_up() -> void:
+	var base := Run.new()
+	base.start(9)
+	var t1 := Run.new()
+	t1.start(9, {"tier": 1})
+	assert_gt(t1.target(), base.target())
+	var t2 := Run.new()
+	t2.start(9, {"tier": 2})
+	assert_eq(t2.cash, base.cash - 10)
+	var t3 := Run.new()
+	t3.start(9, {"tier": 3})
+	assert_true(t3.is_boss_stop(), "Buyer's terms at every stop from GRADE 10")
+	assert_false(base.is_boss_stop())
+	var t4 := Run.new()
+	t4.start(9, {"tier": 4})
+	assert_eq(t4.shelf_cap, base.shelf_cap - 1)
+	assert_gt(t4.target(), t1.target())
+
+
+func test_binder_perks_stay_locked_until_unlocked() -> void:
+	for k in 30:
+		var r := Run.new()
+		r.start(100 + k)
+		r._roll_perk_offers()
+		for pid in r.perk_offers:
+			assert_false(Perks.get_def(String(pid)).has("lock"), "%s offered while locked" % pid)
+	var got := false
+	for k in 60:
+		var r2 := Run.new()
+		r2.start(200 + k, {"perks_unlocked": ["plastic_wrap", "dust_sheet", "full_page", "slab_fan"]})
+		r2._roll_perk_offers()
+		for pid in r2.perk_offers:
+			if Perks.get_def(String(pid)).has("lock"):
+				got = true
+	assert_true(got, "unlocked binder perks show up in the shop")
+
+
+func test_binder_rewards_and_new_perks() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	var owned := {}
+	assert_eq((U.binder_rewards(owned)["perks"] as Array).size(), 0)
+	for d in Catalog.ITEMS.slice(0, 85):
+		owned[String(d["id"])] = true
+	var br: Dictionary = U.binder_rewards(owned)
+	assert_true((br["perks"] as Array).has("plastic_wrap"))
+	assert_true((br["perks"] as Array).has("dust_sheet"))
+	assert_eq(int(br["shelf"]), 1)
+	var r := Run.new()
+	r.start(3)
+	r.shelf.clear()
+	var it := r.make_item(Catalog.get_def("fes_console"), "Damaged")
+	r.shelf.append(it)
+	var plain := int(r.appraise()["total"])
+	r.perks.append("dust_sheet")
+	assert_gt(int(r.appraise()["total"]), plain)

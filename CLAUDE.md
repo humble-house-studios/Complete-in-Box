@@ -28,6 +28,23 @@ the sheet is on the floor and your last sealed self is inside (save keys `sealed
 `seal_grade`, `seal_cond`, `seal_ante`, `seal_lot`; `_vault_info`). The guide's PAY THE
 APPRAISER page uses its `secret` lines until then.
 
+## Replay: estates, grade tiers, binder rewards
+All data in `scripts/data/unlocks.gd` (no class_name, preload as `Unlocks`).
+- ESTATES = starting decks (Arlo, Aunt June, Cousin Dale, Grandma Rose, Uncle Hector,
+  the Pruitt Twins): cash, starters (+cond, `damaged`), shelf, perks, perk_cap, interest,
+  plus a first letter and loading line. A win frees the next sealed one (save `estates`
+  bitmask). Picked in `_open_estates` (CHOOSE YOUR INHERITANCE) once there's a choice.
+- TIERS = grade tiers 0..4 (9.0, 9.5, 9.8, 10, BLACK LABEL), cumulative: targets x1.2,
+  -$10 start, Buyer's terms every stop (`Run.is_boss_stop`), -1 shelf and targets x1.45.
+  Winning tier N opens N+1 (`max_tier`); `won_<estate>` = best tier beaten (card sticker).
+- BINDER = owned-count milestones: perks with `"lock": "binder"` in perks.gd only enter
+  the shop once unlocked (`Run.unlocked_perks`), +1 shelf, +$10; PAGE STAMPS (own half a
+  platform's page) = +$1 start cash each. Toasts in `_check_binder_reward`.
+- `Run.start(seed, opts)` takes estate / tier / perks_unlocked / bonus_cash / bonus_shelf
+  (`_run_opts`). Win news on the won screen via `_record_win` / `_won_unlocks`.
+- Sim: `godot --headless -s res://tools/sim.gd -- meta` = estates and tiers only. Keep
+  estates within a few % of Arlo for the bot. Shots: `tools/meta_shots.gd`.
+
 Samuel builds from his phone: Claude writes and pushes the code, GitHub builds a
 web version, and he playtests it in Safari. Keep replies short and in plain words,
 and handle git, builds and fixes yourself.

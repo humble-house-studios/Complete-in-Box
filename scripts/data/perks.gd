@@ -36,6 +36,11 @@ const LIST := [
 	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
 	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
 	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
+	# Binder rewards: only in the shop once your collection unlocks them ("lock").
+	{"id": "plastic_wrap", "lock": "binder", "name": "Plastic Wrap", "cost": 6, "desc": "Sealed items appraise for x2."},
+	{"id": "dust_sheet", "lock": "binder", "name": "Dust Sheet", "cost": 5, "desc": "Damaged items appraise for x2.5."},
+	{"id": "full_page", "lock": "binder", "name": "Full Page", "cost": 8, "desc": "+1 Mult for each platform with 4+ items on your shelf."},
+	{"id": "slab_fan", "lock": "binder", "name": "Slab Fan", "cost": 7, "desc": "+0.75 Mult per graded item on your shelf."},
 ]
 
 ## One-off upgrades offered at Home (Balatro's vouchers).

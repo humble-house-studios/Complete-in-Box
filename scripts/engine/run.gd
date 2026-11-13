@@ -10,6 +10,8 @@ extends RefCounted
 
 signal changed
 
+const Unlocks := preload("res://scripts/data/unlocks.gd")
+
 enum Phase { HOME, VENUE, APPRAISAL, OVER, WON }
 
 var phase: int = Phase.HOME
@@ -62,6 +64,11 @@ var auctions: Array = []  # {item, bid, rival, my_max, won}
 var last_appraisal: Dictionary = {}
 ## Collector's Curse: how many of the Buyer's letters you've opened (one per ante).
 var letters_read: int = 0
+## Meta progression: which estate you inherited, the grade tier (0..4, each
+## keeps the rules below it) and perks the binder has unlocked for the shop.
+var estate_id: String = "arlo"
+var tier: int = 0
+var unlocked_perks: Array = []
 var last_rewards: Dictionary = {}
 var stats := {"bought": 0, "sold": 0, "best_flip": 0, "best_flip_name": "", "best_appraisal": 0, "profit": 0}
 
@@ -74,16 +81,30 @@ var grail_cool: int = 0
 
 # ================================================================ setup
 
-func start(p_seed: int = 0) -> void:
+## opts (all optional): estate (id), tier (0..4), perks_unlocked (binder perks
+## for the shop), bonus_cash, bonus_shelf (binder rewards).
+func start(p_seed: int = 0, opts: Dictionary = {}) -> void:
 	seed_value = p_seed if p_seed != 0 else randi()
 	Flavor.reset_claims()
 	rng.seed = seed_value
 	phase = Phase.HOME
 	ante = 1
 	stop = 0
+	var est := Unlocks.estate(String(opts.get("estate", "arlo")))
+	estate_id = String(est["id"])
+	tier = clampi(int(opts.get("tier", 0)), 0, Unlocks.TIERS.size() - 1)
+	unlocked_perks = (opts.get("perks_unlocked", []) as Array).duplicate()
+	cash += int(est["cash"]) + int(opts.get("bonus_cash", 0)) - (10 if tier >= 2 else 0)
+	cash = maxi(cash, 5)
+	shelf_cap += int(est["shelf"]) + int(opts.get("bonus_shelf", 0)) - (1 if tier >= 4 else 0)
+	perk_cap += int(est["perk_cap"])
+	interest_cap = maxi(0, interest_cap + int(est["interest"]))
+	for pid in est["perks"]:
+		perks.append(String(pid))
 	_pick_active_platforms()
-	for i in Balance.STARTER_ITEMS:
-		var it := make_item(_pick_def(0), "Loose")
+	var n_start := int(est["starters"]) if opts.has("estate") else Balance.STARTER_ITEMS
+	for i in n_start:
+		var it := make_item(_pick_def(0), "Damaged" if i < int(est.get("damaged", 0)) else String(est["cond"]))
 		it["paid"] = 0
 		shelf.append(it)
 	rumor = _random_platform()
@@ -107,11 +128,17 @@ func has_perk(id: String) -> bool:
 
 
 func target() -> int:
-	return Balance.target(ante, stop)
+	var t := Balance.target(ante, stop)
+	if tier >= 4:
+		return int(round(t * 1.45))
+	if tier >= 1:
+		return int(round(t * 1.2))
+	return t
 
 
+## The Buyer's terms (boss twist) hit the Online stop, or every stop at GRADE 10+.
 func is_boss_stop() -> bool:
-	return stop == 2
+	return stop == 2 or tier >= 3
 
 
 func boss_active(id: String) -> bool:
@@ -436,7 +463,7 @@ func _roll_perk_offers() -> void:
 	perk_offers.clear()
 	var pool: Array = []
 	for p in Perks.LIST:
-		if not perks.has(p["id"]) and perk_fits(String(p["id"])):
+		if not perks.has(p["id"]) and perk_fits(String(p["id"])) and (not p.has("lock") or unlocked_perks.has(String(p["id"]))):
 			pool.append(p["id"])
 	while perk_offers.size() < Balance.PERK_OFFERS and not pool.is_empty():
 		var i := rng.randi_range(0, pool.size() - 1)
@@ -1125,6 +1152,12 @@ func appraise() -> Dictionary:
 		if (it["tags"] as Array).has("disc") and has_perk("disc_jockey"):
 			v *= 2.0
 			notes.append("Disc Jockey x2")
+		if cond == "Sealed" and has_perk("plastic_wrap"):
+			v *= 2.0
+			notes.append("Plastic Wrap x2")
+		if cond == "Damaged" and has_perk("dust_sheet"):
+			v *= 2.5
+			notes.append("Dust Sheet x2.5")
 		if int(it["tier"]) == 0 and has_perk("nostalgia"):
 			v *= 2.0
 			notes.append("Nostalgia x2")
@@ -1210,9 +1243,19 @@ func appraise() -> Dictionary:
 	_perk_add(bonuses, "funtendo_kid", 0.3 * fun, "Funtendo Kid")
 	_perk_add(bonuses, "saga_does", 0.5 * saga, "Saga Does")
 	_perk_add(bonuses, "console_wars", 1.0 * consoles, "Console Wars")
+	var big_plats := 0
+	for p in per_plat.keys():
+		if int(per_plat[p]) >= 4:
+			big_plats += 1
+	_perk_add(bonuses, "full_page", 1.0 * big_plats, "Full Page")
+	var slabs := 0
+	for it in shelf:
+		if int(it.get("grade", 0)) > 0:
+			slabs += 1
+	_perk_add(bonuses, "slab_fan", 0.75 * slabs, "Slab Fan")
 	_perk_add(bonuses, "holo_hunter", 0.6 * shiny, "Shiny Hunter")
 	for b in bonuses:
-		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars", "Shiny Hunter"]:
+		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars", "Shiny Hunter", "Full Page", "Slab Fan"]:
 			add += float(b["add"])
 	if has_perk("curator") and per_plat.size() >= 5:
 		times *= 2.0

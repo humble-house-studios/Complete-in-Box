@@ -8,9 +8,34 @@ const RUNS := 300
 
 
 func _init() -> void:
-	_sim(false, "SIM")
-	_sim(true, "SIM flip")
+	if not OS.get_cmdline_user_args().has("meta"):
+		_sim(false, "SIM")
+		_sim(true, "SIM flip")
+		quit()
+		return
+	# Estates and tiers: a quicker pass each, to keep them in the same ballpark.
+	var U := preload("res://scripts/data/unlocks.gd")
+	for e in U.ESTATES:
+		_quick({"estate": e["id"]}, "SIM estate %s" % e["id"])
+	for t in U.TIERS.size():
+		_quick({"tier": t}, "SIM tier %d" % t)
 	quit()
+
+
+func _quick(opts: Dictionary, tag: String) -> void:
+	var wins := 0
+	var ante_sum := 0
+	var n := 100
+	for i in n:
+		var run := Run.new()
+		run.start(5000 + i, opts)
+		var bot := Bot.new(run, 11 + i)
+		bot.pivots = true
+		var r: Dictionary = bot.play_run()
+		ante_sum += int(r["ante"])
+		if bool(r["won"]):
+			wins += 1
+	print("%s runs=%d wins=%d avg_ante=%.2f" % [tag, n, wins, float(ante_sum) / n])
 
 
 func _sim(flip: bool, tag: String) -> void:
