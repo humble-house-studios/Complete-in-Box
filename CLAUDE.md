@@ -394,6 +394,10 @@ The web build in Safari is the test for every platform.
   commands from DIR/cmd.txt (tap TEXT, list, shot NAME, state, eval EXPR, bot N to
   fast-forward with the pro bot) and writes DIR/out.txt + screenshots.
 - DEV buttons at Home only show with `?dev=1` on the page address (`Lite.dev`).
+- DEV MODE (pause menu, while `DEV` is true): `_open_dev` = cash, go to ante, SIM ante N
+  (random cash, perks and a shelf built to ~target, `_dev_shelf`), next/final stop, shelf and
+  perk tools, grade tier, new run as any estate (`_dev_estate`), pass/lose the stop or win the
+  run through the real appraisal (`_dev_end`, `_dev_win`), unlock all.
 - Screenshots: `xvfb-run -a -s "-screen 0 1280x1280x24" godot --rendering-driver opengl3 -s res://tools/screenshot.gd -- OUT_DIR [landscape]`.
   Use these to check the look after any visual change.
 - After each change: push to `main`, wait for the build to pass (fix it if it
