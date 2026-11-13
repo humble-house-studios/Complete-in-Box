@@ -3193,6 +3193,8 @@ const GUIDE := [
 	{"title": "PAY THE APPRAISER", "color": Color("ff6b9a"), "art": "target",
 		"lines": ["Leave a stop and the Buyer's appraiser scores your shelf.", "Beat the target. Come up short and YOU get boxed and graded."],
 		"secret": ["Leave a stop and the Buyer's appraiser scores your shelf.", "Beat the target. Come up short and the Buyer collects what you owe."]},
+	{"title": "SCORE IS NOT CASH", "color": GOLD, "art": "cash",
+		"lines": ["Your SHELF SCORE only has to beat the target. You keep every item.", "Pass and you get PAYDAY: real cash in your wallet to spend."]},
 	{"title": "CHECK YOUR MAIL", "color": Color("7dff9a"), "art": "mail",
 		"lines": ["Every new round, a message waits on the computer at home.", "Read them. Find out what happened to Arlo."]},
 	{"title": "YOUR COLLECTION", "color": Color("7fb8ff"), "art": "collection",
@@ -3454,6 +3456,13 @@ func _guide_art(kind: String, col: Color) -> Control:
 			ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			v4.add_child(ok)
 			box.add_child(v4)
+		"cash":
+			var cr := _hbox(12)
+			cr.alignment = BoxContainer.ALIGNMENT_CENTER
+			cr.add_child(_guide_money("SHELF SCORE", "$360", "Just a score.\nItems stay on\nyour shelf.", Color("c77dff")))
+			cr.add_child(_title_label("vs", 40, MUTED))
+			cr.add_child(_guide_money("PAYDAY", "+$12", "Real cash.\nGoes in your\nwallet.", GOOD))
+			box.add_child(cr)
 		"collection":
 			var row := _hbox(10)
 			row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -3517,6 +3526,19 @@ func _guide_row(tag: String, text: String, col: Color) -> Control:
 	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(l)
 	p.custom_minimum_size = Vector2(600 if not is_landscape() else 780, 96 if not is_landscape() else 0)
+	return p
+
+
+## A labelled money box for the score-vs-cash page.
+func _guide_money(cap: String, num: String, note: String, col: Color) -> Control:
+	var land := is_landscape()
+	var p := _panel(Color(col, 0.16), col, 3)
+	var v := _vbox(2)
+	p.add_child(v)
+	for l in [_label(cap, 22 if not land else 18, col), _title_label(num, 56 if not land else 40, INK), _label(note, 19 if not land else 16, INK, true)]:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(l)
+	p.custom_minimum_size = Vector2(240 if not land else 230, 0)
 	return p
 
 
@@ -4722,6 +4744,9 @@ func _play_appraisal(res: Dictionary) -> void:
 	var list := _vbox(4)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sc.add_child(list)
+	var score_cap := _label("SHELF SCORE  (not cash: you keep your items)", 18, MUTED, true)
+	score_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cv.add_child(score_cap)
 	var totals := _hbox(16)
 	totals.alignment = BoxContainer.ALIGNMENT_CENTER
 	var chips_l := _title_label("$0", 44, Color("4fa3ff"))
@@ -4778,6 +4803,9 @@ func _play_appraisal(res: Dictionary) -> void:
 	var total := int(ap["total"])
 	var passed := bool(res["passed"])
 	total_l.text = "= " + _money(total)
+	var vs_l := _label(("BEATS THE TARGET OF %s" if passed else "UNDER THE TARGET OF %s") % _money(tgt), 20, GOOD if passed else BAD)
+	vs_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cv.add_child(vs_l)
 	total_l.add_theme_color_override("font_color", GOOD if passed else BAD)
 	_sfx.play("stamp")
 	_punch(total_l, 1.6)
@@ -4787,8 +4815,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		_coin_burst(layer, total_l)
 		var r: Dictionary = res["rewards"]
 		cv.add_child(_label(Flavor.pick(Flavor.PASS, run.ante * 3 + run.stop), 20, FLAVOR_C, true))
-		cv.add_child(_label("CLEARED! Payout: stop %s + interest %s + leftover Time %s = %s" % [
-			_money(int(r["base"])), _money(int(r["interest"])), _money(int(r["time"])), _money(int(r["total"]))], 20, GOOD, true))
+		cv.add_child(_payday(r))
 		var label := "CONTINUE"
 		if run.phase == Run.Phase.WON:
 			label = "YOU WON. SEE RESULTS"
@@ -4798,11 +4825,35 @@ func _play_appraisal(res: Dictionary) -> void:
 		_sfx.play("fail")
 		_stage.shake(1.4)
 		_flash(layer, BAD)
-		cv.add_child(_label("Short by %s. %s" % [_money(tgt - total), Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop)], 22, BAD, true))
+		cv.add_child(_label("Score short by %s. No payday. %s" % [_money(tgt - total), Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop)], 22, BAD, true))
 		v.add_child(_mark_main(_button("SEE RESULTS", _after_appraisal, BAD, 28, 96)))
 	_busy = false
 	if _pad:
 		_pad_focus.call_deferred(0)
+
+
+## PAYDAY: the cash you actually get for passing, kept apart from the score.
+func _payday(r: Dictionary) -> Control:
+	var p := _panel(Color(GOOD, 0.14), GOOD, 3)
+	var v := _vbox(2)
+	p.add_child(v)
+	var h := _hbox(8)
+	h.add_child(_title_label("PAYDAY", 34, GOOD))
+	h.add_child(_spacer(false))
+	h.add_child(_title_label("+" + _money(int(r["total"])), 34, GOOD))
+	v.add_child(h)
+	for row in [["Stop pay", r["base"]], ["Interest (on cash you saved)", r["interest"]], ["Leftover Time", r["time"]]]:
+		var rh := _hbox(8)
+		rh.add_child(_label(String(row[0]), 18, INK))
+		rh.add_child(_spacer(false))
+		rh.add_child(_label("+" + _money(int(row[1])), 18, INK))
+		v.add_child(rh)
+	var w := _hbox(8)
+	w.add_child(_label("WALLET", 20, GOLD))
+	w.add_child(_spacer(false))
+	w.add_child(_title_label("%s  >  %s" % [_money(run.cash - int(r["total"])), _money(run.cash)], 26, GOLD))
+	v.add_child(w)
+	return p
 
 
 func _focus_on(c: Control) -> void:
@@ -5425,7 +5476,8 @@ func _end_stats(parent: Container = null) -> void:
 	var rows := [
 		["Estate", "%s  •  %s" % [Unlocks.estate(run.estate_id)["name"], Unlocks.TIERS[run.tier]["name"]]],
 		["Reached", "Ante %d, stop %d" % [run.ante, run.stop + 1]],
-		["Best appraisal", _money(int(s["best_appraisal"]))],
+		["Best shelf score", _money(int(s["best_appraisal"]))],
+		["Cash in wallet", _money(run.cash)],
 		["Items bought / sold", "%d / %d" % [s["bought"], s["sold"]]],
 		["Flip profit", _money(int(s["profit"]))],
 		["Best flip", ("%s (+%s)" % [s["best_flip_name"], _money(int(s["best_flip"]))]) if int(s["best_flip"]) > 0 else "-"],
