@@ -3540,6 +3540,8 @@ func _open_menu() -> void:
 	row.add_child(_menu_tile("sound_on" if _sfx.enabled else "sound_off", "SOUND %s" % ("ON" if _sfx.enabled else "OFF"), _sheet_action.bind(func(): _toggle_sound(); _open_menu.call_deferred()), 96.0))
 	row.add_child(_menu_tile("gfx", "GFX %s" % ["FULL", "FAST", "LITE"][Lite.level()], _sheet_action.bind(func(): _cycle_gfx(); _open_menu.call_deferred()), 96.0))
 	v.add_child(row)
+	if DEV and run != null:
+		v.add_child(_menu_card("grail", "DEV MODE", "Skip antes, cash, shelves, estates, endings.", Color("6a5acd"), _sheet_action.bind(_open_dev), 76.0))
 	v.add_child(_menu_card("quit", "QUIT TO TITLE", "Your run is kept.", Color("8a6a3a"), _sheet_action.bind(_quit_to_title), 76.0))
 	if not OS.has_feature("web"):
 		v.add_child(_menu_card("close", "CLOSE THE GAME", "", Color("8a3a3a"), _sheet_action.bind(func(): get_tree().quit()), 70.0))
@@ -4758,6 +4760,276 @@ func _go_to_venue(id: String) -> void:
 func _dev_cash() -> void:
 	run.cash += 100
 	request_refresh()
+
+
+# ---- DEV MODE (pause menu): jump around a run to test it -------------------
+
+var _dev_tier := 0
+
+
+func _open_dev() -> void:
+	_hide_preview()
+	_close_sheet()
+	if _pad:
+		_pad_focus.call_deferred(0)
+	var dim := ColorRect.new()
+	dim.color = Color(0.03, 0.015, 0.06, 0.78)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(_on_dim_input)
+	_overlay.add_child(dim)
+	_sheet = dim
+	var vs := get_viewport_rect().size
+	var panel := PanelContainer.new()
+	var st := _box(Color(0.07, 0.055, 0.1, 0.97), 10, Color("6a5acd"), 3)
+	for side in ["left", "right", "top", "bottom"]:
+		st.set("content_margin_" + side, 16)
+	panel.add_theme_stylebox_override("panel", st)
+	var pw := 640.0 if is_landscape() else vs.x - _margins.x - _margins.z - 12.0
+	panel.anchor_left = 0.5
+	panel.anchor_right = 0.5
+	panel.offset_left = -pw * 0.5
+	panel.offset_right = pw * 0.5
+	panel.offset_top = _margins.y + 10
+	panel.anchor_bottom = 1.0
+	panel.offset_bottom = -_margins.w - 10
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.add_child(panel)
+	var outer := _vbox(8)
+	panel.add_child(outer)
+	var head := _hbox(10)
+	head.add_child(_title_label("DEV MODE", 40, Color("b0a4ff")))
+	head.add_child(_spacer(false))
+	head.add_child(_label("Ante %d  stop %d  %s  shelf %s / %s" % [run.ante, run.stop + 1, _money(run.cash), _money(int(run.appraise()["total"])), _money(run.target())], 16, MUTED))
+	outer.add_child(head)
+	var sc := ScrollContainer.new()
+	sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(sc)
+	var v := _vbox(8)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(v)
+	var dev_col := Color("444055")
+	var row := func(title: String, items: Array, cols: int = 4) -> void:
+		v.add_child(_label(title, 17, GOLD))
+		var g := GridContainer.new()
+		g.columns = cols
+		g.add_theme_constant_override("h_separation", 6)
+		g.add_theme_constant_override("v_separation", 6)
+		for it in items:
+			var b := _button(String(it[0]), _dev_do.bind(it[1], it.size() > 3 and bool(it[3])), it[2] if it.size() > 2 else dev_col, 17, 64)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			g.add_child(b)
+		v.add_child(g)
+	row.call("CASH", [["+$50", func(): run.cash += 50], ["+$250", func(): run.cash += 250],
+		["+$1000", func(): run.cash += 1000], ["$0", func(): run.cash = 0]])
+	var antes: Array = []
+	for a in range(1, Balance.ANTES_TO_WIN + 1):
+		antes.append(["ANTE %d" % a, _dev_jump.bind(a, false), GOLD.darkened(0.45) if a == run.ante else dev_col, true])
+	row.call("GO TO ANTE (keeps your stuff)", antes)
+	var sims: Array = []
+	for a in range(1, Balance.ANTES_TO_WIN + 1):
+		sims.append(["SIM %d" % a, _dev_jump.bind(a, true), Color("2f5d7a"), true])
+	row.call("SIMULATE A RUN TO ANTE (random shelf, cash, perks)", sims)
+	row.call("STOPS", [["NEXT STOP", _dev_next_stop, dev_col, true], ["FINAL STOP", _dev_final, dev_col, true],
+		["NEXT VENUE SET", func(): run._prepare_home()], ["REROLL WANT", func(): run._roll_want()]])
+	row.call("SHELF", [["RANDOM SHELF", func(): _dev_shelf(randf_range(0.7, 1.3))], ["PASSING SHELF", func(): _dev_shelf(1.3)],
+		["ADD RARE", func(): _dev_add(2)], ["ADD GRAIL", func(): _dev_add(3)],
+		["+1 SLOT", func(): run.shelf_cap += 1], ["CLEAR SHELF", func(): run.shelf.clear()]])
+	row.call("PERKS", [["RANDOM PERKS", _dev_perks], ["+1 PERK SLOT", func(): run.perk_cap += 1],
+		["CLEAR PERKS", _dev_clear_perks], ["NEW OFFERS", func(): run._roll_perk_offers()]])
+	var tiers: Array = []
+	for t in Unlocks.TIERS.size():
+		tiers.append(["TIER %d" % t, _dev_set_tier.bind(t), GOLD.darkened(0.45) if t == _dev_tier else dev_col])
+	row.call("GRADE TIER FOR DEV RUNS", tiers, 5)
+	var ests: Array = []
+	for i in Unlocks.ESTATES.size():
+		var e: Dictionary = Unlocks.ESTATES[i]
+		ests.append([String(e["short"]), _dev_estate.bind(i), Color("5a3a6a"), true])
+	row.call("NEW RUN AS ESTATE (their world, any lock)", ests)
+	row.call("ENDINGS", [["PASS THIS STOP", _dev_end.bind(true), GOOD.darkened(0.4), true], ["LOSE THIS STOP", _dev_end.bind(false), BAD.darkened(0.3), true],
+		["WIN THE RUN", _dev_win, GOLD.darkened(0.35), true], ["UNLOCK ALL", _dev_unlock_all]], 2)
+	outer.add_child(_close_row([], 22, 72))
+
+
+## Run a dev action, then refresh the screen (and reopen the panel unless
+## the action takes you somewhere).
+func _dev_do(cb: Callable, close: bool) -> void:
+	_close_sheet()
+	cb.call()
+	_click()
+	request_refresh()
+	if not close and not sheet_open() and screen in ["home", "venue"]:
+		_open_dev.call_deferred()
+
+
+func _dev_set_tier(t: int) -> void:
+	_dev_tier = t
+
+
+func _dev_clear_perks() -> void:
+	for pid in run.perks.duplicate():
+		run.perks.erase(pid)
+		run._perk_shelf(String(pid), -1)
+
+
+func _dev_final() -> void:
+	_dev_jump(Balance.ANTES_TO_WIN, false)
+	run.stop = 2
+	run._prepare_home()
+
+
+## Jump to an ante at Home (sim = a believable shelf, cash and perks for it).
+func _dev_jump(a: int, sim: bool) -> void:
+	_room_view = false
+	if _stage != null:
+		_stage.room_view(false)
+	run.ante = a
+	run.stop = 0
+	run._roll_boss()
+	run._roll_want()
+	run._roll_trends()
+	run.listings.clear()
+	run.grading.clear()
+	if sim:
+		run.cash = int(randf_range(10.0, 25.0) * a)
+		run.shelf_cap = Balance.START_SHELF + randi_range(0, a / 2)
+		_dev_perks()
+		_dev_shelf(randf_range(0.75, 1.2))
+	run._prepare_home()
+	_home_tab = "route"
+	_dest = ""
+	screen = "home"
+	_toast_msg(("Simulated run at ante %d." if sim else "Jumped to ante %d.") % a, Color("b0a4ff"))
+
+
+func _dev_next_stop() -> void:
+	if run.stop >= 2:
+		_dev_jump(run.ante + 1, false)
+		return
+	run.stop += 1
+	run._prepare_home()
+	screen = "home"
+
+
+## Fill the shelf with items rolled for this ante so it appraises at about
+## goal x the target: each slot takes the best fit of a dozen rolls.
+func _dev_shelf(goal: float) -> void:
+	run.shelf.clear()
+	var want := float(run.target()) * goal
+	var use := maxi(3, run.shelf_cap - randi_range(0, 2))
+	var guard := 0
+	while run.free_slots() > 0 and run.shelf.size() < use and guard < 40:
+		guard += 1
+		var cur := float(run.appraise()["total"])
+		if cur >= want * 0.92:
+			break
+		var left := use - run.shelf.size()
+		var aim := cur + (want - cur) / float(left)
+		var best: Dictionary = {}
+		var best_d := INF
+		for k in 12:
+			var it := run.roll_item(randi_range(0, 3), [10, 40, 30, 14, 6])
+			it["paid"] = int(run.market_value(it) * randf_range(0.5, 1.0))
+			run.shelf.append(it)
+			var d := absf(float(run.appraise()["total"]) - aim)
+			run.shelf.pop_back()
+			if d < best_d:
+				best_d = d
+				best = it
+		run.shelf.append(best)
+
+
+func _dev_add(tier: int) -> void:
+	var it := run.make_item(run._pick_def(tier), "Mint")
+	it["variant"] = "Standard"
+	it["paid"] = 0
+	if run.free_slots() <= 0:
+		run.shelf_cap += 1
+	run.shelf.append(it)
+
+
+func _dev_perks() -> void:
+	_dev_clear_perks()
+	var pool: Array = Perks.LIST.duplicate()
+	pool.shuffle()
+	for d in pool:
+		if run.perks.size() >= run.perk_cap:
+			break
+		var id := String(d["id"])
+		if run.perk_fits(id) and not run.perks.has(id):
+			run.perks.append(id)
+			run._perk_shelf(id, 1)
+
+
+## New run as any estate (ignores locks), in its own world, at the dev tier.
+func _dev_estate(i: int) -> void:
+	var est: Dictionary = Unlocks.ESTATES[i]
+	var opts := _run_opts()
+	opts["estate"] = String(est["id"])
+	opts["world"] = String(est.get("world", "games"))
+	opts["tier"] = _dev_tier
+	var worlds: Array = (opts["worlds"] as Array).duplicate()
+	if not worlds.has(opts["world"]):
+		worlds.append(opts["world"])
+	opts["worlds"] = worlds
+	_home_tab = "route"
+	_dest = ""
+	_scroll_mem.clear()
+	run = Run.new()
+	run.start(0, opts)
+	_wall_picked = false
+	_view_run = false
+	_paused_screen = ""
+	screen = "home"
+	_toast_msg("New run as %s (tier %d)." % [est["name"], _dev_tier], Color("b0a4ff"))
+	_maybe_world_intro.call_deferred()
+
+
+## Play the real appraisal: pass (shelf topped up to clear it) or lose.
+func _dev_end(pass_it: bool) -> void:
+	if screen == "home" and not run.venue_choices.is_empty():
+		run.enter_venue(String(run.venue_choices[0]))
+		screen = "venue"
+	if run.phase != Run.Phase.VENUE:
+		return
+	if pass_it:
+		if int(run.appraise()["total"]) < run.target():
+			_dev_shelf(1.25)
+		# Rolls can still fall short: grails until it clears, guaranteed.
+		var guard := 0
+		while int(run.appraise()["total"]) < run.target() and guard < 12:
+			guard += 1
+			_dev_add(3 if guard > 2 else 2)
+	else:
+		run.shelf.clear()
+		run.listings.clear()
+		for a in run.auctions:
+			a["my_max"] = 0
+	finish_stop.call_deferred()
+
+
+## Straight to the last stop with a passing shelf, then the real win.
+func _dev_win() -> void:
+	run.ante = Balance.ANTES_TO_WIN
+	run.stop = 2
+	run.endless = false
+	run._roll_boss()
+	run._prepare_home()
+	screen = "home"
+	_dev_end(true)
+
+
+func _dev_unlock_all() -> void:
+	var mask := 0
+	for e in Unlocks.ESTATES:
+		mask |= 1 << int(e["bit"])
+	_save["estates"] = mask
+	_save["max_tier"] = Unlocks.TIERS.size() - 1
+	_write_save()
+	_toast_msg("Every estate, world and tier unlocked.", Color("b0a4ff"))
 
 
 func _dev_ante() -> void:
