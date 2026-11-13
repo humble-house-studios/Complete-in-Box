@@ -78,11 +78,11 @@ static func _key(item: Dictionary) -> String:
 static func cover_size(item: Dictionary) -> Vector2i:
 	var a := 0.8
 	match String(item.get("kind", "game")):
-		"card":
+		"card", "scard":
 			a = 0.716
 		"coin":
 			a = 1.0
-		"pack":
+		"pack", "wax":
 			var tags: Array = item.get("tags", [])
 			a = 1.3 if tags.has("box") else (0.75 if tags.has("deck") else 0.62)
 		"game":

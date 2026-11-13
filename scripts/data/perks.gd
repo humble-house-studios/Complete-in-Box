@@ -32,7 +32,7 @@ const LIST := [
 	{"id": "eagle_eye", "name": "Eagle Eye", "cost": 6, "desc": "Hunt items have a 25% chance to be a condition better."},
 	{"id": "whale", "name": "Whale Watcher", "cost": 8, "desc": "+2 Mult per GRAIL on your shelf."},
 	{"id": "lunchbox", "market": "games", "name": "Lunchbox Display", "cost": 5, "desc": "Accessories appraise for x3."},
-	{"id": "pack_rat", "market": "cards", "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
+	{"id": "pack_rat", "market": ["cards", "sports"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
 	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
 	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
 	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
@@ -47,6 +47,11 @@ const LIST := [
 	{"id": "dust_sheet", "lock": "binder", "name": "Dust Sheet", "cost": 5, "desc": "Damaged items appraise for x2.5."},
 	{"id": "full_page", "lock": "binder", "name": "Full Page", "cost": 8, "desc": "+1 Mult for each platform with 4+ items on your shelf."},
 	{"id": "slab_fan", "lock": "binder", "name": "Slab Fan", "cost": 7, "desc": "+0.75 Mult per graded item on your shelf."},
+	{"id": "archivist", "lock": "binder", "name": "Archivist", "cost": 6, "desc": "Items held 2+ stops appraise +$12."},
+	{"id": "long_box", "lock": "binder", "name": "The Long Box", "cost": 7, "desc": "+1 shelf slot, and +0.1 Mult for every item on your shelf."},
+	# Sports cards
+	{"id": "rookie_fever", "market": "sports", "name": "Rookie Fever", "cost": 6, "desc": "+0.3 Mult per rookie card on your shelf."},
+	{"id": "hall_of_fame", "market": "sports", "name": "Hall of Famer", "cost": 7, "desc": "Cards from before 1980 appraise for x2."},
 ]
 
 ## One-off upgrades offered at Home (Balatro's vouchers).
@@ -58,6 +63,27 @@ const UPGRADES := [
 	{"id": "reroll", "name": "Coupon Book", "cost": 6, "desc": "Perk rerolls cost $1 less (min $0)."},
 ]
 
+## Per-world names and text for the same perk (the effect never changes):
+## THEMES[market][perk id] = [name, desc].
+const THEMES := {
+	"sports": {
+		"box_and_manual": ["Top-Loaders", "Near Mint cards appraise for x1.5."],
+		"shrink_wrap": ["Gem Mint Fan", "+0.5 Mult for each Mint or Gem Mint piece."],
+		"completionist": ["Team Collector", "Sport Set bonuses count double."],
+		"curator": ["Multi-Sport Star", "x2 Mult if your shelf spans 5+ sports."],
+		"cursed_cart": ["Cursed Card", "x2 Mult, but -2 shelf slots. It whispers stats at night."],
+		"plastic_wrap": ["Gem Sealed", "Gem Mint cards and case-fresh wax appraise for x2."],
+		"dust_sheet": ["Shoebox Special", "Creased cards appraise for x2.5."],
+		"nostalgia": ["Junk Wax Kid", "Common cards appraise for x2."],
+		"pack_rat": ["Wax Rat", "Wax packs and boxes appraise for x2."],
+		"holo_hunter": ["Refractor Hunter", "+0.6 Mult per shiny copy: refractors, gold parallels, chrome."],
+		"oddity_hunter": ["Parallel Chaser", "+0.4 Mult per variant copy (parallels, autos, patches...)."],
+		"full_page": ["Full Team Page", "+1 Mult for each sport with 4+ cards on your shelf."],
+		"hot_streak": ["Hot Hand", "+0.5 Mult per card from a HOT sport."],
+		"lucky_lots": ["Lucky Repacks", "Repack lots hold +1 item and roll a tier higher."],
+	},
+}
+
 static var _by_id: Dictionary = {}
 
 
@@ -68,6 +94,26 @@ static func get_def(id: String) -> Dictionary:
 		for d in UPGRADES:
 			_by_id["up_" + str(d["id"])] = d
 	return _by_id.get(id, {})
+
+
+## The perk as it reads in this world (same effect, the world's own words).
+static func label(id: String, market: String = "") -> Dictionary:
+	var d := get_def(id)
+	var t: Array = THEMES.get(market, {}).get(id, [])
+	if t.is_empty():
+		return d
+	var out := d.duplicate()
+	out["name"] = t[0]
+	out["desc"] = t[1]
+	return out
+
+
+## Which worlds a perk shows up in ([] = every world).
+static func markets(id: String) -> Array:
+	var m = get_def(id).get("market", "")
+	if m is Array:
+		return m
+	return [] if String(m) == "" else [String(m)]
 
 
 static func upgrade(id: String) -> Dictionary:

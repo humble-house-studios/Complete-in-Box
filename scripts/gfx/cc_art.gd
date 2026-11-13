@@ -154,6 +154,11 @@ static func _art(c: Control, r: Rect2, d: Dictionary, base: Color, shadow := tru
 static func paint_front(c: Control, item: Dictionary, w: int) -> void:
 	W = w
 	var d := _def(item)
+	if String(d.get("kind", "")) in ["scard", "wax"]:
+		var sa := load("res://scripts/gfx/sports_art.gd")
+		sa.H = H
+		sa.paint_front(c, d, w)
+		return
 	match String(d.get("kind", "")):
 		"coin": _coin(c, d, true)
 		"pack": _pack(c, d)
@@ -163,6 +168,11 @@ static func paint_front(c: Control, item: Dictionary, w: int) -> void:
 static func paint_back(c: Control, item: Dictionary, w: int) -> void:
 	W = w
 	var d := _def(item)
+	if String(d.get("kind", "")) in ["scard", "wax"]:
+		var sa := load("res://scripts/gfx/sports_art.gd")
+		sa.H = H
+		sa.paint_back(c, d, w)
+		return
 	match String(d.get("kind", "")):
 		"coin": _coin(c, d, false)
 		"pack": _pack_back(c, d)

@@ -131,6 +131,40 @@ const LIST := [
 		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.12,
 		"color": Color("5f8fe0"),
 	},
+	# ------------------------------------------------ sports cards (market "sports")
+	{
+		"id": "ballroom", "name": "Hotel Ballroom Show", "slot": "hunt", "unlock": 1, "market": "sports",
+		"blurb": "Sunday at the Ramadoh ballroom: chandeliers, folding tables, dime boxes and old men with loupes.",
+		"time": 4, "stock": 6, "price": [0.3, 0.95], "exact": false, "tier_boost": 0,
+		"cond": [12, 40, 32, 12, 4], "haggle": 0.6, "cut": 0.7, "dig": 2, "dig_label": "Dig a dime box",
+		"sell": 0.7, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("3fae5a"),
+	},
+	{
+		"id": "shoebox", "name": "Shoebox Sale", "slot": "hunt", "unlock": 1, "market": "sports",
+		"blurb": "A dad's garage, three shoeboxes of 1980s cards and a sign that says ALL $1. Mostly junk wax. Mostly.",
+		"time": 4, "stock": 5, "price": [0.15, 0.8], "exact": false, "tier_boost": 0,
+		"cond": [28, 45, 18, 7, 2], "haggle": 0.7, "cut": 0.65, "dig": 2, "dig_label": "Open another shoebox",
+		"sell": 0.0, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("c9a26a"),
+	},
+	{
+		"id": "dugout", "name": "The Dugout", "slot": "shop", "unlock": 1, "market": "sports",
+		"blurb": "Local card shop: wax on the wall, slabs in the case, a grading counter and a guy who remembers every price.",
+		"time": 3, "stock": 6, "price": [1.0, 1.2], "exact": true, "tier_boost": 1,
+		"cond": [0, 20, 45, 25, 10], "haggle": 0.35, "cut": 0.85, "dig": 1, "dig_label": "Check the back case",
+		"sell": 0.6, "lots": 0, "lot_size": 0, "lot_peek": 0, "grading": true, "bargain": 2,
+		"color": Color("2f6fd0"),
+	},
+	{
+		"id": "breaks", "name": "Breakz Live", "slot": "online", "unlock": 1, "market": "sports",
+		"blurb": "Live box breaks and slab auctions on a stream with forty thousand people typing LFG.",
+		"time": 4, "stock": 5, "price": [0.95, 1.25], "exact": true, "tier_boost": 1,
+		"cond": [5, 30, 40, 18, 7], "haggle": 0.0, "cut": 1.0, "dig": 5, "dig_label": "Refresh the stream",
+		"sell": 0.0, "lots": 0, "lot_size": 0, "lot_peek": 0,
+		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.12,
+		"color": Color("e05fd0"),
+	},
 	# ------------------------------------------------ rare coins (market "coins")
 	{
 		"id": "coinshow", "name": "Coin Show", "slot": "hunt", "unlock": 1, "market": "coins",

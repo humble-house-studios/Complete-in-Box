@@ -934,7 +934,8 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 
 
 static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> float:
-	var kind := String(item.get("kind", ""))
+	# Sports singles and wax use the card and pack holders (same real sizes).
+	var kind: String = {"scard": "card", "wax": "pack"}.get(String(item.get("kind", "")), String(item.get("kind", "")))
 	var cond := String(item.get("cond", "Loose"))
 	var graded := int(item.get("grade", 0)) > 0
 	var tags: Array = item.get("tags", [])

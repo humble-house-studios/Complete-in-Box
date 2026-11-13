@@ -19,6 +19,7 @@ const THEMES := {
 	"plastic_wrap": "vault", "dust_sheet": "basement", "full_page": "paper", "slab_fan": "metal",
 	"glass_case": "vault", "hot_streak": "comic", "dollar_bin": "kraft", "haggle_king": "comic",
 	"oddity_hunter": "neon", "cursed_cart": "basement",
+	"archivist": "paper", "long_box": "cardboard", "rookie_fever": "sunrise", "hall_of_fame": "vault",
 	"up_shelf": "basement", "up_time": "clock", "up_perk_slot": "cardboard", "up_interest": "money", "up_reroll": "comic",
 }
 ## Pictures for perks added after subjects.gd was generated (existing renders only).
@@ -33,6 +34,10 @@ const EXTRA_PERKS := {
 	"haggle_king": ["handshake", "crown"],
 	"oddity_hunter": ["eyes", "magnifying_glass_tilted_right"],
 	"cursed_cart": ["coffin", "video_game", "skull"],
+	"archivist": ["books", "scroll"],
+	"long_box": ["card_file_box", "books"],
+	"rookie_fever": ["baby_chick", "baseball", "glowing_star"],
+	"hall_of_fame": ["trophy", "stadium", "sports_medal"],
 }
 const BADGE_FONT := "res://assets/fonts/cover/Bangers-Regular.ttf"
 

@@ -1,0 +1,119 @@
+THE 250 MOST COLLECTIBLE SPORTS CARDS
+Compiled Nov 2026 from general collector knowledge (PSA population and sold-price lore), not
+live price data. Five binder pages of up to 50: baseball, basketball, football, hockey, and
+soccer & other sports. First release ships 20 per page (100); each page grows to 50 later
+without code changes (append lines, rerun tools/gen_worlds.py sports).
+Order within each page is roughly most to least desirable. Parallels, autos and refractors are
+left to the variant roll in game, except where the card IS the parallel (Superfractor, Ticket).
+Format: rank. Player | Set / card | Year | Page | kind (card / wax) | tags | Team | Position | Wikipedia title
+Tags: rc = rookie card, error = known error card, ss = short print, auto = signed in the set.
+
+== BASEBALL ==
+1. Honus Wagner | T206 | 1909 | BASE | card |  | Pittsburgh Pirates | SS | Honus Wagner
+2. Mickey Mantle | Topps #311 | 1952 | BASE | card | ss | New York Yankees | CF | Mickey Mantle
+3. Babe Ruth | Goudey #53 | 1933 | BASE | card |  | New York Yankees | RF | Babe Ruth
+4. Mike Trout | Bowman Chrome Draft Superfractor Auto 1/1 | 2009 | BASE | card | rc,auto | Los Angeles Angels | CF | Mike Trout
+5. Jackie Robinson | Leaf #79 | 1948 | BASE | card | rc | Brooklyn Dodgers | 2B | Jackie Robinson
+6. Roberto Clemente | Topps #164 | 1955 | BASE | card | rc | Pittsburgh Pirates | RF | Roberto Clemente
+7. Ty Cobb | T206 Red Portrait | 1909 | BASE | card |  | Detroit Tigers | CF | Ty Cobb
+8. Hank Aaron | Topps #128 | 1954 | BASE | card | rc | Milwaukee Braves | RF | Hank Aaron
+9. Shohei Ohtani | Bowman Chrome #1 | 2018 | BASE | card | rc | Los Angeles Angels | P/DH | Shohei Ohtani
+10. Willie Mays | Bowman #305 | 1951 | BASE | card | rc | New York Giants | CF | Willie Mays
+11. Sandy Koufax | Topps #123 | 1955 | BASE | card | rc | Brooklyn Dodgers | P | Sandy Koufax
+12. 1952 Topps Wax Pack | Topps Series 2 | 1952 | BASE | wax |  | - | - | 1952 Topps
+13. Ken Griffey Jr. | Upper Deck #1 | 1989 | BASE | card | rc | Seattle Mariners | CF | Ken Griffey Jr.
+14. Nolan Ryan | Topps #177 | 1968 | BASE | card | rc | New York Mets | P | Nolan Ryan
+15. Derek Jeter | SP Foil #279 | 1993 | BASE | card | rc | New York Yankees | SS | Derek Jeter
+16. Cal Ripken Jr. | Topps Traded #98T | 1982 | BASE | card | rc | Baltimore Orioles | SS | Cal Ripken Jr.
+17. 1989 Upper Deck Hobby Box | Upper Deck | 1989 | BASE | wax |  | - | - | Upper Deck Company
+18. Pete Rose | Topps #537 | 1963 | BASE | card | rc | Cincinnati Reds | 2B | Pete Rose
+19. Billy Ripken | Fleer #616 | 1989 | BASE | card | error | Baltimore Orioles | 2B | Billy Ripken
+20. 1987 Topps Wax Box | Topps | 1987 | BASE | wax |  | - | - | Topps
+
+== BASKETBALL ==
+1. Michael Jordan | Fleer #57 | 1986 | HOOP | card | rc | Chicago Bulls | SG | Michael Jordan
+2. LeBron James | Exquisite Rookie Patch Auto | 2003 | HOOP | card | rc,auto | Cleveland Cavaliers | SF | LeBron James
+3. George Mikan | Bowman #69 | 1948 | HOOP | card | rc | Minneapolis Lakers | C | George Mikan
+4. Lew Alcindor | Topps #25 | 1969 | HOOP | card | rc | Milwaukee Bucks | C | Kareem Abdul-Jabbar
+5. Kobe Bryant | Topps Chrome #138 | 1996 | HOOP | card | rc | Los Angeles Lakers | SG | Kobe Bryant
+6. Stephen Curry | National Treasures Rookie Patch Auto | 2009 | HOOP | card | rc,auto | Golden State Warriors | PG | Stephen Curry
+7. Wilt Chamberlain | Fleer #8 | 1961 | HOOP | card | rc | Philadelphia Warriors | C | Wilt Chamberlain
+8. Bird / Magic / Erving | Topps Scoring Leader | 1980 | HOOP | card | rc | Boston / Los Angeles / Philadelphia | - | Larry Bird
+9. Bill Russell | Topps #77 | 1957 | HOOP | card | rc | Boston Celtics | C | Bill Russell
+10. Luka Doncic | Prizm #280 | 2018 | HOOP | card | rc | Dallas Mavericks | PG | Luka Dončić
+11. 1986 Fleer Basketball Wax Box | Fleer | 1986 | HOOP | wax |  | - | - | Fleer
+12. Giannis Antetokounmpo | Prizm #290 | 2013 | HOOP | card | rc | Milwaukee Bucks | PF | Giannis Antetokounmpo
+13. Victor Wembanyama | Prizm #136 | 2023 | HOOP | card | rc | San Antonio Spurs | C | Victor Wembanyama
+14. Michael Jordan | Fleer Sticker #8 | 1986 | HOOP | card |  | Chicago Bulls | SG | Michael Jordan
+15. Shaquille O'Neal | Topps Gold #362 | 1992 | HOOP | card | rc | Orlando Magic | C | Shaquille O'Neal
+16. Tim Duncan | Topps Chrome #115 | 1997 | HOOP | card | rc | San Antonio Spurs | PF | Tim Duncan
+17. Kevin Durant | Topps Chrome #131 | 2007 | HOOP | card | rc | Seattle SuperSonics | SF | Kevin Durant
+18. 2003 Topps Chrome Hobby Box | Topps Chrome | 2003 | HOOP | wax |  | - | - | Topps
+19. Zion Williamson | Prizm #248 | 2019 | HOOP | card | rc | New Orleans Pelicans | PF | Zion Williamson
+20. Dennis Rodman | Fleer #33 | 1988 | HOOP | card | rc | Detroit Pistons | PF | Dennis Rodman
+
+== FOOTBALL ==
+1. Tom Brady | Playoff Contenders Championship Ticket Auto | 2000 | GRID | card | rc,auto | New England Patriots | QB | Tom Brady
+2. Joe Namath | Topps #122 | 1965 | GRID | card | rc,ss | New York Jets | QB | Joe Namath
+3. Jim Brown | Topps #62 | 1958 | GRID | card | rc | Cleveland Browns | RB | Jim Brown
+4. Bronko Nagurski | National Chicle #34 | 1935 | GRID | card | rc | Chicago Bears | FB | Bronko Nagurski
+5. Patrick Mahomes | National Treasures Rookie Patch Auto | 2017 | GRID | card | rc,auto | Kansas City Chiefs | QB | Patrick Mahomes
+6. Walter Payton | Topps #148 | 1976 | GRID | card | rc | Chicago Bears | RB | Walter Payton
+7. Johnny Unitas | Topps #138 | 1957 | GRID | card | rc | Baltimore Colts | QB | Johnny Unitas
+8. Joe Montana | Topps #216 | 1981 | GRID | card | rc | San Francisco 49ers | QB | Joe Montana
+9. Jerry Rice | Topps #161 | 1986 | GRID | card | rc | San Francisco 49ers | WR | Jerry Rice
+10. Peyton Manning | Playoff Contenders Auto | 1998 | GRID | card | rc,auto | Indianapolis Colts | QB | Peyton Manning
+11. 1986 Topps Football Wax Box | Topps | 1986 | GRID | wax |  | - | - | Topps
+12. Barry Sanders | Topps Traded #83T | 1989 | GRID | card | rc | Detroit Lions | RB | Barry Sanders
+13. Dan Marino | Topps #123 | 1984 | GRID | card | rc | Miami Dolphins | QB | Dan Marino
+14. John Elway | Topps #63 | 1984 | GRID | card | rc | Denver Broncos | QB | John Elway
+15. Emmitt Smith | Score Supplemental #101T | 1990 | GRID | card | rc | Dallas Cowboys | RB | Emmitt Smith
+16. Lawrence Taylor | Topps #434 | 1982 | GRID | card | rc | New York Giants | LB | Lawrence Taylor
+17. Joe Burrow | Prizm #307 | 2020 | GRID | card | rc | Cincinnati Bengals | QB | Joe Burrow
+18. Justin Herbert | Prizm #325 | 2020 | GRID | card | rc | Los Angeles Chargers | QB | Justin Herbert
+19. 2000 Playoff Contenders Hobby Box | Playoff Contenders | 2000 | GRID | wax |  | - | - | Playoff Inc.
+20. Bo Jackson | Topps #327 | 1988 | GRID | card | rc | Los Angeles Raiders | RB | Bo Jackson
+
+== HOCKEY ==
+1. Wayne Gretzky | O-Pee-Chee #18 | 1979 | PUCK | card | rc | Edmonton Oilers | C | Wayne Gretzky
+2. Bobby Orr | Topps #35 | 1966 | PUCK | card | rc | Boston Bruins | D | Bobby Orr
+3. Gordie Howe | Parkhurst #66 | 1951 | PUCK | card | rc | Detroit Red Wings | RW | Gordie Howe
+4. Mario Lemieux | O-Pee-Chee #9 | 1985 | PUCK | card | rc | Pittsburgh Penguins | C | Mario Lemieux
+5. Maurice Richard | Parkhurst #4 | 1951 | PUCK | card | rc | Montreal Canadiens | RW | Maurice Richard
+6. Connor McDavid | Upper Deck Young Guns #201 | 2015 | PUCK | card | rc | Edmonton Oilers | C | Connor McDavid
+7. Sidney Crosby | Upper Deck Young Guns #201 | 2005 | PUCK | card | rc | Pittsburgh Penguins | C | Sidney Crosby
+8. Jean Beliveau | Parkhurst #27 | 1953 | PUCK | card | rc | Montreal Canadiens | C | Jean Béliveau
+9. Patrick Roy | O-Pee-Chee #53 | 1986 | PUCK | card | rc | Montreal Canadiens | G | Patrick Roy
+10. 1979 O-Pee-Chee Hockey Wax Box | O-Pee-Chee | 1979 | PUCK | wax |  | - | - | O-Pee-Chee
+11. Wayne Gretzky | Topps #18 | 1979 | PUCK | card | rc | Edmonton Oilers | C | Wayne Gretzky
+12. Alex Ovechkin | Upper Deck Young Guns #443 | 2005 | PUCK | card | rc | Washington Capitals | LW | Alexander Ovechkin
+13. Terry Sawchuk | Parkhurst #61 | 1951 | PUCK | card | rc | Detroit Red Wings | G | Terry Sawchuk
+14. Steve Yzerman | O-Pee-Chee #67 | 1984 | PUCK | card | rc | Detroit Red Wings | C | Steve Yzerman
+15. Connor Bedard | Upper Deck Young Guns #451 | 2023 | PUCK | card | rc | Chicago Blackhawks | C | Connor Bedard
+16. Mark Messier | O-Pee-Chee #289 | 1980 | PUCK | card | rc | Edmonton Oilers | C | Mark Messier
+17. Jaromir Jagr | Upper Deck #356 | 1990 | PUCK | card | rc | Pittsburgh Penguins | RW | Jaromír Jágr
+18. 1990 Upper Deck Hockey Box | Upper Deck | 1990 | PUCK | wax |  | - | - | Upper Deck Company
+19. Martin Brodeur | Score #439 | 1990 | PUCK | card | rc | New Jersey Devils | G | Martin Brodeur
+20. Eric Lindros | Score #440 | 1990 | PUCK | card | rc | Philadelphia Flyers | C | Eric Lindros
+
+== SOCCER & MORE ==
+1. Pele | Alifabolaget #137 | 1958 | FUTB | card | rc | Brazil | FW | Pelé
+2. Lionel Messi | Megacracks #71 | 2004 | FUTB | card | rc | Barcelona | FW | Lionel Messi
+3. Diego Maradona | Panini Calciatori | 1979 | FUTB | card | rc | Argentinos Juniors | FW | Diego Maradona
+4. Cassius Clay | Hemmets Journal | 1960 | FUTB | card | rc | Boxing | Heavyweight | Muhammad Ali
+5. Tiger Woods | SP Authentic #45 | 2001 | FUTB | card | rc | Golf | - | Tiger Woods
+6. Cristiano Ronaldo | Mega Craques #137 | 2002 | FUTB | card | rc | Sporting CP | FW | Cristiano Ronaldo
+7. Kylian Mbappe | Prizm World Cup #80 | 2018 | FUTB | card | rc | France | FW | Kylian Mbappé
+8. Johan Cruyff | Panini Calciatori | 1974 | FUTB | card |  | Netherlands | FW | Johan Cruyff
+9. Ayrton Senna | Formula One Grid | 1991 | FUTB | card |  | Formula 1 | Driver | Ayrton Senna
+10. Erling Haaland | Topps Chrome Bundesliga | 2020 | FUTB | card | rc | Borussia Dortmund | FW | Erling Haaland
+11. 2018 Prizm World Cup Hobby Box | Prizm World Cup | 2018 | FUTB | wax |  | - | - | FIFA World Cup
+12. Zinedine Zidane | Panini Calciatori | 1997 | FUTB | card |  | Juventus | MF | Zinedine Zidane
+13. Lewis Hamilton | Topps Chrome F1 | 2020 | FUTB | card |  | Formula 1 | Driver | Lewis Hamilton
+14. Arnold Palmer | Golf Stars | 1981 | FUTB | card |  | Golf | - | Arnold Palmer
+15. Mike Tyson | Sport Stars | 1986 | FUTB | card | rc | Boxing | Heavyweight | Mike Tyson
+16. Ronaldo Nazario | Panini World Cup | 1994 | FUTB | card | rc | Brazil | FW | Ronaldo (Brazilian footballer)
+17. Jude Bellingham | Topps Chrome UCL | 2020 | FUTB | card | rc | Borussia Dortmund | MF | Jude Bellingham
+18. 1970 World Cup Sticker Pack | Panini Mexico 70 | 1970 | FUTB | wax |  | - | - | 1970 FIFA World Cup
+19. Usain Bolt | Topps Allen & Ginter | 2009 | FUTB | card |  | Athletics | Sprinter | Usain Bolt
+20. Conor McGregor | Topps UFC Champions | 2014 | FUTB | card | rc | UFC | Lightweight | Conor McGregor

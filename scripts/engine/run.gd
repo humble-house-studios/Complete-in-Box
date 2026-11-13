@@ -11,6 +11,7 @@ extends RefCounted
 signal changed
 
 const Unlocks := preload("res://scripts/data/unlocks.gd")
+const Worlds := preload("res://scripts/data/worlds.gd")
 
 enum Phase { HOME, VENUE, APPRAISAL, OVER, WON }
 
@@ -76,6 +77,11 @@ var letters_read: int = 0
 ## Meta progression: which estate you inherited, the grade tier (0..4, each
 ## keeps the rules below it) and perks the binder has unlocked for the shop.
 var estate_id: String = "arlo"
+## Worlds this player has opened (their collectors freed): the opening pick and
+## the mid-run flips choose from these.
+var open_worlds: Array = []
+## The world this run opened in.
+var start_world: String = "games"
 var tier: int = 0
 var unlocked_perks: Array = []
 var last_rewards: Dictionary = {}
@@ -101,15 +107,26 @@ func start(p_seed: int = 0, opts: Dictionary = {}) -> void:
 	stop = 0
 	var est := Unlocks.estate(String(opts.get("estate", "arlo")))
 	estate_id = String(est["id"])
+	# The world you open in: picked at the start screen, else the estate's own
+	# (if it's built), else retro.
+	open_worlds = (opts.get("worlds", Worlds.DEFAULT_OPEN) as Array).duplicate()
+	var w := String(opts.get("world", ""))
+	if w == "" or not Worlds.is_built(w):
+		w = String(est.get("world", "games")) if opts.has("estate") else "games"
+	market = w if Worlds.is_built(w) else "games"
+	start_world = market
+	if not open_worlds.has(market):
+		open_worlds.append(market)
 	tier = clampi(int(opts.get("tier", 0)), 0, Unlocks.TIERS.size() - 1)
 	unlocked_perks = (opts.get("perks_unlocked", []) as Array).duplicate()
 	cash += int(est["cash"]) + int(opts.get("bonus_cash", 0)) - (10 if tier >= 2 else 0)
 	cash = maxi(cash, 5)
 	shelf_cap += int(est["shelf"]) + int(opts.get("bonus_shelf", 0)) - (1 if tier >= 4 else 0)
-	perk_cap += int(est["perk_cap"])
+	perk_cap += int(est["perk_cap"]) + int(opts.get("bonus_perk_slot", 0))
 	interest_cap = maxi(0, interest_cap + int(est["interest"]))
 	for pid in est["perks"]:
 		perks.append(String(pid))
+		_perk_shelf(String(pid), 1)
 	_pick_active_platforms()
 	var n_start := int(est["starters"]) if opts.has("estate") else Balance.STARTER_ITEMS
 	for i in n_start:
@@ -137,8 +154,19 @@ func has_perk(id: String) -> bool:
 	return perks.has(id)
 
 
+## Tuning hook for tools/tune_worlds.gd: scales the current world's targets.
+static var world_target_tweak := 1.0
+
+
 func target() -> int:
+	# Opening in a world other than retro scales the whole run's targets
+	# (worlds.gd "target") so every opening plays about as hard as retro.
 	var t := Balance.target(ante, stop)
+	var ws := 1.0
+	if start_world != "games":
+		ws = float(Worlds.get_def(start_world).get("target", 1.0)) * world_target_tweak
+	if ws != 1.0:
+		t = int(round(t * ws))
 	if tier >= 4:
 		return int(round(t * 1.45))
 	if tier >= 1:
@@ -507,11 +535,8 @@ func buy_perk(id: String) -> Dictionary:
 	cash -= cost
 	perks.append(id)
 	perk_offers.erase(id)
-	if id == "moms_basement":
-		shelf_cap += 2
-	if id == "cursed_cart":
-		shelf_cap -= 2
-	return _ok("Got %s." % Perks.get_def(id)["name"])
+	_perk_shelf(id, 1)
+	return _ok("Got %s." % perk_name(id))
 
 
 func sell_perk(id: String) -> Dictionary:
@@ -520,11 +545,13 @@ func sell_perk(id: String) -> Dictionary:
 	var back := int(Perks.get_def(id)["cost"]) / 2
 	perks.erase(id)
 	cash += back
-	if id == "moms_basement":
-		shelf_cap -= 2
-	if id == "cursed_cart":
-		shelf_cap += 2
-	return _ok("Sold %s for $%d." % [Perks.get_def(id)["name"], back])
+	_perk_shelf(id, -1)
+	return _ok("Sold %s for $%d." % [perk_name(id), back])
+
+
+## Perks that change your shelf size: sign = +1 when gained, -1 when lost.
+func _perk_shelf(id: String, sign: int) -> void:
+	shelf_cap += sign * int({"moms_basement": 2, "cursed_cart": -2, "long_box": 1}.get(id, 0))
 
 
 func reroll_perks() -> Dictionary:
@@ -558,16 +585,30 @@ func buy_upgrade() -> Dictionary:
 
 # ================================================================ changing markets
 
-## The new scene on offer right now: "cards" at Home before ante 5, "coins"
-## before ante 7 (from games or cards), else "".
-func pivot_offer() -> String:
+## Worlds you could flip into right now: at Home before ante 5 and ante 7,
+## any opened world you're not already in.
+func pivot_options() -> Array:
 	if phase != Phase.HOME or stop != 0 or endless:
+		return []
+	if ante != Balance.PIVOT_CARDS_ANTE and ante != Balance.PIVOT_COINS_ANTE:
+		return []
+	var out: Array = []
+	for w in Worlds.ids():
+		if w != market and open_worlds.has(w) and Worlds.is_built(w):
+			out.append(w)
+	return out
+
+
+## The suggested flip (the next opened world after this one), or "".
+func pivot_offer() -> String:
+	var opts := pivot_options()
+	if opts.is_empty():
 		return ""
-	if ante == Balance.PIVOT_CARDS_ANTE and market == "games":
-		return "cards"
-	if ante == Balance.PIVOT_COINS_ANTE and market != "coins":
-		return "coins"
-	return ""
+	var here := Worlds.index_of(market)
+	for w in opts:
+		if Worlds.index_of(String(w)) > here:
+			return String(w)
+	return String(opts[0])
 
 
 ## What the dealer pays for your whole shelf (and anything at the grader).
@@ -584,7 +625,7 @@ func pivot_value() -> int:
 ## new platforms, new trends. The dealer throws in a few starter pieces and
 ## you get extra Time at the first stop to rebuild.
 func pivot(to: String) -> Dictionary:
-	if to == "" or pivot_offer() != to:
+	if to == "" or not pivot_options().has(to):
 		return _fail("Not on offer right now.")
 	var total := pivot_value()
 	var n := shelf.size() + grading.size()
@@ -623,13 +664,19 @@ func pivot(to: String) -> Dictionary:
 
 ## Perks tied to one hobby only show up in the shop while you deal in it.
 func perk_fits(id: String) -> bool:
-	var m := String(Perks.get_def(id).get("market", ""))
-	return m == "" or m == market
+	var m := Perks.markets(id)
+	return m.is_empty() or m.has(market)
+
+
+## A perk's name in this run's world.
+func perk_name(id: String) -> String:
+	return String(Perks.label(id, market).get("name", id))
 
 
 ## How many cards a sealed product holds when you rip it (0 = can't).
 func pack_size(item: Dictionary) -> int:
-	if String(item.get("kind", "")) != "pack":
+	var k := String(item.get("kind", ""))
+	if k != "pack" and k != "wax":
 		return 0
 	var tags: Array = item.get("tags", [])
 	if tags.has("box"):
@@ -663,8 +710,9 @@ func open_pack(uid: int) -> Dictionary:
 	elif String(pk.get("variant", "")) == "Resealed?":
 		boost -= 3
 	var pool: Array = []
-	for d in Catalog.items_of(market):
-		if String(d["plat"]) == plat and String(d["kind"]) == "card":
+	var single := "scard" if String(pk["kind"]) == "wax" else "card"
+	for d in Catalog.items_of(Catalog.market_of(plat)):
+		if String(d["plat"]) == plat and String(d["kind"]) == single:
 			pool.append(d)
 	var pulls: Array = []
 	var each := int(pk.get("paid", 0)) / maxi(1, n)
@@ -1202,25 +1250,28 @@ func appraise() -> Dictionary:
 		var cond := String(it["cond"])
 		if cond == "CIB" and has_perk("box_and_manual"):
 			v *= 1.5
-			notes.append("Box & Manual x1.5")
+			notes.append("%s x1.5" % perk_name("box_and_manual"))
 		if (it["tags"] as Array).has("disc") and has_perk("disc_jockey"):
 			v *= 2.0
 			notes.append("Disc Jockey x2")
 		if cond == "Sealed" and has_perk("plastic_wrap"):
 			v *= 2.0
-			notes.append("Plastic Wrap x2")
+			notes.append("%s x2" % perk_name("plastic_wrap"))
 		if cond == "Damaged" and has_perk("dust_sheet"):
 			v *= 2.5
-			notes.append("Dust Sheet x2.5")
+			notes.append("%s x2.5" % perk_name("dust_sheet"))
 		if int(it["tier"]) == 0 and has_perk("nostalgia"):
 			v *= 2.0
-			notes.append("Nostalgia x2")
+			notes.append("%s x2" % perk_name("nostalgia"))
 		if it["kind"] == "acc" and has_perk("lunchbox"):
 			v *= 3.0
 			notes.append("Lunchbox x3")
-		if it["kind"] == "pack" and has_perk("pack_rat"):
+		if (it["kind"] == "pack" or it["kind"] == "wax") and has_perk("pack_rat"):
 			v *= 2.0
-			notes.append("Pack Rat x2")
+			notes.append("%s x2" % perk_name("pack_rat"))
+		if has_perk("hall_of_fame") and int(Catalog.get_def(String(it["id"])).get("year", 9999)) < 1980:
+			v *= 2.0
+			notes.append("%s x2" % perk_name("hall_of_fame"))
 		if it["kind"] == "coin" and has_perk("gold_bug") and String(Catalog.get_def(String(it["id"])).get("metal", "")) == "gold":
 			v *= 2.0
 			notes.append("Gold Bug x2")
@@ -1229,10 +1280,13 @@ func appraise() -> Dictionary:
 			notes.append("Picky x0.5")
 		if int(it["held"]) >= 3 and has_perk("glass_case"):
 			v *= 1.5
-			notes.append("Glass Case x1.5")
+			notes.append("%s x1.5" % perk_name("glass_case"))
 		if has_perk("sticker_gun"):
 			v += 8.0
 			notes.append("Sticker +$8")
+		if has_perk("archivist") and int(it["held"]) >= 2:
+			v += 12.0
+			notes.append("%s +$12" % perk_name("archivist"))
 		if has_perk("dollar_bin") and int(it.get("paid", 0)) <= 3:
 			v += 10.0
 			notes.append("Dollar Bin +$10")
@@ -1262,7 +1316,7 @@ func appraise() -> Dictionary:
 			if k.has("console") and k.has("game") and k.has("acc"):
 				times *= 1.5
 				bonuses.append({"label": "%s Full Setup" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
-			elif k.has("card") and k.has("pack") and n >= 3:
+			elif (k.has("card") and k.has("pack") or k.has("scard") and k.has("wax")) and n >= 3:
 				times *= 1.5
 				bonuses.append({"label": "%s Singles + Sealed" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
 			elif k.has("coin"):
@@ -1280,12 +1334,15 @@ func appraise() -> Dictionary:
 	var mint := 0
 	var fun := 0
 	var saga := 0
+	var rookies := 0
 	for it in shelf:
+		if (it["tags"] as Array).has("rc"):
+			rookies += 1
 		if int(it["tier"]) == 3:
 			grails += 1
 		if it["kind"] == "console":
 			consoles += 1
-		if ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless", "Proof-Like", "Deep Cameo", "Rainbow Toned"].has(String(it.get("variant", ""))):
+		if Catalog.SHINY.has(String(it.get("variant", ""))):
 			shiny += 1
 		if it["cond"] == "Mint" or it["cond"] == "Sealed":
 			mint += 1
@@ -1324,15 +1381,17 @@ func appraise() -> Dictionary:
 	_perk_add(bonuses, "hot_streak", 0.5 * hot_n, "Hot Streak")
 	_perk_add(bonuses, "oddity_hunter", 0.4 * odd, "Oddity Hunter")
 	_perk_add(bonuses, "haggle_king", 0.25 * int(stats.get("haggles", 0)), "Haggle King")
+	_perk_add(bonuses, "long_box", 0.1 * shelf.size(), "The Long Box")
+	_perk_add(bonuses, "rookie_fever", 0.3 * rookies, "Rookie Fever")
 	for b in bonuses:
-		if b["label"] in ["Shrink Wrap Fan", "Hoarder", "Funtendo Kid", "Saga Does", "Console Wars", "Shiny Hunter", "Full Page", "Slab Fan", "Hot Streak", "Oddity Hunter", "Haggle King"]:
+		if b.get("perk", false):
 			add += float(b["add"])
 	if has_perk("curator") and per_plat.size() >= 5:
 		times *= 2.0
-		bonuses.append({"label": "Curator", "add": 0.0, "times": 2.0})
+		bonuses.append({"label": perk_name("curator"), "add": 0.0, "times": 2.0})
 	if has_perk("cursed_cart"):
 		times *= 2.0
-		bonuses.append({"label": "Cursed Cartridge", "add": 0.0, "times": 2.0})
+		bonuses.append({"label": perk_name("cursed_cart"), "add": 0.0, "times": 2.0})
 	var mult := (1.0 + add) * times
 	var total := int(round(chips * mult))
 	return {"items": items, "bonuses": bonuses, "chips": chips, "mult": snappedf(mult, 0.01), "total": total}
@@ -1340,7 +1399,7 @@ func appraise() -> Dictionary:
 
 func _perk_add(bonuses: Array, id: String, amount: float, label: String) -> void:
 	if has_perk(id) and amount > 0.0:
-		bonuses.append({"label": label, "add": snappedf(amount, 0.01), "times": 1.0})
+		bonuses.append({"label": perk_name(id), "add": snappedf(amount, 0.01), "times": 1.0, "perk": true})
 
 
 # ================================================================ the want list
@@ -1349,6 +1408,7 @@ const WANT_KINDS := {
 	"games": ["plat", "plat", "setup", "mint", "rare", "graded", "acc", "worth"],
 	"cards": ["plat", "plat", "pack", "mint", "rare", "graded", "shiny", "worth"],
 	"coins": ["plat", "plat", "mint", "rare", "graded", "gold", "worth"],
+	"sports": ["plat", "plat", "pack", "mint", "rare", "graded", "shiny", "rookie", "vintage", "worth"],
 }
 
 
@@ -1373,6 +1433,8 @@ func _roll_want() -> void:
 			w["n"] = 1 if ante < 4 else 2
 		"acc":
 			w["n"] = 2 if ante < 5 else 3
+		"rookie":
+			w["n"] = 1 if ante < 4 else 2
 		"worth":
 			w["worth"] = maxi(20, int(round(target() * 0.22 / 5.0)) * 5)
 	w["reward"] = 4 + ante * 3
@@ -1416,8 +1478,10 @@ func wants(item: Dictionary) -> bool:
 		"rare": return int(item["tier"]) >= 2
 		"graded": return int(item.get("grade", 0)) > 0
 		"acc": return String(item["kind"]) == "acc"
-		"pack": return String(item["kind"]) == "pack"
-		"shiny": return ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless"].has(String(item.get("variant", "")))
+		"pack": return String(item["kind"]) == "pack" or String(item["kind"]) == "wax"
+		"rookie": return (item.get("tags", []) as Array).has("rc")
+		"vintage": return int(Catalog.get_def(String(item["id"])).get("year", 9999)) < 1980
+		"shiny": return Catalog.SHINY.has(String(item.get("variant", "")))
 		"gold": return String(Catalog.get_def(String(item["id"])).get("metal", "")) == "gold"
 		"worth": return market_value(item) >= int(want["worth"])
 	return false
@@ -1431,12 +1495,16 @@ func want_text() -> String:
 	match String(want["id"]):
 		"plat": return "%d %s pieces" % [n, Catalog.platform(String(want["plat"]))["short"]]
 		"setup": return "a console + a game for it"
-		"mint": return ("something Mint or Sealed" if n == 1 else "%d Mint or Sealed pieces" % n)
+		"mint":
+			var words := "Mint or Gem Mint" if market == "sports" else "Mint or Sealed"
+			return ("something %s" % words if n == 1 else "%d %s pieces" % [n, words])
 		"rare": return "anything Rare or better"
 		"graded": return "a graded slab"
 		"acc": return "%d accessories" % n
-		"pack": return "a sealed pack or box"
-		"shiny": return "a shiny card (holo / 1st Ed.)"
+		"pack": return "a sealed wax pack or box" if market == "sports" else "a sealed pack or box"
+		"rookie": return "%d rookie cards" % n if n > 1 else "a rookie card"
+		"vintage": return "a card from before 1980"
+		"shiny": return "a refractor or parallel" if market == "sports" else "a shiny card (holo / 1st Ed.)"
 		"gold": return "a gold coin"
 		"worth": return "one piece worth $%d+" % int(want["worth"])
 	return ""
@@ -1459,7 +1527,7 @@ func _roll_event() -> void:
 	event = {}
 	if stop == 0 or endless:
 		return
-	var diary_due := diary_read < Flavor.DIARY.size() and diary_read < ante and rng.randf() < 0.6
+	var diary_due := diary_read < Flavor.diary(estate_id).size() and diary_read < ante and rng.randf() < 0.6
 	if not diary_due and rng.randf() > EVENT_CHANCE:
 		return
 	if diary_due:

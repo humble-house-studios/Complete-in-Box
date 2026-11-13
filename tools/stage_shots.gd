@@ -17,8 +17,14 @@ func _go(st: Stage, out: String) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 7
 	var conds := ["Loose", "CIB", "Sealed", "Damaged", "Mint"]
-	for id in ["title", "home", "garage", "flea", "estate", "storage", "retro", "pawn", "convention", "ebay", "heritage",
-			"cardshow", "tradenight", "cardshop", "tcgmarket", "coinshow", "beach", "coinshop", "coinauction"]:
+	var ids := ["title", "home", "garage", "flea", "estate", "storage", "retro", "pawn", "convention", "ebay", "heritage",
+			"cardshow", "tradenight", "cardshop", "tcgmarket", "coinshow", "beach", "coinshop", "coinauction",
+			"ballroom", "shoebox", "dugout", "breaks"]
+	# Optional filter: any other args after OUT_DIR are scene ids to shoot.
+	var only: Array = Array(OS.get_cmdline_user_args()).slice(1).filter(func(a): return a != "landscape")
+	if not only.is_empty():
+		ids = only
+	for id in ids:
 		var pool: Array = Catalog.items_of(Venues.market(id)) if Venues.get_def(id).size() > 0 else Catalog.items_of("games")
 		var items: Array = []
 		var n := 1 if id == "title" else (9 if id == "home" else 6)

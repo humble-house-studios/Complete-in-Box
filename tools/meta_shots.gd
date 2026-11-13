@@ -31,15 +31,15 @@ func _snap(name: String, frames: int = 24) -> void:
 
 func _go() -> void:
 	var keep: Dictionary = game._save.duplicate()
-	game._save["estates"] = 7
+	game._save["estates"] = 33 | 8
 	game._save["max_tier"] = 2
 	game._save["won_arlo"] = 1
-	game._save["last_estate"] = 2
+	game._save["last_estate"] = 3
 	game._save["last_tier"] = 1
 	game._open_estates()
 	await _snap("estates")
 	game._close_sheet()
-	game._save["estates"] = 1
+	game._save["estates"] = 33
 	game._save["max_tier"] = 0
 	game.start_new_run(808)
 	await _snap("home", 12)

@@ -62,11 +62,16 @@ var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound"
 	"sealed": 0, "seal_grade": 0, "seal_cond": 0, "seal_ante": 0, "seal_lot": 0,
 	# Meta: freed estates (bitmask, Arlo = 1), highest tier unlocked, last picks,
 	# best tier won with each estate (-1 = never won).
-	"estates": 1, "max_tier": 0, "last_estate": 0, "last_tier": 0,
+	# estates uses each estate's fixed "bit" (unlocks.gd); last_estate is that bit.
+	# last_world = Worlds index picked at the start screen (-1 = the estate's own).
+	# intros = bitmask of world intros seen (Worlds index).
+	"estates": 33, "max_tier": 0, "last_estate": 0, "last_tier": 0, "last_world": -1, "intros": 0, "save_ver": 2,
 	"won_arlo": -1, "won_june": -1, "won_dale": -1, "won_rose": -1, "won_hector": -1, "won_twins": -1,
+	"won_marv": -1, "won_elsa": -1, "won_iris": -1, "won_buyer": -1, "seal_world": 0,
 	# Most of the Buyer's want list filled in one run, and true endings seen.
 	"best_wants": 0, "true_ends": 0}
 const Unlocks := preload("res://scripts/data/unlocks.gd")
+const Worlds := preload("res://scripts/data/worlds.gd")
 ## What the last win unlocked: {"freed": estate index or -1, "tier": new tier or -1}.
 var _won_news: Dictionary = {}
 const SEAL_CONDS := ["DAMAGED", "LOOSE", "COMPLETE IN BOX", "MINT"]
@@ -255,11 +260,12 @@ func _do_refresh() -> void:
 
 ## Puts the right room (and its items) behind the UI and picks the music.
 func _sync_stage() -> void:
-	if _stage == null:
+	if _stage == null or _wintro_on():
 		return
 	match screen:
 		"title":
 			_stage.vault_case = _vault_info()
+			_stage.collector_cases = _collector_cases()
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("title")
 		"home":
@@ -275,16 +281,22 @@ func _sync_stage() -> void:
 				items.append(o["item"])
 			for a in run.auctions:
 				items.append(a["item"])
+			_stage.collector_cases = _collector_cases()
 			_stage.show_scene(String(run.venue["id"]), items)
 			_sfx.music(String(run.venue["slot"]), String(run.venue["id"]))
 		"over":
 			var cg := run.curse_grade()
 			_stage.case_info = {"grade": cg["grade"], "cond": cg["cond"], "name": "SPECIMEN: YOU",
 				"lot": "#%04d" % (run.seed_value % 9973), "lot_n": run.seed_value % 9973, "ante": "ANTE %d" % run.ante}
+			var wcur := Flavor.curse(run.market)
+			if not wcur.is_empty():
+				_stage.case_info["label"] = String(wcur["label"])
+				_stage.case_info["case"] = String(wcur["case"])
 			_stage.show_scene("cursed", [])
 			_sfx.music("ending")
 		"won":
 			_stage.vault_case = _vault_info()
+			_stage.collector_cases = _collector_cases()
 			_stage.show_scene("title", [_hero_item()])
 			_sfx.music("ending")
 		"collection":
@@ -292,6 +304,7 @@ func _sync_stage() -> void:
 			for w in _coll_wall.slice(0, 6):
 				hung.append(w)
 			_stage.vault_case = _vault_info()
+			_stage.collector_cases = _collector_cases()
 			_stage.show_scene("title", hung if not hung.is_empty() else [_hero_item()])
 			_sfx.music("title")
 
@@ -2612,6 +2625,206 @@ func _start_intro() -> void:
 	_finish_intro()
 
 
+# ================================================================ world intros
+
+var _wintro: Control
+var _wintro_skip := false
+var _wintro_done: Callable
+
+
+func _wintro_on() -> bool:
+	return _wintro != null and is_instance_valid(_wintro)
+
+
+func _intro_seen(world: String) -> bool:
+	return (int(_save.get("intros", 0)) >> Worlds.index_of(world)) & 1 == 1
+
+
+## The first time a run enters a world with an intro, play it (once the
+## loading card has lifted), then let the home screen carry on.
+func _maybe_world_intro() -> void:
+	if run == null or fast or _intro_seen(run.market) or Flavor.intro(run.market).is_empty():
+		return
+	while _veil != null and is_instance_valid(_veil):
+		await get_tree().process_frame
+	if run != null and screen == "home":
+		_world_intro(run.market, func():
+			request_refresh()
+			_maybe_letter.call_deferred())
+
+
+## The world's signature piece for its intro: its top grail, slabbed Gem Mint.
+func _signature_item(world: String) -> Dictionary:
+	var best: Dictionary = {}
+	for d in Catalog.items_of(world):
+		if best.is_empty() or int(d["tier"]) > int(best["tier"]) or int(d["tier"]) == int(best["tier"]) and int(d["base"]) > int(best["base"]):
+			best = d
+	var it := best.duplicate()
+	it["cond"] = "Mint"
+	it["grade"] = 10
+	it["variant"] = "Standard"
+	it["uid"] = -1
+	return it
+
+
+## An 8-12 s first-visit intro for a world: the camera flies through its
+## signature venue (Stage.intro_path), glances at its collector's case, the
+## signature piece rises into a spotlight, then the world's logo slams in
+## with its music sting. Skippable; replayable from the COLLECTION.
+func _world_intro(world: String, done: Callable = Callable()) -> void:
+	var info := Flavor.intro(world)
+	_save["intros"] = int(_save.get("intros", 0)) | (1 << Worlds.index_of(world))
+	_write_save()
+	if info.is_empty() or fast or DisplayServer.get_name() == "headless" or Lite.no3d or _stage == null:
+		if done.is_valid():
+			done.call()
+		return
+	_wintro_skip = false
+	_wintro_done = done
+	var scene := String(info.get("scene", "title"))
+	var path: Array = _stage.intro_path(scene)
+	if path.is_empty():
+		if done.is_valid():
+			done.call()
+		return
+	var wd := Worlds.get_def(world)
+	var col: Color = wd.get("color", GOLD)
+	_wintro = Control.new()
+	_wintro.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_wintro.mouse_filter = Control.MOUSE_FILTER_STOP
+	_overlay.add_child(_wintro)
+	var black := ColorRect.new()
+	black.color = Color(0, 0, 0, 1)
+	black.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wintro.add_child(black)
+	var vs := get_viewport_rect().size
+	_root_box.visible = false
+	var sig := _signature_item(world)
+	Art.front(sig)
+	Art.loading = true
+	_stage.collector_cases = _collector_cases()
+	_stage.show_scene(scene, [sig])
+	_stage.cine_on = true
+	_stage.set_focus(0.5, 1.0)
+	_cine_at(path, 0.0)
+	_sfx.music(String(wd.get("music", "")) if String(wd.get("music", "")) != "" else "hunt")
+	var hero := _stage.hero()
+	var hero_y := 0.0
+	if hero != null:
+		hero_y = hero.position.y
+		hero.position.y = hero_y - 0.6
+	for top in [true, false]:
+		var bar := ColorRect.new()
+		bar.color = Color(0, 0, 0, 1)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.anchor_right = 1.0
+		bar.anchor_top = 0.0 if top else 1.0
+		bar.anchor_bottom = 0.0 if top else 1.0
+		bar.offset_top = 0.0 if top else -vs.y * 0.1
+		bar.offset_bottom = vs.y * 0.1 if top else 0.0
+		_wintro.add_child(bar)
+	var skip := _button("SKIP  >", _skip_world_intro, Color(0.15, 0.13, 0.2, 0.85), 20, 72)
+	skip.anchor_left = 1.0
+	skip.anchor_right = 1.0
+	skip.offset_left = -190
+	skip.offset_right = -_margins.z
+	skip.offset_top = _margins.y + 8
+	skip.offset_bottom = _margins.y + 80
+	_wintro.add_child(skip)
+	if _pad:
+		skip.grab_focus.call_deferred()
+	# 1. Fade up and fly (8 s), glancing at the collector's case on the way.
+	var fly_time := 8.0
+	var fly := create_tween().set_parallel(true)
+	fly.tween_property(black, "color:a", 0.0, 1.4).set_trans(Tween.TRANS_SINE)
+	fly.tween_method(func(t: float) -> void:
+		if _wintro_on():
+			_cine_at(path, t), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await get_tree().create_timer(fly_time * 0.6).timeout
+	if _wintro_skip or not _wintro_on():
+		return
+	# 2. The signature piece rises into the light.
+	Art.loading = false
+	if hero != null and is_instance_valid(hero):
+		var up := create_tween()
+		up.tween_property(hero, "position:y", hero_y, fly_time * 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var name_l := _label("SIGNATURE PIECE:  " + String(sig.get("name", "")), 20, Color("ffe7b0"))
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_l.size = Vector2(vs.x, 30)
+	name_l.position = Vector2(0, vs.y * 0.86)
+	name_l.modulate.a = 0.0
+	_ink_outline(name_l)
+	_wintro.add_child(name_l)
+	name_l.create_tween().tween_property(name_l, "modulate:a", 1.0, 1.0)
+	await get_tree().create_timer(fly_time * 0.4 + 0.2).timeout
+	if _wintro_skip or not _wintro_on():
+		return
+	# 3. Logo slam + sting.
+	_sfx.play("sting_" + world)
+	_stage.shake(0.25)
+	var ctr := vs.y * (0.2 if not is_landscape() else 0.22)
+	var big := _title_label(String(info.get("title", wd.get("name", ""))), 96 if not is_landscape() else 78, col)
+	big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	big.size = Vector2(vs.x, 120)
+	big.position = Vector2(0, ctr)
+	big.pivot_offset = Vector2(vs.x * 0.5, 60)
+	big.scale = Vector2(2.2, 2.2)
+	big.modulate.a = 0.0
+	_ink_outline(big)
+	_wintro.add_child(big)
+	var bt := big.create_tween().set_parallel(true)
+	bt.tween_property(big, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	bt.tween_property(big, "modulate:a", 1.0, 0.2)
+	var sub := _title_label(String(info.get("sub", "")).to_upper(), 30, INK)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.size = Vector2(vs.x, 40)
+	sub.position = Vector2(0, ctr + 112)
+	sub.modulate.a = 0.0
+	_ink_outline(sub)
+	_wintro.add_child(sub)
+	sub.create_tween().tween_property(sub, "modulate:a", 1.0, 0.6).set_delay(0.4)
+	var line := _label(String(info.get("line", "")), 20, Color("ffe7b0"), true)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.size = Vector2(vs.x * 0.84, 80)
+	line.position = Vector2(vs.x * 0.08, ctr + 156)
+	line.modulate.a = 0.0
+	_ink_outline(line)
+	_wintro.add_child(line)
+	line.create_tween().tween_property(line, "modulate:a", 1.0, 0.8).set_delay(0.9)
+	_wintro.move_child(skip, -1)
+	await get_tree().create_timer(3.2).timeout
+	if _wintro_skip or not _wintro_on():
+		return
+	_finish_world_intro()
+
+
+func _skip_world_intro() -> void:
+	_wintro_skip = true
+	_finish_world_intro()
+
+
+func _finish_world_intro() -> void:
+	if not _wintro_on():
+		return
+	var w := _wintro
+	_wintro = null
+	if _stage != null:
+		_stage.cine_on = false
+	Art.loading = false
+	_root_box.visible = true
+	_root_box.modulate.a = 1.0
+	var t := w.create_tween()
+	t.tween_property(w, "modulate:a", 0.0, 0.4)
+	t.tween_callback(w.queue_free)
+	var d := _wintro_done
+	_wintro_done = Callable()
+	if d.is_valid():
+		d.call()
+	else:
+		request_refresh()
+
+
 func _cine_at(path: Array, t: float) -> void:
 	var n := path.size() - 1
 	var f := clampf(t, 0.0, 1.0) * n
@@ -3204,7 +3417,9 @@ func _show_how_to() -> void:
 
 ## NEW RUN on the title: the quick guide first (until they turn it off).
 func _on_new_run() -> void:
-	if int(_save["estates"]) > 1 or int(_save["max_tier"]) > 0:
+	# The very first run goes straight to the guide (Arlo, retro); after that
+	# there's always a choice (the Pruitt Twins and TCG are open from the start).
+	if int(_save["runs"]) > 0 or int(_save["estates"]) != Unlocks.START_MASK or int(_save["max_tier"]) > 0:
 		_open_estates()
 		return
 	_guide_then_start()
@@ -3635,6 +3850,7 @@ func _start_new_run(seed_value: int) -> void:
 	screen = "home"
 	_close_sheet()
 	request_refresh()
+	_maybe_world_intro.call_deferred()
 
 
 func _act(res: Dictionary, good: String = "coin") -> void:
@@ -3693,7 +3909,7 @@ func _build_showcase() -> void:
 
 
 func _build_home() -> void:
-	if run.stop == 0 and run.letters_read < mini(run.ante, Flavor.LETTERS.size()):
+	if run.stop == 0 and run.letters_read < mini(run.ante, Flavor.letters(run.estate_id).size()):
 		_maybe_letter.call_deferred()
 	if _dest == "" or not run.venue_choices.has(_dest):
 		_dest = String(run.venue_choices[0]) if not run.venue_choices.is_empty() else ""
@@ -3767,7 +3983,7 @@ func _route_tab(col: VBoxContainer) -> void:
 		mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mail.add_child(mb)
 		if run.diary_read > 0:
-			var db := _button("ARLO'S DIARY (%d)" % run.diary_read, _open_diary, Color("4a3a22"), 18, 72)
+			var db := _button("%s (%d)" % [Flavor.diary_name(run.estate_id).to_upper(), run.diary_read], _open_diary, Color("4a3a22"), 18, 72)
 			db.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			mail.add_child(db)
 		col.add_child(mail)
@@ -3803,8 +4019,8 @@ func _event_panel(col: VBoxContainer) -> void:
 	var item: Dictionary = {}
 	match id:
 		"diary":
-			var pg: Array = Flavor.DIARY[clampi(int(e["page"]), 0, Flavor.DIARY.size() - 1)]
-			title = "A page of Arlo's diary"
+			var pg: Array = Flavor.diary(run.estate_id)[clampi(int(e["page"]), 0, Flavor.diary(run.estate_id).size() - 1)]
+			title = "A page of " + Flavor.diary_name(run.estate_id)
 			body = "Found it %s. Something's folded inside." % String(pg[0])
 			yes = "READ IT"
 			no = ""
@@ -3812,6 +4028,10 @@ func _event_panel(col: VBoxContainer) -> void:
 			item = e["item"]
 			title = "The neighbour's clearing out"
 			body = "\"Box of my son's old stuff. %s, sight unseen. Don't tell him.\" Something %s rattles inside." % [_money(int(e["price"])), Catalog.platform(String(item["plat"]))["short"]]
+			var wt := Flavor.event_text(run.market, "box")
+			if not wt.is_empty():
+				title = String(wt[0])
+				body = String(wt[1]) % [_money(int(e["price"])), Catalog.platform(String(item["plat"]))["short"]]
 			yes = "BUY THE BOX  %s" % _money(int(e["price"]))
 		"trade":
 			item = e["item"]
@@ -3823,12 +4043,20 @@ func _event_panel(col: VBoxContainer) -> void:
 			var it := run.find_item(int(e["give"]))
 			title = "A collector saw your shelf"
 			body = "\"I'll give you %s cash for that %s. Right now.\" It's worth %s, and it scores on your shelf." % [_money(int(e["price"])), it.get("name", "?"), _money(run.market_value(it)) if not it.is_empty() else "?"]
+			var wc := Flavor.event_text(run.market, "collector")
+			if not wc.is_empty():
+				title = String(wc[0])
+				body = String(wc[1]) % [_money(int(e["price"])), it.get("name", "?"), _money(run.market_value(it)) if not it.is_empty() else "?"]
 			yes = "SELL IT  %s" % _money(int(e["price"]))
 			no = "Not for sale"
 		"leak":
 			var it2 := run.find_item(int(e["give"]))
 			title = "The roof is leaking"
 			body = "Right over your %s. A tarp costs %s. Or it gets wet, and wet means Damaged." % [it2.get("name", "?"), _money(int(e["price"]))]
+			var wl := Flavor.event_text(run.market, "leak")
+			if not wl.is_empty():
+				title = String(wl[0])
+				body = String(wl[1]) % [it2.get("name", "?"), _money(int(e["price"]))]
 			yes = "BUY A TARP  %s" % _money(int(e["price"]))
 			no = "Let it drip"
 	v.add_child(_title_label(title, 26, col_c))
@@ -3856,8 +4084,8 @@ func _event_yes() -> void:
 	match String(e["id"]):
 		"diary":
 			_sfx.play("dig")
-			var pg: Array = Flavor.DIARY[clampi(int(e["page"]), 0, Flavor.DIARY.size() - 1)]
-			_open_sheet("Arlo's diary  •  page %d of %d" % [int(e["page"]) + 1, Flavor.DIARY.size()], [
+			var pg: Array = Flavor.diary(run.estate_id)[clampi(int(e["page"]), 0, Flavor.diary(run.estate_id).size() - 1)]
+			_open_sheet(Flavor.diary_name(run.estate_id) + "  •  page %d of %d" % [int(e["page"]) + 1, Flavor.diary(run.estate_id).size()], [
 				["\"%s\"" % String(pg[1]), FLAVOR_C],
 				[String(res["msg"]), GOOD],
 			], [])
@@ -3873,10 +4101,10 @@ func _event_yes() -> void:
 ## Every diary page found this run, oldest first.
 func _open_diary() -> void:
 	var lines: Array = []
-	for i in mini(run.diary_read, Flavor.DIARY.size()):
-		lines.append(["Page %d  (%s)" % [i + 1, String(Flavor.DIARY[i][0])], MUTED])
-		lines.append(["\"%s\"" % String(Flavor.DIARY[i][1]), FLAVOR_C])
-	_open_sheet("Arlo's diary  •  %d of %d pages" % [run.diary_read, Flavor.DIARY.size()], lines, [])
+	for i in mini(run.diary_read, Flavor.diary(run.estate_id).size()):
+		lines.append(["Page %d  (%s)" % [i + 1, String(Flavor.diary(run.estate_id)[i][0])], MUTED])
+		lines.append(["\"%s\"" % String(Flavor.diary(run.estate_id)[i][1]), FLAVOR_C])
+	_open_sheet(Flavor.diary_name(run.estate_id) + "  •  %d of %d pages" % [run.diary_read, Flavor.diary(run.estate_id).size()], lines, [])
 
 
 func _event_no() -> void:
@@ -4075,6 +4303,7 @@ const PERK_CAT_OF := {
 	"extra_hour": "time", "moms_basement": "time", "time_capsule": "time",
 	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market", "slab_fan": "market",
 	"glass_case": "time", "dollar_bin": "hunt", "haggle_king": "hunt", "hot_streak": "market",
+	"archivist": "time", "long_box": "time", "rookie_fever": "appraisal", "hall_of_fame": "appraisal",
 }
 
 
@@ -4093,7 +4322,7 @@ func _perk_badge(desc: String, name: String) -> String:
 ## Trading-card style perk: category header, striped art panel with a big
 ## effect badge, name, rule text, price.
 func _perk_card(id: String, w: float, owned: bool) -> Button:
-	var d := Perks.get_def(id)
+	var d := Perks.label(id, run.market if run != null else "")
 	var cat: Array = PERK_CATS[PERK_CAT_OF.get(id, "appraisal")]
 	var col: Color = cat[1]
 	var b := _card_shell(w, 290, col if not owned else GOOD, func(): _open_perk(id, owned), PANEL)
@@ -4147,7 +4376,7 @@ func _upgrade_card(w: float) -> Button:
 
 
 func _open_perk(id: String, owned: bool) -> void:
-	var d := Perks.get_def(id)
+	var d := Perks.label(id, run.market if run != null else "")
 	if owned:
 		_open_sheet(String(d["name"]), [[String(d["desc"]), INK]], [
 			["Sell for %s" % _money(int(d["cost"]) / 2), func(): _act(run.sell_perk(id), "coin"), BAD],
@@ -4253,7 +4482,10 @@ func _loading_card(title: String, sub: String, col: Color) -> Control:
 	holder.add_child(fill)
 	track.add_child(holder)
 	v.add_child(track)
-	var tip := _label(Flavor.pick(LOADING_TIPS, randi()), 17, MUTED, true)
+	var tip_pool: Array = LOADING_TIPS
+	if run != null and not Flavor.tips(run.market).is_empty():
+		tip_pool = Flavor.tips(run.market) + LOADING_TIPS
+	var tip := _label(Flavor.pick(tip_pool, randi()), 17, MUTED, true)
 	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(tip)
 	c.set_meta("bar", fill)
@@ -4840,23 +5072,21 @@ func _rip_pack(uid: int) -> void:
 ## The fork in the road after antes 4 and 6: sell everything and deal in
 ## trading cards / rare coins from now on.
 func _pivot_panel(col: VBoxContainer) -> void:
-	var to := run.pivot_offer()
-	if to == "":
+	var opts := run.pivot_options()
+	if opts.is_empty():
 		return
-	var m: Dictionary = Catalog.MARKETS[to]
-	var p := _panel(Color(0.08, 0.05, 0.02, 0.92), Color(m["color"], 0.8), 3)
+	var first: Dictionary = Worlds.get_def(String(opts[0]))
+	var p := _panel(Color(0.08, 0.05, 0.02, 0.92), Color(first["color"], 0.8), 3)
 	var v := _vbox(6)
 	p.add_child(v)
-	v.add_child(_pill("A NEW SCENE IS OPENING UP", m["color"], 16))
-	var lines := {
-		"cards": ["THE CARD SHOPS", "The games crowd has gone quiet. Word is the card shops are booming: singles, slabs, sealed boxes you can rip open."],
-		"coins": ["THE RARE COIN TRADE", "Real money. Coin shows, dealers with vault doors, auction houses that sell pennies for millions."],
-	}
-	v.add_child(_title_label(String(lines[to][0]), 30, m["color"]))
-	v.add_child(_label(String(lines[to][1]), 18, INK, true))
+	v.add_child(_pill("A NEW SCENE IS OPENING UP", first["color"], 16))
 	v.add_child(_label("Flip now: sell your whole shelf for %s (%d%% of value), get %d starter pieces and +%d Time at your next stop. Your perks stay. There's no going back." % [_money(run.pivot_value()), int(Balance.PIVOT_RATE * 100), Balance.PIVOT_STARTERS, Balance.PIVOT_TIME], 17, MUTED, true))
-	var b := _button("FLIP EVERYTHING INTO %s  >" % String(m["short"]), func(): _confirm_pivot(to), Color(m["color"]).darkened(0.35), 22, 88)
-	v.add_child(b)
+	for to in opts:
+		var w: Dictionary = Worlds.get_def(String(to))
+		v.add_child(_title_label(String(w["pivot"][0]), 28, w["color"]))
+		v.add_child(_label(String(w["pivot"][1]), 18, INK, true))
+		var b := _button("FLIP EVERYTHING INTO %s  >" % String(w["short"]), _confirm_pivot.bind(String(to)), Color(w["color"]).darkened(0.35), 22, 88)
+		v.add_child(b)
 	v.add_child(_label("Or ignore this and head out: you'll stay in %s." % String(Catalog.MARKETS[run.market]["name"]).to_lower(), 16, MUTED, true))
 	col.add_child(p)
 
@@ -4880,7 +5110,8 @@ func _do_pivot(to: String) -> void:
 	_sfx.play("coin")
 	_transition(func():
 		_toast_msg(String(res["msg"]), GOLD)
-		request_refresh(), "TRADING IN\nYOUR WHOLE SHELF", "Starter stack: " + ", ".join(res["starters"]), Catalog.MARKETS[to]["color"])
+		request_refresh()
+		_maybe_world_intro.call_deferred(), "TRADING IN\nYOUR WHOLE SHELF", "Starter stack: " + ", ".join(res["starters"]), Catalog.MARKETS[to]["color"])
 
 
 # ================================================================ appraisal
@@ -5094,7 +5325,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		_stage.shake(0.5)
 		_coin_burst(layer, total_l)
 		var r: Dictionary = res["rewards"]
-		score_box.add_child(_label(Flavor.pick(Flavor.PASS, run.ante * 3 + run.stop), 16, FLAVOR_C, true))
+		score_box.add_child(_label(Flavor.pick(Flavor.pass_lines(run.market), run.ante * 3 + run.stop), 16, FLAVOR_C, true))
 		score_box.add_child(_payday(r))
 		if r.has("want"):
 			# The Buyer's request: a gold stamp and a chime on top of the payday.
@@ -5111,7 +5342,7 @@ func _play_appraisal(res: Dictionary) -> void:
 		_sfx.play("fail")
 		_stage.shake(1.4)
 		_flash(layer, BAD)
-		score_box.add_child(_label("No payday. %s" % Flavor.pick(Flavor.FAIL, run.ante * 3 + run.stop), 18, BAD, true))
+		score_box.add_child(_label("No payday. %s" % Flavor.pick(Flavor.fail_lines(run.market), run.ante * 3 + run.stop), 18, BAD, true))
 		btn_box.add_child(_mark_main(_button("SEE RESULTS", _after_appraisal, BAD, 28 if not land else 24, 96 if not land else 76)))
 	_busy = false
 	if _pad:
@@ -5376,13 +5607,31 @@ func _close_reveal() -> void:
 # ================================================================ estates, tiers, binder rewards
 
 func _estate_free(i: int) -> bool:
-	return (int(_save["estates"]) >> i) & 1 == 1
+	return Unlocks.is_free(int(_save["estates"]), i)
 
 
 ## The estate the next run uses (last pick, if it's still free).
 func _pick_estate() -> int:
-	var i := clampi(int(_save["last_estate"]), 0, Unlocks.ESTATES.size() - 1)
-	return i if _estate_free(i) else 0
+	for i in Unlocks.ESTATES.size():
+		if int(Unlocks.ESTATES[i]["bit"]) == int(_save["last_estate"]):
+			return i if _estate_free(i) else 0
+	return 0
+
+
+## Worlds open to play: collectors freed (and their world built).
+func _open_worlds() -> Array:
+	return Unlocks.open_worlds(int(_save["estates"]))
+
+
+## The world the next run opens in: the start screen's pick if it's open,
+## else the estate's own world, else retro.
+func _pick_world() -> String:
+	var open := _open_worlds()
+	var li := int(_save.get("last_world", -1))
+	if li >= 0 and li < Worlds.LIST.size() and open.has(String(Worlds.LIST[li]["id"])):
+		return String(Worlds.LIST[li]["id"])
+	var own := String(Unlocks.ESTATES[_pick_estate()].get("world", "games"))
+	return own if open.has(own) else "games"
 
 
 func _pick_tier() -> int:
@@ -5395,7 +5644,8 @@ func _run_opts() -> Dictionary:
 		_load_collection()
 	var br := Unlocks.binder_rewards(_coll_owned)
 	return {"estate": String(Unlocks.ESTATES[_pick_estate()]["id"]), "tier": _pick_tier(),
-		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"]}
+		"world": _pick_world(), "worlds": _open_worlds(),
+		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"], "bonus_perk_slot": br["perk_slot"]}
 
 
 ## A win frees the next sealed collector and opens the next grade tier.
@@ -5408,7 +5658,7 @@ func _record_win() -> void:
 		_won_news["tier"] = run.tier + 1
 	for i in Unlocks.ESTATES.size():
 		if not _estate_free(i):
-			_save["estates"] = int(_save["estates"]) | (1 << i)
+			_save["estates"] = int(_save["estates"]) | Unlocks.bit_of(i)
 			_won_news["freed"] = i
 			break
 
@@ -5425,6 +5675,13 @@ func _won_unlocks(parent: Container) -> void:
 		var e: Dictionary = Unlocks.ESTATES[fi]
 		v.add_child(_title_label("FREED FROM THE VAULT: " + String(e["name"]).to_upper(), 28, GOLD))
 		v.add_child(_label("You bought them out of their case. Their estate is yours to play: " + String(e["effect"]), 19, INK, true))
+		var fw: Dictionary = Worlds.get_def(String(e.get("world", "")))
+		if not fw.is_empty():
+			if bool(fw["built"]):
+				v.add_child(_title_label("NEW WORLD: " + String(fw["name"]).to_upper(), 26, fw["color"]))
+				v.add_child(_label("Pick it at the start of a run, or flip into it before rounds 5 and 7.", 18, INK, true))
+			else:
+				v.add_child(_label("Their world, %s, is still being catalogued. Coming soon." % String(fw["name"]), 18, MUTED, true))
 	var ti := int(_won_news.get("tier", -1))
 	if ti >= 0:
 		var td: Dictionary = Unlocks.TIERS[ti]
@@ -5485,6 +5742,31 @@ func _open_estates() -> void:
 	var pick := _pick_estate()
 	for i in Unlocks.ESTATES.size():
 		list.add_child(_estate_card(i, i == pick))
+	# World picker: any world whose collector you've freed.
+	var open := _open_worlds()
+	var wid := _pick_world()
+	var wi := open.find(wid)
+	var wd: Dictionary = Worlds.get_def(wid)
+	var wrow := _hbox(10)
+	var wprev := _button("<", _set_world.bind(open[(wi - 1 + open.size()) % open.size()]), PANEL_HI, 28, 80)
+	wprev.custom_minimum_size.x = 90
+	wprev.disabled = open.size() < 2
+	wrow.add_child(wprev)
+	var wmid := _vbox(0)
+	wmid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var wn := _title_label("WORLD: " + String(wd["name"]).to_upper(), 28, wd["color"])
+	wn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wmid.add_child(wn)
+	var wbump := float(wd.get("target", 1.0))
+	var wl := _label(String(wd["blurb"]) + ("  Targets +%d%%." % int(round((wbump - 1.0) * 100)) if wbump > 1.0 else "") + "  (%d of %d worlds open)" % [open.size(), Worlds.LIST.size()], 17, MUTED, true)
+	wl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wmid.add_child(wl)
+	wrow.add_child(wmid)
+	var wnext := _button(">", _set_world.bind(open[(wi + 1) % open.size()]), PANEL_HI, 28, 80)
+	wnext.custom_minimum_size.x = 90
+	wnext.disabled = open.size() < 2
+	wrow.add_child(wnext)
+	v.add_child(wrow)
 	# Tier picker.
 	var t := _pick_tier()
 	var td: Dictionary = Unlocks.TIERS[t]
@@ -5537,6 +5819,9 @@ func _estate_card(i: int, sel: bool) -> Button:
 	h.add_child(_title_label(String(e["name"]).to_upper() if free else "SEALED", 26, INK if free else MUTED))
 	h.add_child(_spacer(false))
 	var best := int(_save.get("won_" + String(e["id"]), -1))
+	var ew: Dictionary = Worlds.get_def(String(e.get("world", "games")))
+	if free and not ew.is_empty():
+		h.add_child(_pill(String(ew["short"]) if bool(ew["built"]) else String(ew["short"]) + " SOON", ew["color"] if bool(ew["built"]) else Color(0.4, 0.38, 0.46), 14))
 	if free and best >= 0:
 		var td: Dictionary = Unlocks.TIERS[best]
 		h.add_child(_pill("BEAT " + String(td["name"]), td["color"], 14))
@@ -5553,7 +5838,15 @@ func _estate_card(i: int, sel: bool) -> Button:
 
 
 func _set_estate(i: int) -> void:
-	_save["last_estate"] = i
+	_save["last_estate"] = int(Unlocks.ESTATES[i]["bit"])
+	_save["last_world"] = -1
+	_write_save()
+	_sfx.play("tick")
+	_open_estates()
+
+
+func _set_world(id: String) -> void:
+	_save["last_world"] = Worlds.index_of(id)
 	_write_save()
 	_sfx.play("tick")
 	_open_estates()
@@ -5585,7 +5878,9 @@ func _binder_rewards_panel(col: Control) -> void:
 		row.add_child(tag)
 		row.add_child(_label(String(r[3]), 17, INK if got else MUTED, true))
 		v.add_child(row)
-	v.add_child(_label("PAGE STAMPS: own half of a console's page for +$1 at the start of every run. Stamped: %d (+$%d)." % [br["stamps"], br["stamps"]], 17, GOLD, true))
+	v.add_child(_label("PAGE STAMPS: own half of a page for +$1 at the start of every run (up to $%d). Stamped: %d (+$%d)." % [Unlocks.STAMP_CAP, br["stamps"], br["stamp_cash"]], 17, GOLD, true))
+	var done: Array = br["worlds_done"]
+	v.add_child(_label("WORLD SEALS: own every item in a world for +$%d a run each. Sealed: %s." % [Unlocks.WORLD_DONE_CASH, "none yet" if done.is_empty() else ", ".join(done.map(func(m): return String(Catalog.MARKETS[m]["name"])))], 17, GOLD, true))
 	col.add_child(p)
 
 
@@ -5609,10 +5904,33 @@ func _check_binder_reward(id: String) -> void:
 			if _coll_owned.has(String(e["id"])):
 				got += 1
 	if got == Unlocks.page_need(tot):
-		_toast_msg("PAGE STAMP: %s. +$1 at the start of every run." % String(Catalog.platform(plat)["name"]), GOLD)
+		_toast_msg("PAGE STAMP: %s. +$1 at the start of every run (up to $%d)." % [String(Catalog.platform(plat)["name"]), Unlocks.STAMP_CAP], GOLD)
+	var m := Catalog.market_of(plat)
+	var wt := 0
+	var wg := 0
+	for e in Catalog.items_of(m):
+		wt += 1
+		if _coll_owned.has(String(e["id"])):
+			wg += 1
+	if wt > 0 and wg == wt:
+		_toast_msg("WORLD SEAL: you own every piece of %s! +$%d at the start of every run." % [String(Catalog.MARKETS[m]["name"]), Unlocks.WORLD_DONE_CASH], GOLD)
+		if _sfx != null and not fast:
+			_sfx.play("grail")
 
 
 # ================================================================ the Buyer's mail
+
+## The other collectors' cases in the title vault (every estate but Arlo's and
+## the Buyer's): freed ones stand open.
+func _collector_cases() -> Array:
+	var out: Array = []
+	for i in Unlocks.ESTATES.size():
+		var e: Dictionary = Unlocks.ESTATES[i]
+		if String(e["id"]) == "arlo" or String(e["id"]) == "buyer":
+			continue
+		out.append({"who": String(e["who"]), "name": String(e["name"]), "freed": _estate_free(i), "grade": "%.1f" % (6.0 + (absi(hash(String(e["id"]))) % 38) / 10.0)})
+	return out
+
 
 ## What the title vault's corner case shows: {} = still covered (no losses yet).
 func _vault_info() -> Dictionary:
@@ -5674,9 +5992,9 @@ func _crt_panel() -> PanelContainer:
 
 ## New ante at home: the Buyer's letter for it pops up once.
 func _maybe_letter() -> void:
-	if run == null or screen != "home" or sheet_open() or _busy:
+	if run == null or screen != "home" or sheet_open() or _busy or _wintro_on():
 		return
-	var i := mini(run.ante, Flavor.LETTERS.size()) - 1
+	var i := mini(run.ante, Flavor.letters(run.estate_id).size()) - 1
 	if run.letters_read > i:
 		return
 	run.letters_read = i + 1
@@ -5695,10 +6013,16 @@ func _open_letter(i: int, boot := true) -> void:
 	_close_sheet()
 	if _pad:
 		_pad_focus.call_deferred(0)
-	var letter: Array = Flavor.EPILOGUE if i < 0 else Flavor.LETTERS[clampi(i, 0, Flavor.LETTERS.size() - 1)]
+	var lets := Flavor.letters(run.estate_id) if run != null else Flavor.LETTERS
+	var letter: Array = (Flavor.epilogue(run.estate_id) if run != null else Flavor.EPILOGUE) if i < 0 else lets[clampi(i, 0, lets.size() - 1)]
+	if i < 0 and int(_won_news.get("freed", -1)) >= 0:
+		# The collector you just freed writes back, in their own voice.
+		var fid := String(Unlocks.ESTATES[int(_won_news["freed"])]["id"])
+		if Flavor.estate_lore(fid).has("EPILOGUE"):
+			letter = Flavor.epilogue(fid)
 	if i < 0 and run != null and run.wants_done >= Balance.ANTES_TO_WIN:
 		letter = Flavor.TRUE_EPILOGUE
-	if i == 0 and run != null and run.estate_id != "arlo":
+	if i == 0 and run != null and run.estate_id != "arlo" and not Flavor.estate_lore(run.estate_id).has("LETTERS"):
 		letter = ["re: the %s estate" % String(Unlocks.estate(run.estate_id)["short"]).capitalize(), String(Unlocks.estate(run.estate_id)["letter"])]
 	letter = letter.duplicate()
 	if i >= 0 and run != null and i == run.ante - 1 and not run.want.is_empty() and run.phase == Run.Phase.HOME:
@@ -5727,9 +6051,10 @@ func _open_letter(i: int, boot := true) -> void:
 	hdr.add_child(_spacer(false))
 	var n := run.letters_read if run != null else 0
 	if i >= 0:
-		hdr.add_child(_label("%d of %d" % [i + 1, Flavor.LETTERS.size()], 18, CRT_DIM))
+		hdr.add_child(_label("%d of %d" % [i + 1, Flavor.letters(run.estate_id).size()], 18, CRT_DIM))
 	v.add_child(hdr)
-	v.add_child(_label("FROM: %s  (100%% positive feedback)" % Flavor.SENDER, 18, CRT_DIM, true))
+	var snd := Flavor.sender(run.estate_id) if run != null else Flavor.SENDER
+	v.add_child(_label(("FROM: %s  (100%% positive feedback)" % snd) if snd == Flavor.SENDER else ("FROM: %s  (queued, delivered late)" % snd), 18, CRT_DIM, true))
 	v.add_child(_label("SUBJ: " + String(letter[0]), 20, CRT_C, true))
 	var rule := ColorRect.new()
 	rule.color = Color(CRT_DIM, 0.5)
@@ -5786,11 +6111,12 @@ func _build_over() -> void:
 		col.custom_minimum_size.x = 500
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		row.add_child(col)
-	var t := _title_label("GRADED & SEALED", 64 if not land else 50, CURSE_C)
+	var wc := Flavor.curse(run.market)
+	var t := _title_label(String(wc.get("title", "GRADED & SEALED")), 64 if not land else 50, CURSE_C)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(t)
 	var first := int(_save.get("sealed", 0)) <= 1
-	var sub := _label("You came up short. Now you know what the Buyer collects." if first else "You came up short. The Buyer adds you to the collection.", 20, FLAVOR_C, true)
+	var sub := _label(String(wc["line"]) if wc.has("line") else ("You came up short. Now you know what the Buyer collects." if first else "You came up short. The Buyer adds you to the collection."), 20, FLAVOR_C, true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ink_outline(sub)
 	col.add_child(sub)
@@ -5913,7 +6239,7 @@ func _end_stats(parent: Container = null) -> void:
 		["Items bought / sold", "%d / %d" % [s["bought"], s["sold"]]],
 		["Flip profit", _money(int(s["profit"]))],
 		["Best flip", ("%s (+%s)" % [s["best_flip_name"], _money(int(s["best_flip"]))]) if int(s["best_flip"]) > 0 else "-"],
-		["Perks", ", ".join(run.perks.map(func(id): return Perks.get_def(id)["name"])) if not run.perks.is_empty() else "-"],
+		["Perks", ", ".join(run.perks.map(func(id): return run.perk_name(id))) if not run.perks.is_empty() else "-"],
 		["Seed", str(run.seed_value)],
 	]
 	for r in rows:
@@ -6389,6 +6715,14 @@ func _stat_block(item: Dictionary) -> Control:
 		"pack":
 			_stat_row(g, "SEALED", _label("%s  |  %d cards inside" % [def.get("set", "?"), int(def.get("count", 11))], 18, INK, true))
 			_stat_row(g, "RIP IT?", _label("Opening gives %d cards from this set" % run.pack_size(item), 18, Color("ffcc66"), true))
+		"scard":
+			_stat_row(g, "PLAYER", _label("%s  |  %s  |  %s" % [def.get("player", "?"), def.get("pos", ""), def.get("team", "")], 18, INK, true))
+			_stat_row(g, "SET", _label("%s  %s  |  %s" % [def.get("set", "?"), def.get("num", ""), def.get("rarity", "")], 18, INK, true))
+			if def.has("tell"):
+				_stat_row(g, "WATCH FOR", _label(String(def["tell"]), 17, Color("ffcc66"), true))
+		"wax":
+			_stat_row(g, "SEALED", _label("%s  |  %d packs inside" % [def.get("set", "?"), int(def.get("count", 12))], 18, INK, true))
+			_stat_row(g, "RIP IT?", _label("Opening gives %d cards of this sport" % run.pack_size(item), 18, Color("ffcc66"), true))
 		"coin":
 			_stat_row(g, "COIN", _label("%s  |  %s  |  %d mm" % [def.get("denom", "?"), String(def.get("metal", "?")).capitalize(), int(def.get("dia", 0))], 18, INK, true))
 			_stat_row(g, "STRUCK", _label("%s, %s" % [def.get("mint", "?"), def.get("country", "")], 18, INK, true))
@@ -6776,6 +7110,7 @@ func _build_collection() -> void:
 
 
 func _build_wall(col: Control, avail: float) -> void:
+	_world_intro_row(col)
 	_section(col, "YOUR WALL OF FAME")
 	if _coll_wall.is_empty():
 		var l := _label("Nothing hung yet. Tap an item on your shelf and choose Hang on your Wall, or pick a find when a run ends. Wall pieces stay forever.", 22, INK, true)
@@ -6789,6 +7124,25 @@ func _build_wall(col: Control, avail: float) -> void:
 	for it in sorted:
 		g.add_child(_wall_tile(it, w))
 	col.add_child(g)
+
+
+## Replay buttons for the world intros you've seen.
+func _world_intro_row(col: Control) -> void:
+	var seen: Array = []
+	for w in Worlds.LIST:
+		if _intro_seen(String(w["id"])) and not Flavor.intro(String(w["id"])).is_empty():
+			seen.append(w)
+	if seen.is_empty():
+		return
+	_section(col, "WORLD INTROS")
+	var row := _hbox(10)
+	for w in seen:
+		var id := String(w["id"])
+		var b := _button("REPLAY  " + String(w["short"]), func():
+			_world_intro(id, func(): request_refresh()), Color(w["color"]).darkened(0.4), 20, 80)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(b)
+	col.add_child(row)
 
 
 func _wall_tile(item: Dictionary, w: float) -> Button:
@@ -6931,6 +7285,9 @@ func _load_save() -> void:
 		return
 	for k in _save.keys():
 		_save[k] = int(cf.get_value("best", k, _save[k]))
+	# Ten worlds: the Pruitt Twins (TCG) are free from the start now.
+	_save["estates"] = int(_save["estates"]) | Unlocks.START_MASK
+	_save["save_ver"] = 2
 
 
 func _write_save() -> void:

@@ -110,7 +110,8 @@ static func quad(size: Vector2, material: Material, pos := Vector3.ZERO, parent:
 ## The result sits on y=0, centred in x/z, scaled so its height is `height`
 ## (or its widest side is `width` when width > 0).
 static func prop(name: String, height: float = 0.0, tint := Color.WHITE, width: float = 0.0, texture: Texture2D = null) -> Node3D:
-	var path := "res://assets/models/props/%s.glb" % name
+	# "temp:<name>" = a test-only model from assets/temp_test/models/.
+	var path := ("res://assets/temp_test/models/%s.glb" % name.substr(5)) if name.begins_with("temp:") else "res://assets/models/props/%s.glb" % name
 	if not _scenes.has(path):
 		_scenes[path] = load(path) if ResourceLoader.exists(path) else null
 	var holder := Node3D.new()

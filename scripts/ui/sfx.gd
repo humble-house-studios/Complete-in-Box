@@ -44,11 +44,17 @@ const SOUNDS := {
 	"pc_off": [["pc_off"], -5.0],
 	"doorbell": [["doorbell"], -8.0],
 	"knock": [["knock"], -6.0],
+	# World intro stings (one per world).
+	"sting_sports": [["temp:sports_sting"], -4.0],
 }
 
 ## Music per screen/venue slot, plus optional ambience bed per venue.
-const TRACKS := {"title": "title", "home": "home", "hunt": "hunt", "shop": "shop", "online": "online", "ending": "ending"}
-const AMBIENCE := {"flea": "amb_crowd", "convention": "amb_crowd", "storage": "amb_rain", "cardshow": "amb_crowd", "tradenight": "amb_crowd", "coinshow": "amb_crowd"}
+const TRACKS := {"title": "title", "home": "home", "hunt": "hunt", "shop": "shop", "online": "online", "ending": "ending",
+	"sports": "temp:sports"}
+## Venues that play their world's own track instead of the slot's.
+const VENUE_TRACKS := {"ballroom": "sports", "dugout": "sports", "shoebox": "sports"}
+const AMBIENCE := {"flea": "amb_crowd", "convention": "amb_crowd", "storage": "amb_rain", "cardshow": "amb_crowd", "tradenight": "amb_crowd", "coinshow": "amb_crowd",
+	"ballroom": "amb_crowd", "dugout": "amb_crowd"}
 
 var _streams: Dictionary = {}
 var _players: Array = []
@@ -83,7 +89,7 @@ func _ready() -> void:
 	for id in SOUNDS:
 		var takes: Array = []
 		for f in SOUNDS[id][0]:
-			var path: String = SFX_DIR + String(f) + ".ogg"
+			var path: String = _path(SFX_DIR, String(f))
 			if ResourceLoader.exists(path):
 				takes.append(load(path))
 		if not takes.is_empty():
@@ -130,6 +136,7 @@ func music(track: String, venue: String = "") -> void:
 				_amb.stream = s
 				_amb.play()
 				_fade(_amb, -20.0 + _duck, 1.0)
+	track = String(VENUE_TRACKS.get(venue, track))
 	if track == _track:
 		return
 	_track = track
@@ -171,8 +178,15 @@ func _music_db() -> float:
 	return -9.0 + _duck
 
 
+## "temp:<name>" = a test-only file in assets/temp_test/audio/.
+static func _path(dir: String, file: String) -> String:
+	if file.begins_with("temp:"):
+		return "res://assets/temp_test/audio/%s.ogg" % file.substr(5)
+	return dir + file + ".ogg"
+
+
 func _load_loop(file: String) -> AudioStream:
-	var path := MUSIC_DIR + file + ".ogg"
+	var path := _path(MUSIC_DIR, file)
 	if not ResourceLoader.exists(path):
 		return null
 	var s: AudioStream = load(path)

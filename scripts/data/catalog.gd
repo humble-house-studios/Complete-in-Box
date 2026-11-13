@@ -44,18 +44,33 @@ const PLATFORMS := {
 	"GOLD": {"name": "US Gold", "short": "GOLD", "color": Color("e8b923"), "family": "usmint", "market": "coins"},
 	"WRLD": {"name": "World Coins", "short": "WRLD", "color": Color("4f9ad9"), "family": "world", "market": "coins"},
 	"ANCT": {"name": "Ancient Coins", "short": "ANCT", "color": Color("8f7a4a"), "family": "ancient", "market": "coins"},
+	# Sports cards (Grandma Rose's world): one binder page per sport.
+	"BASE": {"name": "Baseball", "short": "BASE", "color": Color("d64545"), "family": "sport", "market": "sports"},
+	"HOOP": {"name": "Basketball", "short": "HOOP", "color": Color("e8892e"), "family": "sport", "market": "sports"},
+	"GRID": {"name": "Football", "short": "GRID", "color": Color("6b4a2a"), "family": "sport", "market": "sports"},
+	"PUCK": {"name": "Hockey", "short": "PUCK", "color": Color("4f9ad9"), "family": "sport", "market": "sports"},
+	"FUTB": {"name": "Soccer & More", "short": "FUTB", "color": Color("3fae5a"), "family": "sport", "market": "sports"},
 }
 
-## What the run deals in. Every platform belongs to one (games unless it says).
-## After ante 4 you may flip your whole shelf into cards; after ante 6 into coins.
-const MARKETS := {
-	"games": {"name": "Retro Games", "short": "GAMES", "color": Color("ffcc33")},
-	"cards": {"name": "Trading Cards", "short": "CARDS", "color": Color("f2c230")},
-	"coins": {"name": "Rare Coins", "short": "COINS", "color": Color("e8b923")},
-}
+## What the run deals in: one market per collecting world (worlds.gd).
+## Every platform belongs to one (games unless it says).
+const Worlds := preload("res://scripts/data/worlds.gd")
+static var MARKETS: Dictionary = _build_markets()
+
+
+static func _build_markets() -> Dictionary:
+	var out := {}
+	for w in Worlds.LIST:
+		out[String(w["id"])] = {"name": w["name"], "short": w["short"], "color": w["color"]}
+	return out
+
+
 ## Kinds per market: games use game/console/acc/misc, cards card/pack, coins coin.
-const CC_KINDS := ["card", "pack", "coin"]
+const CC_KINDS := ["card", "pack", "coin", "scard", "wax"]
+## Variants that count as "shiny" (Shiny Hunter, the want list).
+const SHINY := ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless", "Proof-Like", "Deep Cameo", "Rainbow Toned", "Refractor", "Gold Parallel", "Tiffany"]
 const CC := preload("res://scripts/data/catalog_cc.gd")
+const SPORTS := preload("res://scripts/data/catalog_sports.gd")
 
 const TIER_NAMES := ["Common", "Uncommon", "Rare", "GRAIL"]
 const TIER_COLORS := [Color("b8b8b8"), Color("5ec46a"), Color("4fa3ff"), Color("ffcc33")]
@@ -155,13 +170,15 @@ const COND_COLORS := {"Damaged": Color("b04a4a"), "Loose": Color("9a9a9a"), "CIB
 const COND_WORDS := {
 	"card": {"Damaged": ["Creased", "CREASED"], "Loose": ["Played", "PLAYED"], "CIB": ["Near Mint", "NM"], "Mint": ["Gem Mint", "GEM"], "Sealed": ["Pack Fresh", "FRESH"]},
 	"pack": {"Damaged": ["Crushed", "CRUSHED"], "Loose": ["Shelf Worn", "WORN"], "CIB": ["Sealed", "SEALED"], "Mint": ["Factory Sealed", "FACTORY"], "Sealed": ["Case Fresh", "CASE"]},
+	"scard": {"Damaged": ["Creased", "CREASED"], "Loose": ["Very Good", "VG"], "CIB": ["Near Mint", "NM"], "Mint": ["Mint", "MINT"], "Sealed": ["Gem Mint", "GEM"]},
+	"wax": {"Damaged": ["Torn Wax", "TORN"], "Loose": ["Shelf Worn", "WORN"], "CIB": ["Sealed Wax", "SEALED"], "Mint": ["BBCX Wrapped", "WRAPPED"], "Sealed": ["Case Fresh", "CASE"]},
 	"coin": {"Damaged": ["Holed", "HOLED"], "Loose": ["Circulated", "CIRC"], "CIB": ["About Unc", "AU"], "Mint": ["Mint State", "MS"], "Sealed": ["Proof", "PROOF"]},
 }
 
 ## Variants a copy can roll. mult = value multiplier, w = roll weight,
 ## kinds = which item kinds can get it. See variant_label() for family names.
 const VARIANTS := {
-	"Standard": {"mult": 1.0, "w": 70.0, "kinds": ["game", "console", "acc", "misc", "card", "pack", "coin"], "color": Color("9a93ab"), "desc": "The regular retail release."},
+	"Standard": {"mult": 1.0, "w": 70.0, "kinds": ["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax"], "color": Color("9a93ab"), "desc": "The regular retail release."},
 	"Player's Pick": {"mult": 0.8, "w": 9.0, "kinds": ["game"], "color": Color("e6d34a"), "desc": "Budget re-release with the coloured banner. Collectors shrug."},
 	"Black Label": {"mult": 1.25, "w": 7.0, "kinds": ["game"], "color": Color("2b2b2b"), "desc": "Original print, before the budget re-releases."},
 	"First Print": {"mult": 1.6, "w": 5.0, "kinds": ["game"], "color": Color("4fa3ff"), "desc": "From the very first production run."},
@@ -169,7 +186,7 @@ const VARIANTS := {
 	"Rental Copy": {"mult": 0.6, "w": 4.0, "kinds": ["game"], "color": Color("3a6fd6"), "desc": "Blockbluster Video sticker on the front. Well loved."},
 	"Collector's Edition": {"mult": 2.2, "w": 1.2, "kinds": ["game"], "color": Color("d4af37"), "desc": "Big box, art book, pin. The works."},
 	"Signed by Dev": {"mult": 2.4, "w": 0.6, "kinds": ["game"], "color": Color("ff8a3d"), "desc": "Signed in silver marker by someone who made it."},
-	"Misprint": {"mult": 3.5, "w": 0.8, "kinds": ["game", "card"], "color": Color("ff5577"), "desc": "Label printed wrong at the factory. Very few escaped."},
+	"Misprint": {"mult": 3.5, "w": 0.8, "kinds": ["game", "card", "scard"], "color": Color("ff5577"), "desc": "Label printed wrong at the factory. Very few escaped."},
 	"Test Cart": {"mult": 6.0, "w": 0.25, "kinds": ["game"], "color": Color("5ee08a"), "desc": "Pre-release test copy with a handwritten label."},
 	"Launch Edition": {"mult": 1.4, "w": 8.0, "kinds": ["console"], "color": Color("4fa3ff"), "desc": "From the launch-day shipment."},
 	"Boxed Bundle": {"mult": 1.3, "w": 8.0, "kinds": ["console", "acc"], "color": Color("e6d34a"), "desc": "Still with the bundle box and inserts."},
@@ -185,8 +202,17 @@ const VARIANTS := {
 	"Promo Stamp": {"mult": 1.4, "w": 3.0, "kinds": ["card"], "color": Color("e6d34a"), "desc": "Event stamp in the corner. Handed out once, never again."},
 	"Signed by Artist": {"mult": 2.4, "w": 0.6, "kinds": ["card"], "color": Color("ff8a3d"), "desc": "Signed in silver by the illustrator at a con."},
 	"Playtest Card": {"mult": 6.0, "w": 0.25, "kinds": ["card"], "color": Color("5ee08a"), "desc": "Pre-release playtest print. Plain border, handwritten notes."},
-	"Heavy Pack": {"mult": 1.6, "w": 4.0, "kinds": ["pack"], "color": Color("e6d34a"), "desc": "Weighs a gram heavier than the rest. Probably a holo inside."},
-	"Resealed?": {"mult": 0.45, "w": 2.5, "kinds": ["pack"], "color": Color("b04a4a"), "desc": "The crimps look... glued. Buyer beware."},
+	"Heavy Pack": {"mult": 1.6, "w": 4.0, "kinds": ["pack", "wax"], "color": Color("e6d34a"), "desc": "Weighs a gram heavier than the rest. Probably a holo inside."},
+	"Resealed?": {"mult": 0.45, "w": 2.5, "kinds": ["pack", "wax"], "color": Color("b04a4a"), "desc": "The crimps look... glued. Buyer beware."},
+	# Sports cards
+	"Refractor": {"mult": 1.6, "w": 7.0, "kinds": ["scard"], "color": Color("7fe0ff"), "desc": "Chrome stock that splits light into a rainbow. Tilt it and grin."},
+	"Gold Parallel": {"mult": 2.2, "w": 3.0, "kinds": ["scard"], "color": Color("e8b923"), "desc": "Gold border, serial-numbered to 50 on the back."},
+	"Short Print": {"mult": 1.8, "w": 3.0, "kinds": ["scard"], "color": Color("4fa3ff"), "desc": "Printed in a fraction of the usual numbers. The checklist hides it."},
+	"Tiffany": {"mult": 2.0, "w": 1.5, "kinds": ["scard"], "color": Color("f5f5ff"), "desc": "The glossy factory-set print run on white stock. Shines like a photo."},
+	"O-Pee-Chee": {"mult": 0.9, "w": 5.0, "kinds": ["scard"], "color": Color("ff6b6b"), "desc": "The Canadian printing. Bilingual back, rougher card stock."},
+	"On-Card Auto": {"mult": 3.0, "w": 1.0, "kinds": ["scard"], "color": Color("ff8a3d"), "desc": "Signed right on the card, not a sticker. Certified on the back."},
+	"Patch Auto": {"mult": 4.5, "w": 0.4, "kinds": ["scard"], "color": Color("d4af37"), "desc": "A swatch of game-worn jersey and a signature. Thick as a coaster."},
+	"Printing Plate 1/1": {"mult": 7.0, "w": 0.15, "kinds": ["scard"], "color": Color("5ee08a"), "desc": "The actual metal plate the card was printed from. One of one."},
 	# Coins
 	"Proof-Like": {"mult": 1.6, "w": 5.0, "kinds": ["coin"], "color": Color("dfe8ff"), "desc": "Mirror fields from fresh dies. Shines like a proof."},
 	"Rainbow Toned": {"mult": 1.5, "w": 6.0, "kinds": ["coin"], "color": Color("b07cff"), "desc": "Decades in an album gave it a rainbow. Collectors swoon."},
@@ -207,7 +233,7 @@ const ERA := {"FES": [1985, 1994], "SFES": [1991, 1998], "F64": [1996, 2002], "P
 	"DC": [1999, 2007], "GEN": [1989, 1997], "SAT": [1995, 1999], "NEO": [1990, 2006], "A26": [1977, 1990],
 	"DUO": [2006, 2010], "ODD": [1991, 1998], "MISC": [1988, 2000]}
 const MAKERS := {"funtendo": "Funtendo", "statia": "Sonny", "xbux": "Microsloth", "saga": "Saga", "snc": "SNC", "ataro": "Ataro", "odd": "Oddware Labs", "misc": "Various",
-	"critco": "Critter Co.", "lizards": "Lizards of the Coast", "konamo": "Konamo", "tcg": "Various", "usmint": "U.S. Mint", "world": "Various mints", "ancient": "Ancient mints"}
+	"sport": "Toppz Co.", "critco": "Critter Co.", "lizards": "Lizards of the Coast", "konamo": "Konamo", "tcg": "Various", "usmint": "U.S. Mint", "world": "Various mints", "ancient": "Ancient mints"}
 
 
 static func _build_items() -> Array:
@@ -230,6 +256,8 @@ static func _build_items() -> Array:
 	for d in CC.CARDS:
 		out.append(d)
 	for d in CC.COINS:
+		out.append(d)
+	for d in SPORTS.ITEMS:
 		out.append(d)
 	return out
 
@@ -279,6 +307,8 @@ static func variant_label(item: Dictionary) -> String:
 		return "Demo Disc"
 	if v == "Misprint" and String(item.get("kind", "")) == "card":
 		return "Error Print"
+	if v == "Misprint" and String(item.get("kind", "")) == "scard":
+		return "Error Card"
 	if v == "Japan Import" and is_cc(item):
 		return "Japanese Print"
 	return v
@@ -344,6 +374,24 @@ static func variant_weights(def: Dictionary, ctx: Dictionary = {}) -> Dictionary
 					w *= 0.05 if k == "Shadowless" else 0.3
 				if k == "Shadowless" and fam != "critco":
 					w = 0.0
+			"Refractor", "Gold Parallel":
+				if year > 0 and year < (1993 if k == "Refractor" else 1995):
+					w = 0.0  # no chrome before the 90s
+			"Tiffany":
+				if year > 0 and (year < 1984 or year > 1991):
+					w = 0.0
+			"O-Pee-Chee":
+				# OPC printed hockey and baseball in Canada; their own sets never get it.
+				var pl := String(def.get("plat", ""))
+				if pl != "PUCK" and pl != "BASE" or String(def.get("set", "")).contains("O-Pee"):
+					w = 0.0
+			"Patch Auto":
+				if year > 0 and year < 1997:
+					w = 0.0
+			"On-Card Auto", "Printing Plate 1/1":
+				if year > 0 and year < 1990:
+					w *= 0.15
+				w *= 1.0 + 0.5 * tier
 			"Holo Foil", "Reverse Holo":
 				if year > 0 and year < 1995 and fam == "lizards":
 					w = 0.0  # no foils in the early Magick sets

@@ -22,7 +22,7 @@ func test_catalog_is_sane() -> void:
 		assert_false(ids.has(d["id"]), "duplicate id " + d["id"])
 		ids[d["id"]] = true
 		assert_true(Catalog.PLATFORMS.has(d["plat"]), "bad platform on " + d["id"])
-		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin"].has(d["kind"]), "bad kind on " + d["id"])
+		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax"].has(d["kind"]), "bad kind on " + d["id"])
 		assert_between(int(d["tier"]), 0, 3)
 		assert_gt(int(d["base"]), 0)
 	for t in 4:
@@ -463,7 +463,10 @@ func test_estates_change_the_start() -> void:
 		for pid in e["perks"]:
 			assert_true(r.has_perk(String(pid)), "%s starts with %s" % [e["id"], pid])
 			assert_false(Perks.get_def(String(pid)).is_empty())
-		assert_eq(r.shelf_cap, Balance.START_SHELF + int(e["shelf"]))
+		var perk_shelf := 0
+		for pid in e["perks"]:
+			perk_shelf += int({"moms_basement": 2, "cursed_cart": -2, "long_box": 1}.get(String(pid), 0))
+		assert_eq(r.shelf_cap, Balance.START_SHELF + int(e["shelf"]) + perk_shelf)
 	var rose := Run.new()
 	rose.start(5, {"estate": "rose"})
 	assert_eq(String(rose.shelf[0]["cond"]), "CIB")
@@ -602,3 +605,94 @@ func test_doorbell_events_resolve_cleanly() -> void:
 	r.event_decline()
 	assert_eq(String(wet["cond"]), "Damaged")
 	assert_eq(r.diary_read, 1)
+
+
+# ---------------------------------------------------------------- ten worlds
+
+func test_sports_catalog_and_world_registry() -> void:
+	var W := preload("res://scripts/data/worlds.gd")
+	assert_eq(W.LIST.size(), 10, "ten worlds")
+	assert_eq(Catalog.items_of("sports").size(), 100)
+	for t in 4:
+		assert_gt(Catalog.defs_of_tier(t, "sports").size(), 0, "sports tier %d" % t)
+	for p in ["BASE", "HOOP", "GRID", "PUCK", "FUTB"]:
+		assert_eq(Catalog.market_of(p), "sports")
+		assert_gte(Catalog.items_of("sports").filter(func(d): return String(d["plat"]) == p).size(), 8, p)
+	for d in Catalog.items_of("sports"):
+		for k in ["name", "blurb", "year", "tier", "base", "tags"]:
+			assert_true(d.has(k), "%s has %s" % [d["id"], k])
+	for slot in Venues.SLOTS:
+		assert_false(Venues.unlocked(slot, 1, "sports").is_empty(), "sports has a %s venue" % slot)
+	var U := preload("res://scripts/data/unlocks.gd")
+	var bits := {}
+	for e in U.ESTATES:
+		assert_false(bits.has(int(e["bit"])), "unique estate bit")
+		bits[int(e["bit"])] = true
+		assert_false(W.get_def(String(e["world"])).is_empty(), "%s has a world" % e["id"])
+	assert_eq(U.open_worlds(U.START_MASK), ["games", "cards"], "retro and TCG from the start")
+
+
+func test_rose_opens_in_sports_and_rips_wax() -> void:
+	var r := Run.new()
+	r.start(21, {"estate": "rose", "worlds": ["games", "cards", "sports"]})
+	assert_eq(r.market, "sports")
+	for it in r.shelf:
+		assert_eq(Catalog.market_of(String(it["plat"])), "sports")
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_true(["scard", "wax"].has(String(o["item"]["kind"])))
+	r.phase = Run.Phase.HOME
+	r.shelf.clear()
+	r.shelf_cap = 30
+	var box: Dictionary = {}
+	for d in Catalog.items_of("sports"):
+		if String(d["kind"]) == "wax" and (d["tags"] as Array).has("box"):
+			box = d
+			break
+	var pk := r.make_item(box, "CIB")
+	r.shelf.append(pk)
+	assert_true(bool(r.open_pack(int(pk["uid"]))["ok"]))
+	for it in r.shelf:
+		assert_eq(String(it["kind"]), "scard")
+		assert_eq(String(it["plat"]), String(box["plat"]))
+
+
+func test_flip_into_any_open_world() -> void:
+	var r := Run.new()
+	r.start(11, {"worlds": ["games", "sports"]})
+	r.ante = 5
+	r._prepare_home()
+	assert_eq(r.pivot_options(), ["sports"], "only opened worlds")
+	assert_false(bool(r.pivot("coins")["ok"]), "coins not opened")
+	assert_true(bool(r.pivot("sports")["ok"]))
+	assert_eq(r.market, "sports")
+
+
+func test_binder_stamps_capped_and_world_seals() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	var owned := {}
+	for d in Catalog.ITEMS:
+		owned[String(d["id"])] = true
+	var br := U.binder_rewards(owned)
+	assert_gt(int(br["stamps"]), U.STAMP_CAP)
+	assert_eq(int(br["stamp_cash"]), U.STAMP_CAP)
+	assert_true((br["worlds_done"] as Array).has("sports"))
+	assert_eq(int(br["perk_slot"]), 1)
+	assert_true((br["perks"] as Array).has("archivist"))
+
+
+func test_rose_lore_is_complete() -> void:
+	assert_eq(Flavor.letters("rose").size(), Balance.ANTES_TO_WIN)
+	assert_eq(Flavor.diary("rose").size(), 4)
+	assert_eq(Flavor.pass_lines("sports").size(), 12)
+	assert_eq(Flavor.fail_lines("sports").size(), 12)
+	for v in ["ballroom", "shoebox", "dugout", "breaks"]:
+		assert_ne(Flavor.seller(v, 1), "", v)
+	for e in ["box", "collector", "leak"]:
+		assert_eq(Flavor.event_text("sports", e).size(), 2)
+	assert_false(Flavor.curse("sports").is_empty())
+	assert_false(Flavor.intro("sports").is_empty())
+	var it: Dictionary = Catalog.items_of("sports")[0].duplicate()
+	it["uid"] = 3
+	assert_gt(Flavor.history(Catalog.items_of("sports")[0], it).size(), 2)
+	assert_eq(Perks.label("box_and_manual", "sports")["name"], "Top-Loaders")

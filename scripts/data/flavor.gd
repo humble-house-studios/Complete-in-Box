@@ -91,6 +91,14 @@ const CC_COND := {
 	"pack": {"Damaged": ["Crushed corner, wrapper intact.", "Somebody stepped on this box."], "Loose": ["Shelf wear on the wrapper.", "Faded from a shop window."],
 		"CIB": ["Sealed. Crimps look right.", "Unsearched, they promise."], "Mint": ["Factory sealed, crisp as a dollar bill.", "Untouched since the warehouse."],
 		"Sealed": ["Straight out of a sealed case.", "Case fresh. Nobody's weighed it."]},
+	"scard": {"Damaged": ["A crease right through the photo.", "Bicycle-spoke wear on one edge.", "Rubber-band dent across the top."],
+		"Loose": ["Soft corners, a little edge wear. Shoebox life.", "Light surface scuffs. Still a looker.", "Kept in a binder page that pinched."],
+		"CIB": ["Sharp corners, slightly off-centre. Near mint.", "Penny-sleeved since the day it came out of the pack.", "Clean surface, one fuzzy corner."],
+		"Mint": ["Four sharp corners. Grader bait.", "Centred like it was measured.", "Gloss so clean you can see your face."],
+		"Sealed": ["Gem Mint: flawless corners, edges and surface.", "Straight from the pack to a top-loader, gloves on.", "The kind of card the grader frames for himself."]},
+	"wax": {"Damaged": ["The wax wrapper is torn at one end.", "Box crushed, packs probably fine. Probably."], "Loose": ["Shelf wear on the wrapper.", "Sun-faded from a shop window."],
+		"CIB": ["Sealed wax, folds look factory.", "Unsearched, the seller swears."], "Mint": ["Authenticated and wrapped by BBCX. Untouchable.", "Factory sealed and crisp."],
+		"Sealed": ["Straight out of a sealed case.", "Case fresh. Nobody has weighed these packs."]},
 	"coin": {"Damaged": ["Holed to wear on a necklace.", "Bent, scratched, still historic."], "Loose": ["Worn smooth by a century of pockets.", "Circulated, but the date is sharp."],
 		"CIB": ["Just a whisper of wear on the high points.", "About uncirculated. Lots of luster left."], "Mint": ["Mint state. Full cartwheel luster.", "Never spent. Never touched."],
 		"Sealed": ["A proof: mirror fields, frosted design.", "Struck twice on polished dies, for collectors only."]},
@@ -138,6 +146,8 @@ const WANT_NOTES := {
 	"shiny": ["Something that catches the light. Like a fresh slab.", "Holo. First edition. Something that shines."],
 	"gold": ["Gold doesn't tarnish. Neither do I.", "Bring me gold. It keeps. So do the things I keep."],
 	"worth": ["One serious piece. Show me you're not just shuffling junk.", "Quality over quantity. One piece. Make it count."],
+	"rookie": ["Everyone is worth the most at the start. Bring me a rookie.", "First year, first card, first mistake. Rose loved a rookie. So do I."],
+	"vintage": ["Something older than you. Older than your parents, ideally.", "Bring me a card printed before anyone thought to keep them clean."],
 }
 ## True ending: every request filled in one run. The Buyer's set is complete.
 const TRUE_EPILOGUE := ["the complete set", "You filled every line on my want list. Every one. Arlo never managed that. Nobody did.\n\nThe set is complete. I don't need a keeper anymore.\n\nThe vault door is open. The cases are unlocking one by one. I can hear them breathing.\n\nThank you. Leave the plastic on the shelf. You won't need it.\n\n- Arlo"]
@@ -186,11 +196,106 @@ static func tier_line(item: Dictionary) -> String:
 
 
 static func seller(venue_id: String, key: Variant) -> String:
+	var lw := world_lore(Venues.market(venue_id))
+	if lw.has("SELLER") and (lw["SELLER"] as Dictionary).has(venue_id):
+		return pick(lw["SELLER"][venue_id], key)
 	return pick(SELLER.get(venue_id, []), key)
 
 
 static func mood(venue_id: String) -> String:
+	var lw := world_lore(Venues.market(venue_id))
+	if lw.has("MOOD") and (lw["MOOD"] as Dictionary).has(venue_id):
+		return String(lw["MOOD"][venue_id])
 	return String(MOOD.get(venue_id, ""))
+
+
+# --- per-world lore (scripts/data/lore/<world>.gd) -------------------------
+# Each world's file holds its collector's letters, diary pages and epilogue
+# (used when you inherit that collector's estate) and the world's appraiser
+# lines, sellers, events, tips and loss ending (used while you deal in it).
+# Worlds without a file fall back to the base (retro / Arlo) text.
+
+const LORE_FILES := {
+	"sports": preload("res://scripts/data/lore/sports.gd"),
+}
+const Worlds := preload("res://scripts/data/worlds.gd")
+static var _lore_cache: Dictionary = {}
+
+
+## A world's lore constants as a dictionary ({} = none, use the base text).
+static func world_lore(market: String) -> Dictionary:
+	if _lore_cache.has(market):
+		return _lore_cache[market]
+	var out := {}
+	if LORE_FILES.has(market):
+		var scr: Script = LORE_FILES[market]
+		out = scr.get_script_constant_map()
+	_lore_cache[market] = out
+	return out
+
+
+## The lore of the world this estate's collector belongs to.
+static func estate_lore(estate_id: String) -> Dictionary:
+	return world_lore(Worlds.of_estate(estate_id))
+
+
+## The 8 letters for this estate: [subject, body]. A collector's own letters
+## carry the Buyer's P.S. at the bottom.
+static func letters(estate_id: String) -> Array:
+	var lw := estate_lore(estate_id)
+	if not lw.has("LETTERS"):
+		return LETTERS
+	var out: Array = []
+	for l in lw["LETTERS"]:
+		out.append([l[0], String(l[1]) + ("\n\n" + String(l[2]) if l.size() > 2 else "")])
+	return out
+
+
+## Who signs the home-PC mail for this estate.
+static func sender(estate_id: String) -> String:
+	return String(estate_lore(estate_id).get("SENDER", SENDER))
+
+
+static func diary(estate_id: String) -> Array:
+	return estate_lore(estate_id).get("DIARY", DIARY)
+
+
+## Whose diary it is ("Arlo's diary", "Grandma Rose's scrapbook"...).
+static func diary_name(estate_id: String) -> String:
+	var lw := estate_lore(estate_id)
+	return "%s's scrapbook" % String(lw["COLLECTOR"]) if lw.has("COLLECTOR") else "Arlo's diary"
+
+
+static func epilogue(estate_id: String) -> Array:
+	return estate_lore(estate_id).get("EPILOGUE", EPILOGUE)
+
+
+static func pass_lines(market: String) -> Array:
+	return world_lore(market).get("PASS", PASS)
+
+
+static func fail_lines(market: String) -> Array:
+	return world_lore(market).get("FAIL", FAIL)
+
+
+## Loading tips for this world (on top of the general ones).
+static func tips(market: String) -> Array:
+	return world_lore(market).get("TIPS", [])
+
+
+## Doorbell event text in this world's words: [title, body format] or [].
+static func event_text(market: String, id: String) -> Array:
+	return (world_lore(market).get("EVENTS", {}) as Dictionary).get(id, [])
+
+
+## The world's loss ending: {title, line, label, case} or {}.
+static func curse(market: String) -> Dictionary:
+	return world_lore(market).get("CURSE", {})
+
+
+## The world's first-visit intro: {title, sub, line, scene} or {}.
+static func intro(market: String) -> Dictionary:
+	return world_lore(market).get("INTRO", {})
 
 
 # --- item history (inspect card) -------------------------------------------
@@ -825,7 +930,13 @@ static func _cc_numbers(def: Dictionary) -> Array:
 		out.append(["LOUPE SECONDS", "%d per look, on average" % r.randi_range(8, 140)])
 		out.append(["MELT VALUE", "$%s, which is not the point" % _num(r.randi_range(1, 2400))])
 		out.append(["COUNTERFEITS", "%d%% of the ones listed online (allegedly)" % r.randi_range(2, 60)])
-	elif kind == "pack":
+	elif kind == "scard":
+		out.append(["BICYCLE SPOKES", "%s copies clothes-pegged to one (this one escaped)" % _num(r.randi_range(200, 90000))])
+		out.append(["STICK OF GUM", "%d-year-old gum stain on %d%% of the run" % [r.randi_range(20, 70), r.randi_range(5, 60)]])
+		out.append(["TRADED AT RECESS", "~%s times" % _num(r.randi_range(1, 400))])
+		out.append(["CENTERING", "%d/%d left to right (the grader noticed)" % [r.randi_range(50, 70), 100 - r.randi_range(50, 70)]])
+		out.append(["DADS WHO HAD ONE", "%s%% (their mums threw it out)" % str(r.randi_range(30, 95))])
+	elif kind == "pack" or kind == "wax":
 		out.append(["TIMES WEIGHED", "%s at shops, against the rules" % _num(r.randi_range(4, 900))])
 		out.append(["PULL RATE", "1 holo in %d packs, give or take" % r.randi_range(3, 12)])
 		out.append(["OPENED ON STREAM", "%s%% of this print run" % str(r.randi_range(40, 97))])
@@ -859,11 +970,20 @@ static func _cc_history(def: Dictionary, item: Dictionary) -> Array:
 		out.append(["COLLECTOR TIP", _one(r, ["Never clean a coin. Ever. Toning is value.", "Check the date for doubling with a loupe.", "Look at the rim: tooling marks mean trouble.", "Buy the slab, then the coin. Then the coin."])])
 	else:
 		out.append(["PRINTED", "%s, %s. From %s, published by %s." % [yt, String(def.get("set", "")), String(def.get("set", "")), String(def.get("pub", ""))]])
+		if kind == "scard":
+			out.append(["THE PLAYER", "%s, %s for the %s. %s" % [String(def.get("player", "")), String(def.get("pos", "")), String(def.get("team", "")), _one(r, ["Hall of Fame plaque, bronze and all.", "Still argued about on sports radio every week.", "Cards of him were in every lunchbox that year.", "Rookie year: nobody saw it coming. Everybody says they did."])]])
+		if def.has("tell"):
+			out.append(["APPRAISER'S TELL", String(def["tell"])])
 		if kind == "card":
 			out.append(["THE ART", "Illustrated by %s. %s" % [String(def.get("artist", "")), _one(r, ["The original painting sold separately for a fortune.", "Drawn in a weekend, they say.", "The art box shadow was removed in later prints.", "Fans still argue about the background."])]])
 		out.append(["SURVIVORS", "About %s printed. Gem-grade ones are rare: maybe %s." % [_num(int(def.get("run", 1000))), _num(maxi(1, int(def.get("run", 1000)) / r.randi_range(60, 700)))]])
 		out.append(["THE HYPE", _one(r, ["A streamer pulled one live and the price tripled by morning.", "It was banned from tournaments, which only made it more famous.",
 			"Every kid wanted it. Most traded it away for something worse.", "It hit the news when one sold for the price of a house."])])
+	var lw := world_lore(Catalog.market_of(String(def.get("plat", ""))))
+	if lw.has("PAST_PLACE"):
+		var rc := _r(str(item.get("uid", 0)) + String(def.get("id", "")))
+		out.append(["THIS COPY", "Found at %s, from %s. %s" % [_one(rc, lw["PAST_PLACE"]), _one(rc, lw["PAST_WHO"]), _one(rc, lw["PAST_MARK"])]])
+		return out
 	out.append(["THIS COPY", _one(_r(str(item.get("uid", 0)) + String(def.get("id", ""))), ["Came out of a shoebox marked KEEP.", "Bought from a collector who 'needed space'.",
 		"Spent years in a desk drawer next to rubber bands.", "Kept in a safe-deposit box since the 90s.", "Arrived in a padded envelope with no return address.",
 		"Somebody's childhood favourite. You can tell."])])
