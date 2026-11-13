@@ -1,0 +1,120 @@
+THE 250 MOST COLLECTIBLE RARE BOOKS
+Compiled Nov 2026 from general collector knowledge (auction records, ABAA dealer lore, census of
+known copies), not live price data. Five binder pages of up to 50: Antiquarian (before 1800, plus
+the great colour-plate books), 19th-Century Classics, Modern Firsts (1920+ literary fiction),
+Genre Firsts (fantasy, science fiction, crime and horror), and Children's & Illustrated.
+First release ships 20 per page (100); each page grows to 50 later without code changes (append
+lines, rerun tools/gen_worlds.py books). Order is roughly most to least desirable as a first edition.
+Signatures, inscriptions, book-club copies and ex-library copies are left to the variant roll in game.
+Format: rank. Title | Why it matters | Year | Page | kind (book / booklot) | tags | Author | Publisher | Wikipedia titles (; = fallbacks)
+Tags: debut = the author's first book, banned = banned or seized somewhere, jacket = the dust jacket is half the value.
+
+== ANTIQUARIAN ==
+1. Gutenberg Bible | The first book printed with movable type in Europe | 1455 | ANTQ | book |  | Johannes Gutenberg | Gutenberg & Fust | Gutenberg Bible
+2. Shakespeare First Folio | Thirty-six plays; eighteen would otherwise be lost | 1623 | ANTQ | book |  | William Shakespeare | Jaggard & Blount | First Folio
+3. The Birds of America | Life-size hand-coloured birds on sheets as big as a door | 1827 | ANTQ | book |  | John James Audubon | Robert Havell | The Birds of America
+4. Bay Psalm Book | The first book printed in British North America | 1640 | ANTQ | book | debut | Various | Stephen Daye | Bay Psalm Book
+5. Principia Mathematica | Newton's laws of motion and gravity | 1687 | ANTQ | book |  | Isaac Newton | Royal Society | Philosophiæ Naturalis Principia Mathematica
+6. De revolutionibus orbium coelestium | Put the sun in the middle | 1543 | ANTQ | book | banned | Nicolaus Copernicus | Petreius | De revolutionibus orbium coelestium
+7. Hypnerotomachia Poliphili | The most beautiful printed book of the Renaissance | 1499 | ANTQ | book |  | Francesco Colonna | Aldus Manutius | Hypnerotomachia Poliphili
+8. De humani corporis fabrica | The first true atlas of the human body | 1543 | ANTQ | book |  | Andreas Vesalius | Oporinus | De humani corporis fabrica
+9. Nuremberg Chronicle | A history of the world in 1,800 woodcuts | 1493 | ANTQ | book |  | Hartmann Schedel | Anton Koberger | Nuremberg Chronicle
+10. Don Quixote | The first modern novel | 1605 | ANTQ | book |  | Miguel de Cervantes | Juan de la Cuesta | Don Quixote
+11. Euclid's Elements | The first printed edition of geometry's oldest textbook | 1482 | ANTQ | book |  | Euclid | Erhard Ratdolt | Euclid's Elements
+12. Paradise Lost | The fall of man in ten books of blank verse | 1667 | ANTQ | book |  | John Milton | Samuel Simmons | Paradise Lost
+13. A Dictionary of the English Language | Nine years, one man, forty thousand words | 1755 | ANTQ | book |  | Samuel Johnson | Strahan | A Dictionary of the English Language
+14. Micrographia | The first look at the world through a microscope | 1665 | ANTQ | book |  | Robert Hooke | Royal Society | Micrographia
+15. Robinson Crusoe | Shipwrecked for twenty-eight years | 1719 | ANTQ | book | debut | Daniel Defoe | W. Taylor | Robinson Crusoe
+16. Gulliver's Travels | Lilliput, giants and talking horses | 1726 | ANTQ | book |  | Jonathan Swift | Benjamin Motte | Gulliver's Travels
+17. The Wealth of Nations | The invisible hand, in two quarto volumes | 1776 | ANTQ | book |  | Adam Smith | Strahan & Cadell | The Wealth of Nations
+18. Common Sense | The pamphlet that argued a revolution | 1776 | ANTQ | book | banned | Thomas Paine | Robert Bell | Common Sense
+19. Book of Hours | A hand-painted prayer book on vellum | 1480 | ANTQ | book |  | Various | - | Book of hours
+20. Country House Library Lot | Calf-bound sermons by the yard, and maybe one thing worth the drive | 1780 | ANTQ | booklot |  | Various | Various | -
+
+== CLASSICS ==
+1. Tamerlane and Other Poems | Poe's first book; about a dozen copies known | 1827 | CLSC | book | debut | Edgar Allan Poe | Calvin Thomas | Tamerlane and Other Poems
+2. On the Origin of Species | Evolution by natural selection; sold out on day one | 1859 | CLSC | book |  | Charles Darwin | John Murray | On the Origin of Species
+3. Pride and Prejudice | Published anonymously, "by the author of Sense and Sensibility" | 1813 | CLSC | book |  | Jane Austen | T. Egerton | Pride and Prejudice
+4. Frankenstein | Published anonymously in three small volumes | 1818 | CLSC | book | debut | Mary Shelley | Lackington | Frankenstein
+5. Moby-Dick | Sold barely three thousand copies in Melville's lifetime | 1851 | CLSC | book |  | Herman Melville | Harper & Brothers | Moby-Dick
+6. A Christmas Carol | Red cloth, gilt edges, hand-coloured plates | 1843 | CLSC | book |  | Charles Dickens | Chapman & Hall | A Christmas Carol
+7. Leaves of Grass | Self-published; Whitman set some of the type himself | 1855 | CLSC | book | debut,banned | Walt Whitman | self-published | Leaves of Grass
+8. Jane Eyre | Published under the name Currer Bell | 1847 | CLSC | book | debut | Charlotte Brontë | Smith, Elder & Co. | Jane Eyre
+9. Wuthering Heights | Published under the name Ellis Bell | 1847 | CLSC | book | debut | Emily Brontë | Thomas Cautley Newby | Wuthering Heights
+10. Beeton's Christmas Annual | The magazine where Sherlock Holmes first appeared | 1887 | CLSC | book | debut | Arthur Conan Doyle | Ward Lock | A Study in Scarlet
+11. Dracula | Yellow cloth, red letters, one vampire | 1897 | CLSC | book |  | Bram Stoker | Archibald Constable | Dracula
+12. Adventures of Huckleberry Finn | Banned in Concord the month it came out | 1884 | CLSC | book | banned | Mark Twain | Chatto & Windus | Adventures of Huckleberry Finn
+13. Uncle Tom's Cabin | The best-selling novel of its century | 1852 | CLSC | book |  | Harriet Beecher Stowe | John P. Jewett | Uncle Tom's Cabin
+14. The Picture of Dorian Gray | First printed in a monthly magazine, then expanded | 1890 | CLSC | book | banned | Oscar Wilde | Lippincott's | The Picture of Dorian Gray
+15. Great Expectations | Three volumes; most copies were read to pieces in lending libraries | 1861 | CLSC | book |  | Charles Dickens | Chapman & Hall | Great Expectations
+16. Emma | Dedicated, under protest, to the Prince Regent | 1815 | CLSC | book |  | Jane Austen | John Murray | Emma (novel)
+17. Crime and Punishment | Serialised first, then two volumes | 1866 | CLSC | book |  | Fyodor Dostoevsky | The Russian Messenger | Crime and Punishment
+18. The Time Machine | Wells's first novel; grey cloth, purple letters | 1895 | CLSC | book | debut | H. G. Wells | Heinemann | The Time Machine
+19. Little Women | Part one of two; the girls who never grew old | 1868 | CLSC | book |  | Louisa May Alcott | Roberts Brothers | Little Women
+20. Victorian Parlour Book Lot | Gilt spines, foxed pages and a pressed flower in every third book | 1890 | CLSC | booklot |  | Various | Various | -
+
+== MODERN FIRSTS ==
+1. The Great Gatsby | The jacket with the eyes over the carnival | 1925 | MODF | book | jacket | F. Scott Fitzgerald | Scribner | The Great Gatsby
+2. Ulysses | 1,000 numbered copies, blue wrappers, seized at customs | 1922 | MODF | book | banned | James Joyce | Shakespeare and Company | Ulysses (novel)
+3. The Catcher in the Rye | The carousel horse jacket; Salinger hated his author photo | 1951 | MODF | book | debut,jacket,banned | J. D. Salinger | Little, Brown | The Catcher in the Rye
+4. To Kill a Mockingbird | Her only book for fifty-five years | 1960 | MODF | book | debut,jacket | Harper Lee | J. B. Lippincott | To Kill a Mockingbird
+5. Nineteen Eighty-Four | The green jacket or the red one: collectors argue | 1949 | MODF | book | jacket,banned | George Orwell | Secker & Warburg | Nineteen Eighty-Four
+6. The Sun Also Rises | Hemingway's first novel; the 'stoppped' typo marks the first state | 1926 | MODF | book | debut,jacket | Ernest Hemingway | Scribner | The Sun Also Rises
+7. The Grapes of Wrath | Steinbeck's dust bowl, priced $2.75 on the flap | 1939 | MODF | book | jacket,banned | John Steinbeck | Viking | The Grapes of Wrath
+8. Invisible Man | A debut that won the National Book Award | 1952 | MODF | book | debut,jacket | Ralph Ellison | Random House | Invisible Man
+9. Brave New World | Five thousand copies and a world state | 1932 | MODF | book | jacket,banned | Aldous Huxley | Chatto & Windus | Brave New World
+10. Lolita | Two green paper volumes from a Paris smut press | 1955 | MODF | book | banned | Vladimir Nabokov | Olympia Press | Lolita
+11. On the Road | Typed on one long scroll in three weeks | 1957 | MODF | book | jacket | Jack Kerouac | Viking | On the Road
+12. Catch-22 | The title was nearly Catch-18 | 1961 | MODF | book | debut,jacket | Joseph Heller | Simon & Schuster | Catch-22
+13. Their Eyes Were Watching God | Out of print for thirty years, then a classic | 1937 | MODF | book | jacket | Zora Neale Hurston | J. B. Lippincott | Their Eyes Were Watching God
+14. The Sound and the Fury | The italics were meant to be in coloured ink | 1929 | MODF | book | jacket | William Faulkner | Cape & Smith | The Sound and the Fury
+15. Mrs Dalloway | Printed by the author's own hand-press house | 1925 | MODF | book | jacket | Virginia Woolf | Hogarth Press | Mrs Dalloway
+16. Howl and Other Poems | A black-and-white pamphlet that went to court | 1956 | MODF | book | banned | Allen Ginsberg | City Lights | Howl
+17. Gone with the Wind | Her only novel; a Pulitzer and a million copies | 1936 | MODF | book | debut,jacket | Margaret Mitchell | Macmillan | Gone with the Wind (novel)
+18. One Hundred Years of Solitude | The first printing sold out in two weeks in Buenos Aires | 1967 | MODF | book |  | Gabriel García Márquez | Sudamericana | One Hundred Years of Solitude
+19. Beloved | A Pulitzer, and the best novel of a quarter century | 1987 | MODF | book | jacket | Toni Morrison | Knopf | Beloved (novel)
+20. Book Club Remainders Box | Fifty book-club copies and maybe one first slipped in by mistake | 1965 | MODF | booklot |  | Various | Various | -
+
+== GENRE FIRSTS ==
+1. The Hobbit | 1,500 copies, Tolkien drew the jacket himself | 1937 | GENR | book | debut,jacket | J. R. R. Tolkien | George Allen & Unwin | The Hobbit
+2. The Lord of the Rings | Three volumes, 3,500 copies of the first | 1954 | GENR | book | jacket | J. R. R. Tolkien | George Allen & Unwin | The Lord of the Rings
+3. Casino Royale | Fleming designed the hearts-and-roses jacket | 1953 | GENR | book | debut,jacket | Ian Fleming | Jonathan Cape | Casino Royale (novel)
+4. The Maltese Falcon | The black bird that made the hardboiled novel | 1930 | GENR | book | jacket | Dashiell Hammett | Knopf | The Maltese Falcon (novel)
+5. The Shadow over Innsmouth | The only Lovecraft book published in his lifetime; full of typos | 1936 | GENR | book |  | H. P. Lovecraft | Visionary | The Shadow over Innsmouth
+6. Dune | Rejected by twenty publishers, then sold by a car-manual press | 1965 | GENR | book | jacket | Frank Herbert | Chilton Books | Dune (novel)
+7. The Mysterious Affair at Styles | Agatha Christie's first, and Poirot's | 1920 | GENR | book | debut,jacket | Agatha Christie | John Lane | The Mysterious Affair at Styles
+8. The Big Sleep | Chandler's first novel, and Philip Marlowe's | 1939 | GENR | book | debut,jacket | Raymond Chandler | Knopf | The Big Sleep
+9. Carrie | King's first novel; he'd thrown the draft in the bin | 1974 | GENR | book | debut,jacket | Stephen King | Doubleday | Carrie (novel)
+10. Foundation | A small-press first from a science fiction fan publisher | 1951 | GENR | book | jacket | Isaac Asimov | Gnome Press | Foundation (Asimov novel)
+11. Fahrenheit 451 | 200 asbestos-bound copies that won't burn | 1953 | GENR | book | jacket,banned | Ray Bradbury | Ballantine | Fahrenheit 451
+12. The Hound of the Baskervilles | Holmes comes back from the dead | 1902 | GENR | book |  | Arthur Conan Doyle | George Newnes | The Hound of the Baskervilles
+13. Do Androids Dream of Electric Sheep? | Electric sheep, real money | 1968 | GENR | book | jacket | Philip K. Dick | Doubleday | Do Androids Dream of Electric Sheep?
+14. Neuromancer | A paperback original that invented cyberspace | 1984 | GENR | book | debut | William Gibson | Ace | Neuromancer
+15. A Game of Thrones | A modest first printing before the show | 1996 | GENR | book | jacket | George R. R. Martin | Bantam | A Game of Thrones
+16. I, Robot | Three laws, one small press | 1950 | GENR | book | jacket | Isaac Asimov | Gnome Press | I, Robot
+17. Interview with the Vampire | A debut that made vampires sad and glamorous | 1976 | GENR | book | debut,jacket | Anne Rice | Knopf | Interview with the Vampire
+18. The Hitchhiker's Guide to the Galaxy | A paperback original, and a towel | 1979 | GENR | book | debut | Douglas Adams | Pan Books | The Hitchhiker's Guide to the Galaxy (novel)
+19. The Shining | The hotel with the hedge animals | 1977 | GENR | book | jacket | Stephen King | Doubleday | The Shining (novel)
+20. Pulp Paperback Spinner Lot | A drugstore rack of lurid covers, still smelling of cigars | 1955 | GENR | booklot |  | Various | Various | -
+
+== CHILDREN'S ==
+1. Harry Potter and the Philosopher's Stone | 500 hardbacks, mostly sent to libraries; 'one wand' on the list | 1997 | KIDS | book | debut,banned | J. K. Rowling | Bloomsbury | Harry Potter and the Philosopher's Stone
+2. Alice's Adventures in Wonderland | The 1865 printing was pulped; only 22 copies escaped | 1865 | KIDS | book | debut | Lewis Carroll | Macmillan | Alice's Adventures in Wonderland
+3. The Tale of Peter Rabbit | 250 copies printed privately before any publisher would | 1901 | KIDS | book | debut | Beatrix Potter | privately printed | The Tale of Peter Rabbit
+4. The Wonderful Wizard of Oz | Green cloth, 24 colour plates | 1900 | KIDS | book |  | L. Frank Baum | George M. Hill | The Wonderful Wizard of Oz
+5. Winnie-the-Pooh | Decorations by E. H. Shepard | 1926 | KIDS | book | jacket | A. A. Milne | Methuen | Winnie-the-Pooh
+6. The Cat in the Hat | Written with only 236 different words | 1957 | KIDS | book | jacket | Dr. Seuss | Random House | The Cat in the Hat
+7. The Lion, the Witch and the Wardrobe | The first trip through the wardrobe | 1950 | KIDS | book | jacket | C. S. Lewis | Geoffrey Bles | The Lion, the Witch and the Wardrobe
+8. The Little Prince | Published in New York in English and French at once | 1943 | KIDS | book | jacket | Antoine de Saint-Exupéry | Reynal & Hitchcock | The Little Prince
+9. Where the Wild Things Are | Let the wild rumpus start | 1963 | KIDS | book | jacket | Maurice Sendak | Harper & Row | Where the Wild Things Are
+10. Treasure Island | X marks the spot | 1883 | KIDS | book |  | Robert Louis Stevenson | Cassell | Treasure Island
+11. Charlie and the Chocolate Factory | Printed in America first | 1964 | KIDS | book | jacket | Roald Dahl | Knopf | Charlie and the Chocolate Factory
+12. The Wind in the Willows | Messing about in boats | 1908 | KIDS | book |  | Kenneth Grahame | Methuen | The Wind in the Willows
+13. Charlotte's Web | Some pig | 1952 | KIDS | book | jacket | E. B. White | Harper & Brothers | Charlotte's Web
+14. Peter Pan in Kensington Gardens | Fifty colour plates by Arthur Rackham | 1906 | KIDS | book |  | J. M. Barrie | Hodder & Stoughton | Peter Pan in Kensington Gardens
+15. Anne of Green Gables | Red hair, green gables, a first novel | 1908 | KIDS | book | debut | L. M. Montgomery | L. C. Page | Anne of Green Gables
+16. Goodnight Moon | Libraries refused to stock it for years | 1947 | KIDS | book | jacket | Margaret Wise Brown | Harper & Brothers | Goodnight Moon
+17. The Very Hungry Caterpillar | Holes punched through every page | 1969 | KIDS | book |  | Eric Carle | World Publishing | The Very Hungry Caterpillar
+18. Curious George | The monkey who fled Paris by bicycle | 1941 | KIDS | book | jacket | H. A. Rey | Houghton Mifflin | Curious George (book)
+19. Madeline | Twelve little girls in two straight lines | 1939 | KIDS | book | jacket | Ludwig Bemelmans | Simon & Schuster | Madeline (book)
+20. School Library Discard Box | Stamped WITHDRAWN, smelling of paste, one of them a first | 1975 | KIDS | booklot |  | Various | Various | -

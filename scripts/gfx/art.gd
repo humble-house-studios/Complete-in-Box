@@ -84,6 +84,10 @@ static func cover_size(item: Dictionary) -> Vector2i:
 			a = 0.646
 		"longbox":
 			a = 0.75
+		"book":
+			a = 0.68
+		"booklot":
+			a = 0.8
 		"coin":
 			a = 1.0
 		"pack", "wax":

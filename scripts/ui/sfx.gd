@@ -47,17 +47,18 @@ const SOUNDS := {
 	# World intro stings (one per world).
 	"sting_sports": [["temp:sports_sting"], -4.0],
 	"sting_comics": [["temp:comics_sting"], -4.0],
+	"sting_books": [["temp:books_sting"], -4.0],
 	"sting_games": [["grail"], -2.0],
 	"sting_cards": [["pack_open", "grail"], -2.0],
 }
 
 ## Music per screen/venue slot, plus optional ambience bed per venue.
 const TRACKS := {"title": "title", "home": "home", "hunt": "hunt", "shop": "shop", "online": "online", "ending": "ending",
-	"sports": "temp:sports", "comics": "temp:comics"}
+	"sports": "temp:sports", "comics": "temp:comics", "books": "temp:books"}
 ## Venues that play their world's own track instead of the slot's.
-const VENUE_TRACKS := {"ballroom": "sports", "dugout": "sports", "shoebox": "sports", "comicshop": "comics", "atticfind": "comics", "comiccon": "comics"}
+const VENUE_TRACKS := {"ballroom": "sports", "dugout": "sports", "shoebox": "sports", "comicshop": "comics", "atticfind": "comics", "comiccon": "comics", "bookshop": "books", "estatelib": "books", "booksale": "books"}
 const AMBIENCE := {"flea": "amb_crowd", "convention": "amb_crowd", "storage": "amb_rain", "cardshow": "amb_crowd", "tradenight": "amb_crowd", "coinshow": "amb_crowd",
-	"ballroom": "amb_crowd", "dugout": "amb_crowd", "comiccon": "amb_crowd", "atticfind": "amb_rain"}
+	"ballroom": "amb_crowd", "dugout": "amb_crowd", "comiccon": "amb_crowd", "atticfind": "amb_rain", "booksale": "amb_crowd", "estatelib": "amb_rain"}
 
 var _streams: Dictionary = {}
 var _players: Array = []

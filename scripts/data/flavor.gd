@@ -147,6 +147,7 @@ const WANT_NOTES := {
 	"gold": ["Gold doesn't tarnish. Neither do I.", "Bring me gold. It keeps. So do the things I keep."],
 	"worth": ["One serious piece. Show me you're not just shuffling junk.", "Quality over quantity. One piece. Make it count."],
 	"rookie": ["Everyone is worth the most at the start. Bring me a rookie.", "First year, first card, first mistake. Rose loved a rookie. So do I."],
+	"debut": ["Everyone writes a first book. Most of them should have stopped there. Bring me one that didn't.", "First books. First novels. First mistakes. Iris called it a debut. I call it an acquisition."],
 	"key": ["Firsts. I collect firsts. First issues, first appearances, first heirs.", "Bring me the issue where it all began. Everything begins somewhere."],
 	"vintage": ["Something older than you. Older than your parents, ideally.", "Bring me a card printed before anyone thought to keep them clean."],
 }
@@ -221,6 +222,7 @@ const LORE_FILES := {
 	"cards": preload("res://scripts/data/lore/cards.gd"),
 	"sports": preload("res://scripts/data/lore/sports.gd"),
 	"comics": preload("res://scripts/data/lore/comics.gd"),
+	"books": preload("res://scripts/data/lore/books.gd"),
 }
 const Worlds := preload("res://scripts/data/worlds.gd")
 static var _lore_cache: Dictionary = {}

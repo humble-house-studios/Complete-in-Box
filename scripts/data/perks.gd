@@ -32,7 +32,7 @@ const LIST := [
 	{"id": "eagle_eye", "name": "Eagle Eye", "cost": 6, "desc": "Hunt items have a 25% chance to be a condition better."},
 	{"id": "whale", "name": "Whale Watcher", "cost": 8, "desc": "+2 Mult per GRAIL on your shelf."},
 	{"id": "lunchbox", "market": "games", "name": "Lunchbox Display", "cost": 5, "desc": "Accessories appraise for x3."},
-	{"id": "pack_rat", "market": ["cards", "sports", "comics"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
+	{"id": "pack_rat", "market": ["cards", "sports", "comics", "books"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
 	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
 	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
 	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
@@ -54,6 +54,9 @@ const LIST := [
 	# Comics
 	{"id": "key_issue", "market": "comics", "name": "Key Issues", "cost": 6, "desc": "+0.3 Mult per key issue (a first appearance) on your shelf."},
 	{"id": "golden_age", "market": "comics", "name": "Golden Age Guy", "cost": 7, "desc": "Comics from before 1970 appraise for x2."},
+	# Rare books
+	{"id": "debut_novel", "market": "books", "name": "First Novels", "cost": 6, "desc": "+0.3 Mult per author's debut on your shelf."},
+	{"id": "antiquarian", "market": "books", "name": "Antiquarian", "cost": 7, "desc": "Books from before 1900 appraise for x2."},
 	{"id": "hall_of_fame", "market": "sports", "name": "Hall of Famer", "cost": 7, "desc": "Cards from before 1980 appraise for x2."},
 ]
 
@@ -69,6 +72,23 @@ const UPGRADES := [
 ## Per-world names and text for the same perk (the effect never changes):
 ## THEMES[market][perk id] = [name, desc].
 const THEMES := {
+	"books": {
+		"box_and_manual": ["Dust Jackets", "Very Good books appraise for x1.5."],
+		"shrink_wrap": ["Fine Copies Only", "+0.5 Mult for each Near Fine or Fine book."],
+		"completionist": ["Complete Shelf", "Shelf Set bonuses count double."],
+		"curator": ["Every Shelf", "x2 Mult if your shelf spans all 5 shelves of the library."],
+		"cursed_cart": ["Cursed Grimoire", "x2 Mult, but -2 shelf slots. The last chapter is always missing."],
+		"plastic_wrap": ["Mylar Jackets", "Fine books and sealed-estate box lots appraise for x2."],
+		"dust_sheet": ["Reading Copies", "Reading copies appraise for x2.5."],
+		"nostalgia": ["Dollar Cart Diver", "Common books appraise for x2."],
+		"pack_rat": ["Box Lot Hoarder", "Box lots appraise for x2."],
+		"holo_hunter": ["Gilt Edge Fan", "+0.6 Mult per shiny copy: fine bindings and limited editions."],
+		"oddity_hunter": ["Points Collector", "+0.4 Mult per variant copy (first state, signed, inscribed...)."],
+		"full_page": ["Full Shelf", "+1 Mult for each shelf with 4+ books on your shelf."],
+		"hot_streak": ["Bestseller List", "+0.5 Mult per book from a HOT shelf."],
+		"lucky_lots": ["Lucky Box Lots", "Mystery lots hold +1 item and roll a tier higher."],
+		"slab_fan": ["Clamshell Fan", "+0.75 Mult per described (graded) book on your shelf."],
+	},
 	"comics": {
 		"box_and_manual": ["Bags & Boards", "Very Fine comics appraise for x1.5."],
 		"shrink_wrap": ["High Grader", "+0.5 Mult for each Near Mint or Mint comic."],

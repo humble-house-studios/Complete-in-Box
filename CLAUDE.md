@@ -79,7 +79,7 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   camera spline from `Stage.intro_path(scene)`, signature grail rises, logo slam, `sting_<world>`.
   Shots: `tools/world_intro_shots.gd -- OUT world`.
 - Balance: opening a run in a non-retro world scales the whole run's targets (worlds.gd `target`:
-  cards 1.45, coins 1.4, sports 1.5, comics 1.25) so every opening plays like retro; estates are tuned to
+  cards 1.45, coins 1.4, sports 1.5, comics 1.25, books 1.15) so every opening plays like retro; estates are tuned to
   within a few wins of Arlo. Tune with `godot --headless -s res://tools/tune_worlds.gd -- world|estate ID values...`.
 - Title vault: one small case per collector (`Stage.collector_cases`), open and empty once freed.
 - Binder: stamps cap at $15 (`STAMP_CAP`), ladder to 1,800 owned, WORLD SEAL (own a whole world) +$3.
@@ -87,6 +87,12 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   INDY by era, painter `scripts/gfx/comic_art.gd` (real covers from Wikipedia, else era-styled),
   bag & board / CGX slab / longbox models in `ItemModels._comic/_longbox`, venues comiccon /
   atticfind / comicshop / comicauction, perks key_issue, golden_age, lore `lore/comics.gd`.
+- Rare books (Professor Iris): kinds `book` / `booklot` (box lot, rips into books), pages ANTQ CLSC MODF
+  GENR KIDS, def `binding` (leather / cloth / jacket / paperback), painter `scripts/gfx/book_art.gd` (real
+  first-edition covers, else painted bindings), hardback / mylar / clamshell and banker's box models in
+  `ItemModels._book/_booklot`, venues estatelib / booksale / bookshop (`Stage._bookshop`, spines batched by
+  `_spines`) / bookauction, perks debut_novel, antiquarian, tag `debut` (want list), lore `lore/books.gd`
+  (case "book" = giant clamshell). Target 1.15, Iris -$6 with 4 starters.
 - Sports cards (Grandma Rose): kinds `scard` / `wax`, pages BASE HOOP GRID PUCK FUTB, painter
   `scripts/gfx/sports_art.gd` (3 eras, real photo/scan), venues ballroom / shoebox / dugout /
   breaks, room `Stage._ballroom`, perk renames in `Perks.THEMES`, new perks rookie_fever, hall_of_fame.

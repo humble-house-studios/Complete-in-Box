@@ -22,7 +22,7 @@ func test_catalog_is_sane() -> void:
 		assert_false(ids.has(d["id"]), "duplicate id " + d["id"])
 		ids[d["id"]] = true
 		assert_true(Catalog.PLATFORMS.has(d["plat"]), "bad platform on " + d["id"])
-		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox"].has(d["kind"]), "bad kind on " + d["id"])
+		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot"].has(d["kind"]), "bad kind on " + d["id"])
 		assert_between(int(d["tier"]), 0, 3)
 		assert_gt(int(d["base"]), 0)
 	for t in 4:
@@ -728,3 +728,44 @@ func test_comics_world_and_hector() -> void:
 	for w in ["games", "cards", "sports", "comics"]:
 		assert_false(Flavor.intro(w).is_empty(), "%s has an intro" % w)
 	assert_eq(Perks.label("box_and_manual", "comics")["name"], "Bags & Boards")
+
+
+func test_books_world_and_iris() -> void:
+	assert_eq(Catalog.items_of("books").size(), 100)
+	for t in 4:
+		assert_gt(Catalog.defs_of_tier(t, "books").size(), 0, "books tier %d" % t)
+	for slot in Venues.SLOTS:
+		assert_false(Venues.unlocked(slot, 1, "books").is_empty(), "books has a %s venue" % slot)
+	var r := Run.new()
+	r.start(41, {"estate": "iris", "worlds": ["games", "cards", "books"]})
+	assert_eq(r.market, "books")
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_true(["book", "booklot"].has(String(o["item"]["kind"])))
+	r.phase = Run.Phase.HOME
+	r.shelf.clear()
+	r.shelf_cap = 30
+	var lot: Dictionary = Catalog.items_of("books").filter(func(d): return String(d["kind"]) == "booklot")[0]
+	var bl := r.make_item(lot, "CIB")
+	r.shelf.append(bl)
+	assert_true(bool(r.open_pack(int(bl["uid"]))["ok"]))
+	for it in r.shelf:
+		assert_eq(String(it["kind"]), "book")
+	# Debuts count for the want list and the First Novels perk.
+	var debut: Dictionary = Catalog.items_of("books").filter(func(d): return (d["tags"] as Array).has("debut"))[0]
+	r.want = {"id": "debut", "n": 1}
+	assert_true(r.wants(r.make_item(debut, "CIB")))
+	assert_eq(Catalog.cond_name(r.make_item(debut, "Sealed")), "Fine")
+	assert_eq(Flavor.letters("iris").size(), Balance.ANTES_TO_WIN)
+	assert_eq(Flavor.diary_name("iris"), "Iris's marginalia")
+	assert_eq(Flavor.pass_lines("books").size(), 12)
+	assert_eq(Flavor.fail_lines("books").size(), 12)
+	for e in ["box", "collector", "leak"]:
+		assert_eq(Flavor.event_text("books", e).size(), 2)
+	assert_false(Flavor.intro("books").is_empty())
+	assert_eq(Perks.label("box_and_manual", "books")["name"], "Dust Jackets")
+	# Book variants stay believable: no signed Gutenbergs, no book clubs before 1926.
+	var gut := Catalog.get_def("antq_gootenberg_bible")
+	var vw := Catalog.variant_weights(gut)
+	assert_false(vw.has("Signed by the Author"))
+	assert_false(vw.has("Book Club Edition"))

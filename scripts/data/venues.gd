@@ -199,6 +199,40 @@ const LIST := [
 		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.13,
 		"color": Color("d9a43a"),
 	},
+	# ------------------------------------------------ rare books (market "books")
+	{
+		"id": "estatelib", "name": "Estate Library", "slot": "hunt", "unlock": 1, "market": "books",
+		"blurb": "A late professor's house, books to the ceiling and heirs who price them by the yard. Check behind the front row.",
+		"time": 4, "stock": 6, "price": [0.2, 0.85], "exact": false, "tier_boost": 0,
+		"cond": [18, 40, 28, 11, 3], "haggle": 0.65, "cut": 0.7, "dig": 2, "dig_label": "Check behind the front row",
+		"sell": 0.0, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("9a6a32"),
+	},
+	{
+		"id": "booksale", "name": "Library Book Sale", "slot": "hunt", "unlock": 1, "market": "books",
+		"blurb": "The Friends of the Library sale in the church hall: hardbacks a dollar, bag day at four. Dealers with phone scanners at the door.",
+		"time": 4, "stock": 6, "price": [0.25, 0.9], "exact": false, "tier_boost": 0,
+		"cond": [25, 42, 24, 7, 2], "haggle": 0.5, "cut": 0.75, "dig": 2, "dig_label": "Dig under the tables",
+		"sell": 0.65, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("5a9a4a"),
+	},
+	{
+		"id": "bookshop", "name": "Foxed & Folio", "slot": "shop", "unlock": 1, "market": "books",
+		"blurb": "An antiquarian bookshop: rolling ladders, a glass case of firsts and a bookseller who sends books out for a proper description.",
+		"time": 3, "stock": 6, "price": [1.0, 1.2], "exact": true, "tier_boost": 1,
+		"cond": [0, 20, 45, 25, 10], "haggle": 0.35, "cut": 0.85, "dig": 1, "dig_label": "Ask about the locked case",
+		"sell": 0.6, "lots": 0, "lot_size": 0, "lot_peek": 0, "grading": true, "bargain": 2,
+		"color": Color("8a3a48"),
+	},
+	{
+		"id": "bookauction", "name": "Sothebids", "slot": "online", "unlock": 1, "market": "books",
+		"blurb": "Fine books and manuscripts: catalogued lots, phone bidders, a hammer and a buyer's premium.",
+		"time": 4, "stock": 5, "price": [0.95, 1.25], "exact": true, "tier_boost": 1,
+		"cond": [5, 28, 40, 19, 8], "haggle": 0.0, "cut": 1.0, "dig": 5, "dig_label": "Turn the catalogue page",
+		"sell": 0.0, "lots": 0, "lot_size": 0, "lot_peek": 0,
+		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.13,
+		"color": Color("3a7a9a"),
+	},
 	# ------------------------------------------------ rare coins (market "coins")
 	{
 		"id": "coinshow", "name": "Coin Show", "slot": "hunt", "unlock": 1, "market": "coins",

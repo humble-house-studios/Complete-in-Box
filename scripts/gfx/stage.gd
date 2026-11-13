@@ -764,6 +764,8 @@ const SIGNS := {
 	"dugout": {"GAMES": "THE DUGOUT", "BUY  SELL  TRADE": "WAX  SLABS  SINGLES"},
 	"ballroom": {"COLLECTOR CON": "SUNDAY CARD SHOW"},
 	"comiccon": {"COLLECTOR CON": "COMIC CON"},
+	"booksale": {"COLLECTOR CON": "LIBRARY BOOK SALE"},
+	"bookauction": {"HERITAGE": "SOTHEBIDS"},
 }
 
 
@@ -937,6 +939,10 @@ func _build(id: String, items: Array) -> void:
 		"comiccon": _convention(items)
 		"atticfind": _estate(items)
 		"comicauction": _online(items)
+		"bookshop": _bookshop(items)
+		"booksale": _convention(items)
+		"estatelib": _estate(items)
+		"bookauction": _heritage(items)
 		"cursed": _cursed(items)
 		_: _garage(items)
 
@@ -1223,6 +1229,163 @@ func _comicshop(items: Array) -> void:
 	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
 
 
+## Rows of book spines along shelves, cheaply: one MultiMesh per spine colour
+## (a whole bookcase wall is a handful of draw calls). rows = [[center, width], ...].
+func _spines(rows: Array, seed_value: int, depth := 0.3, hmin := 0.24, hmax := 0.36) -> void:
+	var cols := [Color(0.42, 0.12, 0.1), Color(0.15, 0.3, 0.2), Color(0.15, 0.22, 0.45), Color(0.55, 0.42, 0.2), Color(0.32, 0.2, 0.12),
+		Color(0.85, 0.8, 0.68), Color(0.2, 0.18, 0.2)]
+	var per: Array = []
+	for k in cols.size():
+		per.append([])
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	for row in rows:
+		var c: Vector3 = row[0]
+		var w: float = row[1]
+		var x := c.x - w * 0.5 + 0.02
+		while x < c.x + w * 0.5 - 0.03:
+			var bw := r.randf_range(0.025, 0.06)
+			var bh := r.randf_range(hmin, hmax)
+			if r.randf() < 0.04:
+				x += bw  # a gap where a book was taken
+				continue
+			var t := Transform3D(Basis.IDENTITY.scaled(Vector3(bw, bh, depth * r.randf_range(0.7, 1.0))), Vector3(x + bw * 0.5, c.y + bh * 0.5, c.z))
+			if r.randf() < 0.05:
+				t.basis = Basis(Vector3.BACK, 0.25).scaled(Vector3(bw, bh, depth))
+			per[r.randi() % cols.size()].append(t)
+			x += bw + 0.002
+	var mesh := BoxMesh.new()
+	for k in cols.size():
+		var list: Array = per[k]
+		if list.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i])
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = mm
+		mi.material_override = Psx.mat(cols[k])
+		world.add_child(mi)
+		# Gilt bands on the leather and cloth spines.
+		if k < 5:
+			var gm := MultiMesh.new()
+			gm.transform_format = MultiMesh.TRANSFORM_3D
+			gm.mesh = mesh
+			gm.instance_count = list.size()
+			for i in list.size():
+				var t: Transform3D = list[i]
+				var sz := t.basis.get_scale()
+				gm.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3(sz.x * 1.02, 0.012, sz.z * 1.02)), t.origin + Vector3(0, sz.y * 0.32, 0)))
+			var gi := MultiMeshInstance3D.new()
+			gi.multimesh = gm
+			gi.material_override = Psx.mat(Color(0.93, 0.78, 0.38))
+			world.add_child(gi)
+
+
+## Foxed & Folio, the antiquarian bookshop: bookcases to the ceiling with a
+## rolling ladder, a reading table with a green lamp and an open folio, the
+## locked glass case of firsts, the counter, and Professor Iris's case in
+## the corner, shelved under H.
+func _bookshop(items: Array) -> void:
+	_setup(Color(0.1, 0.07, 0.05), Color(0.82, 0.7, 0.55), 1.1, 7.0, 22.0)
+	_room(9, 7.5, 3.4, "woodfloor043", Color(0.7, 0.55, 0.42), "wallpaper001a", Color(0.45, 0.55, 0.42), 1.3, Rect2(), Color(0.42, 0.35, 0.3))
+	var pool := Catalog.items_of("books")
+	var books := pool.filter(func(d): return String(d["kind"]) == "book")
+	# The back wall: four tall bookcases, packed.
+	var rows: Array = []
+	for i in 4:
+		var x := -3.3 + i * 2.2
+		var tops := _shelf_unit(Vector3(x, 0, -3.5), 2.1, 6, 0.52, Color(0.45, 0.3, 0.2))
+		for y in tops:
+			rows.append([Vector3(x, y, -3.5), 2.0])
+	# Side walls too.
+	for side in [-1.0, 1.0]:
+		var holder := world
+		var sw := Node3D.new()
+		sw.position = Vector3(side * 4.25, 0, -1.0)
+		sw.rotation_degrees.y = -90.0 * side
+		holder.add_child(sw)
+		world = sw
+		var tops2 := _shelf_unit(Vector3(0, 0, 0), 2.6, 6, 0.52, Color(0.45, 0.3, 0.2))
+		var srows: Array = []
+		for y in tops2:
+			srows.append([Vector3(0, y, 0), 2.5])
+		_spines(srows, 600 + int(side * 7))
+		world = holder
+	_spines(rows, 77)
+	# The rolling library ladder on its brass rail.
+	var lad := Node3D.new()
+	lad.position = Vector3(-1.2, 0, -3.0)
+	lad.rotation_degrees.x = -14.0
+	world.add_child(lad)
+	var wood := Psx.mat(Color(0.5, 0.33, 0.2), Psx.tex("wood092"))
+	for sx in [-0.22, 0.22]:
+		Psx.box(Vector3(0.05, 3.3, 0.05), wood, Vector3(sx, 1.65, 0), lad)
+	for k in 10:
+		Psx.box(Vector3(0.44, 0.03, 0.06), wood, Vector3(0, 0.3 + k * 0.31, 0), lad)
+	Psx.box(Vector3(8.4, 0.03, 0.03), Psx.mat(Color(0.85, 0.65, 0.3)), Vector3(0, 3.2, -3.25), world)
+	# A reading table with a green banker's lamp and an open folio.
+	var tp := Vector3(-2.2, 0, -1.4)
+	var t := _prop("table", tp, 0, 0.0, Color(0.45, 0.3, 0.2), 1.5)
+	var ty := _top(t)
+	Psx.box(Vector3(0.1, 0.02, 0.1), Psx.mat(Color(0.75, 0.6, 0.3)), tp + Vector3(0.5, ty + 0.01, -0.15), world)
+	Psx.cyl(0.012, 0.3, Psx.mat(Color(0.75, 0.6, 0.3)), tp + Vector3(0.5, ty + 0.16, -0.15), world, 6)
+	Psx.box(Vector3(0.32, 0.08, 0.12), Psx.mat(Color(0.1, 0.45, 0.25), null, Vector2.ONE, 0.15), tp + Vector3(0.5, ty + 0.33, -0.1), world)
+	_light(tp + Vector3(0.5, ty + 0.25, 0.0), Color(1.0, 0.85, 0.55), 1.6, 2.4)
+	for sx in [-1.0, 1.0]:
+		var pg := Psx.box(Vector3(0.3, 0.012, 0.4), Psx.mat(Color(0.9, 0.84, 0.7)), tp + Vector3(-0.15 + sx * 0.15, ty + 0.02, 0.05), world)
+		pg.rotation_degrees.z = -6.0 * sx
+	_person(tp + Vector3(-0.2, 0, 0.65), 180, Color.WHITE, 1.4, "male_adult_11")
+	# The locked glass case of firsts on the right, jackets in mylar.
+	var gc := Vector3(3.0, 0, -1.4)
+	Psx.box(Vector3(0.7, 0.9, 1.8), Psx.mat(Color(0.35, 0.22, 0.14), Psx.tex("wood066")), gc + Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(0.72, 0.5, 1.82), _glass(), gc + Vector3(0, 1.15, 0), world)
+	var r := RandomNumberGenerator.new()
+	r.seed = 812
+	for k in 4:
+		var it: Dictionary = books[r.randi() % mini(books.size(), 30)].duplicate()
+		it["cond"] = "Mint"
+		var m := ItemModels.build(it)
+		m.scale = Vector3.ONE * ITEM_SCALE * 0.9
+		m.position = gc + Vector3(0.0, 0.92, -0.6 + k * 0.4)
+		m.rotation_degrees = Vector3(0, -90, 0)
+		world.add_child(m)
+	_neon("FIRST EDITIONS", gc + Vector3(-0.3, 2.3, 0), Color(1.0, 0.8, 0.4), 40, -90)
+	# The counter with your table's items, a till and a brass bell.
+	Psx.box(Vector3(2.6, 0.9, 0.7), Psx.mat(Color(0.35, 0.22, 0.14), Psx.tex("wood066")), Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.3, 0.42, 0.3), Psx.tex("fabric086")), Vector3(0, 0.92, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
+	_person(Vector3(1.3, 0, -0.85), -15, Color(1.0, 0.95, 0.9), 1.45, "female_adult_14")
+	# Professor Iris's case in the corner, shelved under H.
+	var iris: Dictionary = {}
+	for c in collector_cases:
+		if String(c.get("name", "")) == "Professor Iris Halloway":
+			iris = c
+	var holder2 := world
+	var croot := Node3D.new()
+	croot.position = Vector3(-3.4, 0, 0.2)
+	croot.rotation_degrees.y = 55.0
+	croot.scale = Vector3.ONE * 0.8
+	holder2.add_child(croot)
+	world = croot
+	if bool(iris.get("freed", false)):
+		_open_case(Vector3.ZERO, "Professor Iris")
+	else:
+		_grade_case(Vector3.ZERO, "female_adult_03", {"grade": "NF", "cond": "FOXED", "lot": "H-0008", "name": "PROF. I. HALLOWAY",
+			"ante": "SHELVED UNDER H", "label": "FINE BOOKS", "case": "book"}, false)
+	world = holder2
+	_spot(Vector3(-2.6, 3.1, 1.2), Vector3(-3.4, 1.0, 0.2), Color(1.0, 0.88, 0.7), 2.6, 26, 6.0)
+	_walker([Vector3(-2.8, 0, -2.9), Vector3(0.6, 0, -3.0), Vector3(2.6, 0, -2.9)], [["browse", 180], ["reach", 180], ["browse", 180]], "female_adult_08", 0.4)
+	for x in [-2.5, 0.0, 2.5]:
+		_light(Vector3(x, 3.0, -1.2), Color(1.0, 0.85, 0.6), 1.2, 4.5)
+	_light(Vector3(0, 2.4, -3.0), Color(1.0, 0.82, 0.6), 1.6, 5.0)
+	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
+
+
 ## The camera flight for a world's first-visit intro: [[pos, look], ...].
 ## Ends on the venue's usual view so the reveal lands on the signature item.
 func intro_path(id: String) -> Array:
@@ -1247,6 +1410,15 @@ func intro_path(id: String) -> Array:
 				[Vector3(0.6, 1.6, -0.4), Vector3(-3.2, 1.2, -2.0)],  # the Twins' cases
 				[Vector3(1.0, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
 				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature card on the counter
+			]
+		"bookshop":
+			return [
+				[Vector3(-3.2, 2.9, -2.4), Vector3(-2.2, 2.7, -3.6)],  # along the top shelves
+				[Vector3(-1.0, 2.4, -2.5), Vector3(-1.2, 1.6, -3.3)],  # past the ladder
+				[Vector3(1.6, 1.9, -1.0), Vector3(3.0, 1.1, -1.4)],  # the case of firsts
+				[Vector3(0.8, 1.6, 0.4), Vector3(-3.4, 1.1, 0.2)],  # Iris, shelved under H
+				[Vector3(0.9, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature book on the counter
 			]
 		"comicshop":
 			return [
@@ -2253,6 +2425,17 @@ func _grade_case(pos: Vector3, who: String, info: Dictionary, hero: bool) -> voi
 	Psx.box(Vector3(CASE_W * 0.92, PLINTH_H * 0.22, 0.014), Psx.mat(Color(0.7, 0.07, 0.1), null, Vector2.ONE, 0.2), Vector3(0, PLINTH_H * 0.3, 0.002), lab)
 	Psx.box(Vector3(0.2, PLINTH_H * 0.5, 0.016), Psx.mat(Color(0.08, 0.06, 0.08)), Vector3(CASE_W * 0.33, -PLINTH_H * 0.08, 0.002), lab)
 	_case_text(lab, String(info.get("label", "COLLECTOR'S CURSE GRADING")), Vector3(0, PLINTH_H * 0.3, 0.012), 22, Color(1.0, 0.92, 0.85))
+	if String(info.get("case", "")) == "book":
+		# Books: the case is a giant clamshell box: cloth-covered sides and an
+		# oxblood leather spine label with gilt letters riding on top.
+		var cloth := Psx.mat(Color(0.2, 0.15, 0.17), Psx.tex("fabric086"))
+		for x in [-CASE_W * 0.5 - 0.04, CASE_W * 0.5 + 0.04]:
+			Psx.box(Vector3(0.06, CASE_H + 0.1, CASE_D + 0.06), cloth, Vector3(x, PLINTH_H + CASE_H * 0.5, 0), root)
+		var btop := PLINTH_H + CASE_H + 0.2
+		Psx.box(Vector3(CASE_W + 0.2, 0.34, 0.1), Psx.mat(Color(0.45, 0.1, 0.12)), Vector3(0, btop, CASE_D * 0.5), root)
+		for dy in [-0.13, 0.13]:
+			Psx.box(Vector3(CASE_W + 0.2, 0.02, 0.104), Psx.mat(Color(0.93, 0.78, 0.38)), Vector3(0, btop + dy, CASE_D * 0.5), root)
+		_case_text(root, "%s  IN JACKET" % String(info.get("grade", "?")), Vector3(0, btop, CASE_D * 0.5 + 0.055), 44, Color(0.95, 0.8, 0.4))
 	if String(info.get("case", "")) == "slab" or String(info.get("case", "")) == "comic":
 		# Sports: the case is a giant grading slab: thick clear acrylic edges
 		# and a red-and-white flip label riding on top.

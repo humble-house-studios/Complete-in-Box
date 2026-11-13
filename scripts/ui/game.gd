@@ -4489,7 +4489,7 @@ const PERK_CAT_OF := {
 	"hype_beast": "market", "grader_buddy": "market", "bubble_wrap": "market", "slab_fan": "market",
 	"glass_case": "time", "dollar_bin": "hunt", "haggle_king": "hunt", "hot_streak": "market",
 	"archivist": "time", "long_box": "time", "rookie_fever": "appraisal", "hall_of_fame": "appraisal",
-	"key_issue": "appraisal", "golden_age": "appraisal",
+	"key_issue": "appraisal", "golden_age": "appraisal", "debut_novel": "appraisal", "antiquarian": "appraisal",
 }
 
 

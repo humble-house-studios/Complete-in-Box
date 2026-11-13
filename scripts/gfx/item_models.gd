@@ -886,7 +886,7 @@ static func _platform_pad(model: Node3D, item: Dictionary, plat: String, col: Co
 # ---------------------------------------------------------------- cards + coins
 
 ## Real sizes (metres, longest side) of card and coin holders.
-const REAL_CC := {"comic": 0.26, "comic_bag": 0.275, "comic_slab": 0.33, "longbox": 0.72, "card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
+const REAL_CC := {"book": 0.235, "book_folio": 0.36, "book_pocket": 0.18, "book_case": 0.28, "booklot": 0.42, "comic": 0.26, "comic_bag": 0.275, "comic_slab": 0.33, "longbox": 0.72, "card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
 	"deck": 0.1, "flip": 0.051, "coin_slab": 0.085, "proof_case": 0.09}
 
 
@@ -915,6 +915,8 @@ static func _clear_frame(model: Node3D, size: Vector3, at: Vector3, t := 0.04) -
 ## A grader's label: company bar, grade number, name.
 static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, coin: bool) -> void:
 	var red := Color(0.8, 0.12, 0.12) if not coin else Color(0.12, 0.28, 0.6)
+	if String(item.get("kind", "")) == "book":
+		red = Color(0.45, 0.1, 0.12)
 	if String(item.get("kind", "")) == "comic":
 		# CGX comics: blue label (Universal), yellow for signed, purple for restored.
 		red = {"Signature Series": Color(0.95, 0.78, 0.15), "Restored": Color(0.55, 0.3, 0.7)}.get(String(item.get("variant", "")), Color(0.15, 0.35, 0.75))
@@ -927,6 +929,8 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 	var words := {10: "GEM MT", 9: "MINT", 8: "NM-MT", 7: "NM", 6: "EX-MT"}
 	var nm := String(item.get("name", "")).substr(0, 22)
 	l.text = ("%s\nMS %d" % [nm, 60 + (g - 5) * 2]) if coin else ("%s\n%s %d" % [nm, String(words.get(g, "")), g])
+	if String(item.get("kind", "")) == "book":
+		l.text = "%s\n%s" % [nm, String({10: "FINE", 9: "NEAR FINE", 8: "VERY GOOD+", 7: "VERY GOOD", 6: "GOOD"}.get(g, "GOOD"))]
 	if String(item.get("kind", "")) == "comic":
 		l.text = "%s\nCGX %.1f" % [nm, {10: 9.8, 9: 9.4, 8: 8.5, 7: 7.0, 6: 6.0}.get(g, float(g))]
 	l.font_size = 22
@@ -990,6 +994,107 @@ static func _longbox(model: Node3D, item: Dictionary, label: Texture2D) -> float
 	return REAL_CC["longbox"]
 
 
+## The colour of a book's spine and boards (leather, cloth, or the jacket).
+static func _book_color(item: Dictionary) -> Color:
+	var h := absi(hash(String(item.get("id", ""))))
+	match String(Catalog.get_def(String(item.get("id", ""))).get("binding", item.get("binding", "cloth"))):
+		"leather":
+			return [Color(0.36, 0.2, 0.1), Color(0.42, 0.12, 0.1), Color(0.24, 0.22, 0.14)][h % 3]
+		"cloth":
+			return [Color(0.15, 0.3, 0.2), Color(0.5, 0.12, 0.12), Color(0.15, 0.22, 0.45), Color(0.55, 0.42, 0.2)][h % 4]
+	var pc: Color = Catalog.platform(String(item.get("plat", "MODF")))["color"]
+	return Color.from_hsv(fmod(pc.h + float(h % 40) / 100.0 - 0.2 + 1.0, 1.0), 0.6, 0.55)
+
+
+## A hardback (or a pocket paperback): boards, a cream page block, a
+## rounded spine with gilt bands. Fine copies wear a clear mylar jacket
+## protector; graded ones lie in a cloth clamshell box with a label.
+static func _book(model: Node3D, item: Dictionary, label: Texture2D, cond: String, graded: bool) -> float:
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var binding := String(def.get("binding", "cloth"))
+	var bw := 0.68
+	var thick := clampf(float(def.get("pages", 300)) / 3200.0, 0.06, 0.24)
+	if binding == "paperback":
+		thick *= 0.7
+	var col := _book_color(item)
+	var board := Psx.mat(col, Psx.tex("fabric086") if binding == "cloth" else null)
+	var pages := Psx.mat(Color(0.93, 0.89, 0.78) if int(def.get("year", 1950)) > 1850 else Color(0.86, 0.78, 0.6))
+	var root := Node3D.new()
+	model.add_child(root)
+	var bt := 0.018 if binding != "paperback" else 0.006
+	# Back board, page block, front board (cover art), spine.
+	Psx.box(Vector3(bw, 1.0, bt), board, Vector3(0, 0.5, -thick * 0.5 + bt * 0.5), root)
+	Psx.box(Vector3(bw - 0.03, 0.97, thick - bt * 2), pages, Vector3(0.012, 0.5, 0), root)
+	Psx.box(Vector3(bw, 1.0, bt), board, Vector3(0, 0.5, thick * 0.5 - bt * 0.5), root)
+	Psx.quad(Vector2(bw, 1.0), _pic_mat(label, bw), Vector3(0, 0.5, thick * 0.5 + 0.002), root)
+	if not icon_build:
+		var bq := Psx.quad(Vector2(bw, 1.0), _pic_mat(Art.back(item), bw), Vector3(0, 0.5, -thick * 0.5 - 0.002), root)
+		bq.rotation_degrees.y = 180.0
+	var spine := Psx.box(Vector3(0.03, 1.0, thick), board, Vector3(-bw * 0.5 - 0.005, 0.5, 0), root)
+	spine.name = "Spine"
+	if binding != "paperback" and binding != "jacket":
+		for y in [0.12, 0.3, 0.7, 0.88]:
+			Psx.box(Vector3(0.034, 0.014, thick * 0.9), Psx.mat(Color(0.93, 0.78, 0.38)), Vector3(-bw * 0.5 - 0.006, y, 0), root)
+	if graded:
+		# The clamshell: a cloth tray the book lies in, label plate below.
+		var tray := Psx.mat(Color(0.18, 0.14, 0.16), Psx.tex("fabric086"))
+		var tz := -thick * 0.5 - 0.03
+		Psx.box(Vector3(bw + 0.14, 1.3, 0.04), tray, Vector3(0, 0.6, tz), model)
+		for sx in [-1.0, 1.0]:
+			Psx.box(Vector3(0.04, 1.3, thick + 0.06), tray, Vector3(sx * (bw * 0.5 + 0.05), 0.6, 0), model)
+		Psx.box(Vector3(bw + 0.14, 0.04, thick + 0.06), tray, Vector3(0, 1.24, 0), model)
+		root.position.y = 0.17
+		_slab_label(model, Vector3(0, 0.09, thick * 0.5 + 0.02), bw + 0.04, item, false)
+		return REAL_CC["book_case"]
+	if cond == "Mint" or cond == "Sealed":
+		if not icon_build:
+			var bm := StandardMaterial3D.new()
+			bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			bm.albedo_color = Color(0.9, 0.95, 1.0, 0.12 if cond == "Mint" else 0.22)
+			bm.roughness = 0.08
+			bm.metallic_specular = 1.0
+			bm.rim_enabled = true
+			bm.rim = 0.5
+			var sleeve := Psx.box(Vector3(bw + 0.03, 1.02, thick + 0.02), bm, Vector3(0, 0.5, 0), root)
+			sleeve.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	elif cond == "Damaged":
+		# A cocked spine and a bumped corner.
+		root.rotation_degrees.z = 4.0
+		Psx.box(Vector3(0.08, 0.08, thick + 0.004), Psx.mat(col.darkened(0.4)), Vector3(bw * 0.46, 0.04, 0), root)
+	var plat := String(item.get("plat", ""))
+	if binding == "paperback":
+		return REAL_CC["book_pocket"]
+	if plat == "ANTQ":
+		return REAL_CC["book_folio"]
+	if plat == "KIDS" and int(def.get("pages", 100)) < 100:
+		return REAL_CC["book_pocket"]
+	return REAL_CC["book"]
+
+
+## A box lot: a banker's box with the lid off and books standing inside.
+static func _booklot(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var b := Vector3(1.0, 0.7, 0.62)
+	var card := Psx.mat(Color(0.82, 0.7, 0.5), Psx.tex("cardboard002"), Vector2(2, 1))
+	Psx.box(Vector3(b.x, 0.03, b.z), card, Vector3(0, 0.015, 0), model)
+	Psx.box(Vector3(b.x, b.y, 0.03), card, Vector3(0, b.y * 0.5, -b.z * 0.5), model)
+	Psx.box(Vector3(b.x, b.y, 0.03), card, Vector3(0, b.y * 0.5, b.z * 0.5), model)
+	for sx in [-1.0, 1.0]:
+		Psx.box(Vector3(0.03, b.y, b.z), card, Vector3(sx * b.x * 0.5, b.y * 0.5, 0), model)
+	Psx.quad(Vector2(b.x * 0.62, b.y * 0.86), _pic_mat(label, b.x * 0.62 / (b.y * 0.86)), Vector3(0, b.y * 0.5, b.z * 0.5 + 0.017), model)
+	# Books standing spine-up inside, a few leaning.
+	var g := RandomNumberGenerator.new()
+	g.seed = hash(String(item.get("id", "")))
+	var x := -b.x * 0.5 + 0.06
+	while x < b.x * 0.5 - 0.1:
+		var w := g.randf_range(0.05, 0.11)
+		var h := g.randf_range(0.6, 0.86)
+		var bk := Psx.box(Vector3(w, h, b.z * g.randf_range(0.6, 0.85)), Psx.mat(Color.from_hsv(g.randf(), g.randf_range(0.3, 0.7), g.randf_range(0.25, 0.6))), Vector3(x + w * 0.5, h * 0.5 + 0.03, 0), model)
+		bk.rotation_degrees.z = g.randf_range(-6, 6)
+		x += w + 0.008
+	model.rotation_degrees.y = 14.0
+	return REAL_CC["booklot"]
+
+
 static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 	# Sports singles and wax use the card and pack holders (same real sizes).
 	var kind: String = {"scard": "card", "wax": "pack"}.get(String(item.get("kind", "")), String(item.get("kind", "")))
@@ -1000,6 +1105,10 @@ static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> f
 		return _comic(model, item, label, cond, graded)
 	if kind == "longbox":
 		return _longbox(model, item, label)
+	if kind == "book":
+		return _book(model, item, label, cond, graded)
+	if kind == "booklot":
+		return _booklot(model, item, label)
 	if kind == "card":
 		var cw := 0.716
 		if graded:
