@@ -186,7 +186,9 @@ func _find(pred: Callable) -> Control:
 
 
 func _has_text(s: String) -> Callable:
-	return func(b: Control) -> bool: return _all_text(b).to_lower().contains(s.to_lower())
+	# Cards clip long names ("PocketBoy Advan..."), so match the start of it.
+	var key := s.to_lower().left(14)
+	return func(b: Control) -> bool: return _all_text(b).to_lower().contains(key)
 
 
 func _all_text(c: Node) -> String:

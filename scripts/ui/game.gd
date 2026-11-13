@@ -728,6 +728,14 @@ func _nav_pick(fo: Control, dir: Vector2, list: Array) -> Control:
 
 func _nav_best(fo: Control, dir: Vector2, list: Array, home: ScrollContainer, fallback: bool) -> Control:
 	var a := fo.get_global_rect()
+	if home != null:
+		# Highlight scrolled out of sight in a long list: steer from the
+		# list's edge, so up/down still lead out of it.
+		var hr := home.get_global_rect()
+		if a.end.y < hr.position.y:
+			a.position.y = hr.position.y
+		elif a.position.y > hr.end.y:
+			a.position.y = hr.end.y - a.size.y
 	var ac := a.get_center()
 	var best: Control = null
 	var best_s := INF
