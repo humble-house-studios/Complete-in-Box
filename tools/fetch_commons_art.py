@@ -202,14 +202,19 @@ def index(name, params):
     f = os.path.join(CACHE, "commons_index_%s.json" % name)
     if os.path.exists(f):
         return [tuple(x) for x in json.load(open(f))]
-    out = []
-    cont = {}
+    part = f + ".part"
+    out, cont = [], {}
+    if os.path.exists(part):
+        saved = json.load(open(part))
+        out, cont = [tuple(x) for x in saved["out"]], saved["cont"]
     while True:
         for k in range(8):
             j = api(dict(params, action="query", list="allimages", ailimit=500, aiprop="url|size|user|mime", **cont),
                     pause=1.0 + k * 20)
             if "query" in j:
                 break
+        else:
+            raise SystemExit("Commons keeps refusing: run it again later (it resumes)")
         for im in j.get("query", {}).get("allimages", []):
             if im.get("mime") in ("image/jpeg", "image/png"):
                 out.append(("File:" + im["name"].replace("_", " "), thumb(im["url"]), im.get("width", 0), im.get("height", 0),
@@ -218,8 +223,12 @@ def index(name, params):
         if "continue" not in j:
             break
         cont = {"aicontinue": j["continue"]["aicontinue"]}
+        os.makedirs(CACHE, exist_ok=True)
+        json.dump({"out": out, "cont": cont}, open(part, "w"))
     os.makedirs(CACHE, exist_ok=True)
     json.dump(out, open(f, "w"))
+    if os.path.exists(part):
+        os.remove(part)
     return out
 
 
