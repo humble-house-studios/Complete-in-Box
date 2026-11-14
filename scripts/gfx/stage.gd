@@ -1550,20 +1550,38 @@ func intro_path(id: String, over_table: bool = false) -> Array:
 	var path := _intro_path(id)
 	if over_table and path.size() >= 2:
 		var top: float = (path[-1][1] as Vector3).y - 0.05
-		# Phones (tall view) lean in over the edge; wide screens stand further back.
-		var up := INTRO_END_UP if size.x < size.y else 1.0
-		var back := INTRO_END_BACK if size.x < size.y else 1.9
-		# Centre on the signature item when the room is already built.
-		var at := Vector3(0.0, top, -0.15)
+		# Phones (tall view) stand close and high; wide screens further back.
+		# The look point is past and above the piece, so the table sits in the
+		# lower part of the frame under the logo, with no skewed lens.
+		# Big pieces (a boxed grail, a slabbed comic) get a wider shot.
+		var tall := size.x < size.y
+		var at := Vector3(0.0, top, -0.1)
+		var k := 1.0
 		var h := hero()
 		if h != null and is_instance_valid(h):
-			at = Vector3(h.global_position.x, top, h.global_position.z - 0.1)
-		path[-1] = [Vector3(at.x, top + up, at.z + back + 0.15), at]
+			at = Vector3(h.global_position.x, top, h.global_position.z)
+			k = clampf(_mesh_bounds(h).size.y / 0.3, 1.0, 2.2)
+		# Back off for size, but stay under the ceiling.
+		var eye := at + (Vector3(0, minf(1.2 * k, 1.45), 0.85 * k) if tall else Vector3(0, 0.8, 1.9) * lerpf(1.0, k, 0.7))
+		var look := at + (Vector3(0, 0.15, -0.6 * k) if tall else Vector3(0, 0.15, -1.0) * lerpf(1.0, k, 0.7))
+		path[-1] = [eye, look]
 	return path
 
 
-const INTRO_END_UP := 1.3
-const INTRO_END_BACK := 1.15
+## World-space box around every mesh under a node.
+func _mesh_bounds(n: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	var stack: Array = [n]
+	while not stack.is_empty():
+		var c: Node = stack.pop_back()
+		if c is MeshInstance3D:
+			var mi := c as MeshInstance3D
+			var b := mi.global_transform * mi.get_aabb()
+			box = b if first else box.merge(b)
+			first = false
+		stack.append_array(c.get_children())
+	return box
 
 
 func _intro_path(id: String) -> Array:
@@ -1581,40 +1599,40 @@ func _intro_path(id: String) -> Array:
 				[Vector3(0.0, 1.4, 2.3), Vector3(0.0, 1.0, 0.0)],
 			]
 		"cardshop":
+			# One slow sweep, turning one way: the collector's case, the walls, the table.
 			return [
-				[Vector3(-3.4, 2.4, -1.8), Vector3(-2.6, 2.0, -3.6)],  # up close to the sealed wall
-				[Vector3(-1.0, 2.0, -2.2), Vector3(0.6, 1.6, -3.6)],
-				[Vector3(1.8, 1.7, -1.4), Vector3(3.0, 1.1, -1.6)],  # the grading counter
-				[Vector3(0.6, 1.6, -0.4), Vector3(-3.2, 1.2, -2.0)],  # the Twins' cases
-				[Vector3(1.0, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
-				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature card on the counter
+				[Vector3(0.6, 1.7, -0.4), Vector3(-3.2, 1.2, -2.0)],  # the Twins' cases
+				[Vector3(-1.6, 2.2, -0.8), Vector3(-2.6, 2.0, -3.6)],  # the sealed wall
+				[Vector3(0.4, 2.0, -0.6), Vector3(1.4, 1.6, -3.6)],
+				[Vector3(1.6, 1.8, 0.8), Vector3(3.0, 1.1, -1.6)],  # the grading counter
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],
 			]
 		"recordshop":
+			# One slow sweep, turning one way: the collector's case, the walls, the table.
 			return [
-				[Vector3(-3.0, 2.8, -2.2), Vector3(-1.8, 2.6, -3.6)],  # along the wall of sleeves
-				[Vector3(-0.6, 2.0, -0.6), Vector3(-0.4, 1.0, -1.9)],  # over the bins
-				[Vector3(-1.9, 1.6, -0.6), Vector3(-3.3, 1.1, -1.5)],  # the record spinning on the deck
 				[Vector3(0.8, 1.6, 0.6), Vector3(-3.4, 1.1, 0.35)],  # Marv, filed under M
-				[Vector3(0.9, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
-				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature record on the counter
+				[Vector3(-0.6, 1.7, -0.2), Vector3(-3.3, 1.1, -1.5)],  # the record spinning on the deck
+				[Vector3(-0.6, 2.1, -0.4), Vector3(-0.4, 1.0, -1.9)],  # over the bins
+				[Vector3(0.6, 2.4, -0.8), Vector3(1.8, 2.4, -3.6)],  # the wall of sleeves
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],
 			]
 		"bookshop":
+			# One slow sweep, turning one way: the collector's case, the walls, the table.
 			return [
-				[Vector3(-3.2, 2.9, -2.4), Vector3(-2.2, 2.7, -3.6)],  # along the top shelves
-				[Vector3(-1.0, 2.4, -2.5), Vector3(-1.2, 1.6, -3.3)],  # past the ladder
-				[Vector3(1.6, 1.9, -1.0), Vector3(3.0, 1.1, -1.4)],  # the case of firsts
 				[Vector3(0.8, 1.6, 0.4), Vector3(-3.4, 1.1, 0.2)],  # Iris, shelved under H
-				[Vector3(0.9, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
-				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature book on the counter
+				[Vector3(-0.4, 2.2, -1.0), Vector3(-1.2, 1.6, -3.3)],  # past the ladder
+				[Vector3(0.2, 2.6, -1.2), Vector3(0.8, 2.6, -3.6)],  # the top shelves
+				[Vector3(1.4, 1.9, 0.2), Vector3(3.0, 1.1, -1.4)],  # the case of firsts
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],
 			]
 		"comicshop":
+			# One slow sweep, turning one way: the collector's case, the walls, the table.
 			return [
-				[Vector3(-3.4, 2.7, -2.0), Vector3(-2.6, 2.6, -3.6)],  # along the top row of keys
-				[Vector3(-0.8, 2.3, -2.3), Vector3(0.4, 2.0, -3.6)],
-				[Vector3(1.8, 1.9, -1.8), Vector3(2.4, 1.2, -3.6)],
 				[Vector3(1.6, 1.6, -0.4), Vector3(-3.5, 1.2, -0.5)],  # Hector in his bag
-				[Vector3(0.9, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
-				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature book on the counter
+				[Vector3(-0.8, 2.4, -1.4), Vector3(-1.6, 2.5, -3.6)],  # the top row of keys
+				[Vector3(0.4, 2.2, -1.6), Vector3(1.2, 2.0, -3.6)],
+				[Vector3(1.6, 1.9, -0.6), Vector3(2.4, 1.2, -3.6)],
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],
 			]
 		"ballroom":
 			return [
