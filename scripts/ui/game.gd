@@ -2133,16 +2133,6 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 			stripes.draw_line(Vector2(x, s.y), Vector2(x + s.y, 0), Color(1, 1, 1, 0.07), 6.0 * k)
 			x += step)
 	inner.add_child(stripes)
-	# Big faded platform name across the face, like a card's suit watermark.
-	var wm := _title_label(String(plat["short"]), int(64 * kt), Color(1, 1, 1, 0.1))
-	wm.add_theme_constant_override("outline_size", 0)
-	wm.add_theme_constant_override("shadow_offset_y", 0)
-	wm.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	wm.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	wm.grow_vertical = Control.GROW_DIRECTION_BOTH
-	wm.rotation_degrees = -24.0
-	wm.resized.connect(func(): wm.pivot_offset = wm.size * 0.5)
-	inner.add_child(wm)
 
 	var worth_h := roundf(maxf(26.0, 30.0 * k))
 	var col := _vbox(int(3 * k))
