@@ -3260,7 +3260,7 @@ func _signature_item(world: String) -> Dictionary:
 	return it
 
 
-## An 8-12 s first-visit intro for a world: the camera flies through its
+## A ~22 s first-visit intro for a world: the camera flies through its
 ## signature venue (Stage.intro_path), glances at its collector's case, the
 ## signature piece rises into a spotlight, then the world's logo slams in
 ## with its music sting. Skippable; replayable from the COLLECTION.
@@ -3275,7 +3275,7 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	_wintro_skip = false
 	_wintro_done = done
 	var scene := String(info.get("scene", "title"))
-	var path: Array = _stage.intro_path(scene)
+	var path: Array = _stage.intro_path(scene, true)
 	if path.is_empty():
 		if done.is_valid():
 			done.call()
@@ -3301,8 +3301,10 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	Art.loading = true
 	_stage.collector_cases = _collector_cases()
 	_stage.show_scene(scene, [sig])
+	path = _stage.intro_path(scene, true)  # again, now it can centre on the piece
 	_stage.cine_on = true
-	_stage.set_focus(0.5, 1.0)
+	# The table sits below the logo and its lines (they fill the top third).
+	_stage.set_focus(0.72 if is_landscape() else 0.62, 1.0)
 	_cine_at(path, 0.0)
 	_sfx.music(String(wd.get("music", "")) if String(wd.get("music", "")) != "" else "hunt")
 	var hero := _stage.hero()
@@ -3330,10 +3332,10 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	_wintro.add_child(skip)
 	if _pad:
 		skip.grab_focus.call_deferred()
-	# 1. Fade up and fly (8 s), glancing at the collector's case on the way.
-	var fly_time := 8.0
+	# 1. Fade up and fly (16 s, slow and calm), glancing at the collector's case on the way.
+	var fly_time := 16.0
 	var fly := create_tween().set_parallel(true)
-	fly.tween_property(black, "color:a", 0.0, 1.4).set_trans(Tween.TRANS_SINE)
+	fly.tween_property(black, "color:a", 0.0, 2.4).set_trans(Tween.TRANS_SINE)
 	fly.tween_method(func(t: float) -> void:
 		if _wintro_on():
 			_cine_at(path, t), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -3389,7 +3391,7 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	_wintro.add_child(line)
 	line.create_tween().tween_property(line, "modulate:a", 1.0, 0.8).set_delay(0.9)
 	_wintro.move_child(skip, -1)
-	await get_tree().create_timer(3.2).timeout
+	await get_tree().create_timer(5.0).timeout
 	if _wintro_skip or not _wintro_on():
 		return
 	_finish_world_intro()
