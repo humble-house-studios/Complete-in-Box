@@ -53,7 +53,13 @@ static func label_mat(base: Texture2D, label: Texture2D, rect: Rect2, tint: Colo
 	m.set_shader_parameter("label_crop", Vector4(crop.position.x, crop.position.y, crop.size.x, crop.size.y))
 	if label != null and aspect > 0.0:
 		var pic := float(label.get_width()) / maxf(1.0, label.get_height()) * crop.size.x / maxf(0.01, crop.size.y)
-		m.set_shader_parameter("label_fit", fit(pic, aspect, false))
+		if crop != Rect2(0, 0, 1, 1):
+			# A cropped real box scan fills the whole sticker (no bands):
+			# cover fit, turned into label_fit's (l - xy) / zw form.
+			var cv := fit(pic, aspect, true)
+			m.set_shader_parameter("label_fit", Vector4(-cv.x / cv.z, -cv.y / cv.w, 1.0 / cv.z, 1.0 / cv.w))
+		else:
+			m.set_shader_parameter("label_fit", fit(pic, aspect, false))
 	return m
 
 

@@ -93,6 +93,16 @@ def label_crop(path, plat, japan=False):
         # The thin banner on top, the seal / logo strip at the bottom.
         top = min(_dark_rows_top(im, 0.06), 0.04) + 0.005
         return (0.0, round(top, 3), 1.0, round(0.875 - top, 3))
+    if japan:
+        return (0.0, 0.0, 1.0, 1.0)
+    if plat == "PBOY":
+        # The "GAME BOY" band down the left, the Nintendo strip at the bottom.
+        return (0.165, 0.0, 0.835, 0.93)
+    if plat == "PBA":
+        return (0.165, 0.0, 0.835, 0.93)
+    if plat == "SFES":
+        # The black stripe down the right, the SUPER NINTENDO band at the bottom.
+        return (0.0, 0.0, 0.84, 0.84)
     if plat == "GEN":
         w, h = im.size
         px = im.load()

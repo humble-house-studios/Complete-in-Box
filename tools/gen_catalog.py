@@ -548,7 +548,7 @@ def pictures(iid, plat="", japan=False):
             f = os.path.join(ART_DIR, "%s_%s.%s" % (iid, kind, ext))
             if os.path.exists(f):
                 out[kind] = "res://" + os.path.relpath(f, ROOT).replace(os.sep, "/")
-                if kind == "scan" and plat in ("FES", "F64", "GEN"):
+                if kind == "scan" and plat in ("FES", "F64", "GEN", "PBOY", "PBA", "SFES"):
                     from label_crop import label_crop
                     crop = list(label_crop(f, plat, japan))
                     if crop != [0.0, 0.0, 1.0, 1.0]:
