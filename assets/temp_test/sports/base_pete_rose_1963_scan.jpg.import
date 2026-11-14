@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3n8rtrdcuv3b"
-path="res://.godot/imported/hoop_george_mikkan_1948_scan.png-18dfaa8d59b82c0960c9bf3ca9d1d912.ctex"
+uid="uid://drixbdlubh53v"
+path="res://.godot/imported/base_pete_rose_1963_scan.jpg-0dced2c8af759af7f646b1d4ba510d64.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/temp_test/sports/hoop_george_mikkan_1948_scan.png"
-dest_files=["res://.godot/imported/hoop_george_mikkan_1948_scan.png-18dfaa8d59b82c0960c9bf3ca9d1d912.ctex"]
+source_file="res://assets/temp_test/sports/base_pete_rose_1963_scan.jpg"
+dest_files=["res://.godot/imported/base_pete_rose_1963_scan.jpg-0dced2c8af759af7f646b1d4ba510d64.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0

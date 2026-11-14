@@ -12,7 +12,8 @@ extends RefCounted
 ##   The picture is the real player photo when tools/fetch_world_art.py found
 ##   one (def "photo"), or the real card scan for vintage cards (def "scan",
 ##   used as the whole front). Without either: a ball render and a silhouette.
-##   Backs: grey cardboard with the number, bio, stats table and the blurb.
+##   Real backs (def "back", tools/fetch_sports_cards.py) when found, else
+##   grey cardboard with the number, bio, stats table and the blurb.
 ##   Wax: a crimped wax-paper pack or a display box with the maker's logo.
 
 const CCArt := preload("res://scripts/gfx/cc_art.gd")
@@ -81,22 +82,30 @@ static func _photo(c: Control, r: Rect2, d: Dictionary, tint := Color.WHITE) -> 
 	CoverComp.cg(holder, g, String(BALL.get(String(d["plat"]), "trophy")), Vector2(r.size.x * 0.78, r.size.y * 0.32), r.size.y * 0.24, false)
 
 
+## A real scan (tools/fetch_sports_cards.py) filling the whole face.
+static func _scan_face(c: Control, t: Texture2D) -> void:
+	BoxArt.rect(c, Rect2(0, 0, W, H), Color(0.92, 0.88, 0.78))
+	var tr := TextureRect.new()
+	tr.texture = t
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.size = Vector2(W, H)
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	c.add_child(tr)
+
+
 static func paint_front(c: Control, d: Dictionary, w: int) -> void:
 	W = w
-	if String(d.get("kind", "")) == "wax":
-		_wax(c, d)
-		return
 	var year := int(d.get("year", 2000))
 	var scan := _tex(String(d.get("scan", "")))
+	if String(d.get("kind", "")) == "wax":
+		if scan != null:
+			_scan_face(c, scan)
+		else:
+			_wax(c, d)
+		return
 	if scan != null:
-		BoxArt.rect(c, Rect2(0, 0, W, H), Color(0.92, 0.88, 0.78))
-		var tr := TextureRect.new()
-		tr.texture = scan
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		tr.size = Vector2(W, H)
-		tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		c.add_child(tr)
+		_scan_face(c, scan)
 	elif year < 1970:
 		_vintage(c, d)
 	elif year < 1993:
@@ -210,6 +219,11 @@ static func paint_back(c: Control, d: Dictionary, w: int) -> void:
 	W = w
 	if String(d.get("kind", "")) == "wax":
 		_wax_back(c, d)
+		return
+	# The real back of the card when one was found.
+	var back := _tex(String(d.get("back", "")))
+	if back != null:
+		_scan_face(c, back)
 		return
 	var cols := team_cols(d)
 	var year := int(d.get("year", 2000))

@@ -126,7 +126,7 @@ def build(world):
         d["page"] = r["section"]
         d["list"] = world
         d["year"] = r["year"]
-        for kind in ("photo", "scan"):
+        for kind in ("photo", "scan", "back"):
             for ext in ("png", "jpg"):
                 f = os.path.join(art_dir, "%s_%s.%s" % (iid, kind, ext))
                 if os.path.exists(f):

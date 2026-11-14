@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c40mbqk68lm4u"
-path="res://.godot/imported/base_babe_rooth_1933_scan.png-868d3f030af4f134b80ad78a3ca42495.ctex"
+uid="uid://bmu81ncfamajb"
+path="res://.godot/imported/hoop_michael_jorden_1986_back.jpg-432b5235b863cea72698af8547464b7b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/temp_test/sports/base_babe_rooth_1933_scan.png"
-dest_files=["res://.godot/imported/base_babe_rooth_1933_scan.png-868d3f030af4f134b80ad78a3ca42495.ctex"]
+source_file="res://assets/temp_test/sports/hoop_michael_jorden_1986_back.jpg"
+dest_files=["res://.godot/imported/hoop_michael_jorden_1986_back.jpg-432b5235b863cea72698af8547464b7b.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
