@@ -284,51 +284,47 @@ def lr_pick(title, plat):
 # Hardware list name (prefix) -> Wikipedia article whose lead photo shows it.
 # Colour / special editions are left out: their 3D render is tinted right.
 HW_ARTICLES = [
-    ("Nintendo PlayStation", "Super NES CD-ROM"), ("Sega Neptune", "Sega Neptune"), ("Atari Panther", "Atari Panther"),
-    ("Nintendo 64DD", "64DD"), ("Famicom Disk System", "Family Computer Disk System"), ("Satellaview Modem", "Satellaview"),
-    ("Satellaview", "Satellaview"), ("PlayStation Net Yaroze", "Net Yaroze"), ("Pioneer LaserActive", "LaserActive"),
+    ("Nintendo PlayStation", "Super NES CD-ROM"), ("Atari Panther", "Atari Panther"),
+    ("Nintendo 64DD", "64DD"), ("Famicom Disk System", "Family Computer Disk System"), ("Satellaview", "Satellaview"), ("PlayStation Net Yaroze", "Net Yaroze"), ("Pioneer LaserActive", "LaserActive"),
     ("3DO FZ-1", "3DO Interactive Multiplayer"), ("NES Control Deck", "Nintendo Entertainment System"),
-    ("Famicom (HVC-001)", "Family Computer"), ("Sharp Twin Famicom", "Twin Famicom"), ("Famicom 3D System", "Famicom 3D System"),
+    ("Sharp Twin Famicom", "Twin Famicom"), ("Famicom 3D System", "Famicom 3D System"),
     ("Family BASIC", "Family BASIC"), ("R.O.B.", "R.O.B."), ("NES Zapper (Gray)", "NES Zapper"), ("Power Pad", "Power Pad"),
     ("Power Glove", "Power Glove"), ("NES Four Score", "NES Four Score"), ("NES Max", "NES Max"), ("NES Advantage", "NES Advantage"),
-    ("Game Genie", "Game Genie"), ("U-Force", "U-Force"), ("Roll 'N Rocker", "Roll 'n Rocker"),
-    ("Miracle Piano", "Miracle Piano Teaching System"), ("PlayChoice-10", "PlayChoice-10"), ("Vs. System", "Nintendo Vs. System"),
-    ("SNES Model 1", "Super Nintendo Entertainment System"), ("Super Famicom (SHVC-001)", "Super Famicom"),
-    ("SNES Mouse", "Super NES Mouse"), ("SNES Super Scope", "Super Scope"), ("Super Game Boy", "Super Game Boy"),
+    ("Game Genie", "Game Genie"), ("Roll 'N Rocker", "Roll 'n Rocker"),
+    ("PlayChoice-10", "PlayChoice-10"), ("SNES Model 1", "Super Nintendo Entertainment System"), ("SNES Mouse", "Super NES Mouse"), ("SNES Super Scope", "Super Scope"), ("Super Game Boy", "Super Game Boy"),
     ("SNES Justifier", "Konami Justifier"), ("Sufami Turbo", "Sufami Turbo"),
     ("X-Band", "XBAND"), ("Nintendo Power Flash", "Nintendo Power (cartridge)"), ("Nintendo 64 Console", "Nintendo 64"),
     ("Nintendo 64 Expansion Pak", "Expansion Pak"), ("Nintendo 64 Rumble Pak", "Rumble Pak"), ("Nintendo 64 Transfer Pak", "Transfer Pak"),
-    ("Nintendo 64 Controller Pak", "Controller Pak"), ("Nintendo 64 Mouse", "Nintendo 64 Mouse"), ("Nintendo 64 GameShark", "GameShark"),
-    ("Nintendo 64 Voice Recognition", "Voice Recognition Unit"), ("GameCube Indigo", "GameCube"), ("GameCube Panasonic Q", "Panasonic Q"),
-    ("GameCube Game Boy Player", "Game Boy Player"), ("GameCube WaveBird", "WaveBird Wireless Controller"),
+    ("Nintendo 64 Controller Pak", "Controller Pak"), ("Nintendo 64 Mouse", "Nintendo 64 Mouse"), ("Nintendo 64 Voice Recognition", "Voice Recognition Unit"), ("GameCube Indigo", "GameCube"), ("GameCube Game Boy Player", "Game Boy Player"), ("GameCube WaveBird", "WaveBird Wireless Controller"),
     ("GameCube DK Bongos", "DK Bongos"), ("GameCube Broadband Adapter", "GameCube Broadband Adapter"), ("GameCube Freeloader", "Freeloader (video game accessory)"),
-    ("GameCube Action Replay", "Action Replay"), ("Game Boy (DMG-01)", "Game Boy"), ("Game Boy Pocket", "Game Boy Pocket"),
-    ("Game Boy Light", "Game Boy Light"), ("Game Boy Camera", "Game Boy Camera"), ("Game Boy Printer", "Game Boy Printer"),
+    ("Game Boy (DMG-01)", "Game Boy"), ("Game Boy Light", "Game Boy Light"), ("Game Boy Camera", "Game Boy Camera"), ("Game Boy Printer", "Game Boy Printer"),
     ("Game Boy Color Atomic Purple", "Game Boy Color"), ("Game Boy Advance Glacier", "Game Boy Advance"),
     ("Game Boy Advance SP AGS-001", "Game Boy Advance SP"), ("Game Boy Advance Micro", "Game Boy Micro"),
     ("Game Boy Advance Wireless", "Game Boy Advance Wireless Adapter"), ("Game Boy Advance e-Reader", "Nintendo e-Reader"),
-    ("PlayStation SCPH-1001", "PlayStation (console)"), ("PS one", "PS one"), ("PocketStation", "PocketStation"),
+    ("PlayStation SCPH-1001", "PlayStation (console)"), ("PocketStation", "PocketStation"),
     ("PlayStation Dual Analog", "Dual Analog Controller"), ("PlayStation DualShock", "DualShock"), ("PlayStation Mouse", "PlayStation Mouse"),
     ("PlayStation Link Cable", "PlayStation Link Cable"), ("PlayStation Memory Card", "PlayStation Memory Card"), ("PlayStation NegCon", "NeGcon"),
     ("PlayStation GunCon", "GunCon"), ("PlayStation JogCon", "JogCon"), ("PlayStation Analog Joystick", "PlayStation Analog Joystick"),
-    ("PS2 SCPH-30001", "PlayStation 2"), ("PS2 Slimline", "PlayStation 2"), ("PS2 Network Adapter", "PlayStation 2 Network Adapter"),
-    ("PS2 Hard Disk", "PlayStation 2 HDD"), ("PS2 EyeToy", "EyeToy"), ("PS2 Guitar Hero", "Guitar Hero (video game)"),
-    ("PSP-1000 Piano Black", "PlayStation Portable"), ("Xbox Original Console", "Xbox (console)"), ("Xbox Duke", "Xbox controller"),
+    ("PS2 SCPH-30001", "PlayStation 2"), ("PS2 Network Adapter", "PlayStation 2 Network Adapter"),
+    ("PS2 EyeToy", "EyeToy"), ("PSP-1000 Piano Black", "PlayStation Portable"), ("Xbox Original Console", "Xbox (console)"), ("Xbox Duke", "Xbox controller"),
     ("Xbox Steel Battalion", "Steel Battalion"), ("Xbox Communicator", "Xbox Communicator"), ("Xbox 360 Elite", "Xbox 360"),
-    ("Xbox 360 Kinect", "Kinect"), ("Xbox 360 HD DVD", "Xbox 360 HD DVD Player"), ("Dreamcast Console", "Dreamcast"),
+    ("Xbox 360 HD DVD", "Xbox 360 HD DVD Player"), ("Dreamcast Console", "Dreamcast"),
     ("Dreamcast VMU", "VMU"), ("Dreamcast Dreameye", "Dreameye"), ("Dreamcast Fishing", "Dreamcast Fishing Controller"),
     ("Sega Genesis Model 1", "Sega Genesis"), ("Sega CD Model 2", "Sega CD"), ("Sega CD", "Sega CD"), ("Sega 32X", "32X"),
     ("Sega Nomad", "Genesis Nomad"), ("Sega Pico", "Sega Pico"), ("Sega Teradrive", "TeraDrive"), ("Sega Multi-Mega", "Sega Multi-Mega"),
-    ("JVC X'Eye", "JVC X'Eye"), ("Amstrad Mega PC", "Amstrad Mega PC"), ("Sega Mega-LD", "LaserActive"),
-    ("Sega Saturn Skeleton", "Sega Saturn"), ("Atari 2600 Heavy Sixer", "Atari 2600"), ("Atari 2600 Four-Switch", "Atari 2600"),
-    ("Atari 2600 Jr.", "Atari 2600 Jr."), ("Neo Geo AES Console", "Neo Geo (system)"), ("Neo Geo CD", "Neo Geo CD"),
-    ("Neo Geo MVS", "Neo Geo (system)"), ("Nintendo DS Lite", "Nintendo DS Lite"), ("Sega Dreamcast Hello Kitty", "Dreamcast"),
+    ("JVC X'Eye", "JVC X'Eye"), ("Amstrad Mega PC", "Amstrad Mega PC"), ("Sega Saturn Skeleton", "Sega Saturn"), ("Atari 2600 Heavy Sixer", "Atari 2600"), ("Atari 2600 Four-Switch", "Atari 2600"),
+    ("Neo Geo AES Console", "Neo Geo (system)"), ("Neo Geo CD", "Neo Geo CD"),
+    ("Sega Dreamcast Hello Kitty", "Dreamcast"),
 ]
+
+
+# Only the plain model, not its special editions.
+EXACT = {"Game Boy Advance Micro", "GameCube Game Boy Player"}
 
 
 def hw_article(name):
     for pre, art in HW_ARTICLES:
-        if name.startswith(pre):
+        if name == pre or (name.startswith(pre) and pre not in EXACT):
             return art
     return ""
 
