@@ -274,6 +274,7 @@ func _sync_stage() -> void:
 			# Between stops you're home: your living room and your shelf (the
 			# route card already shows where you're headed).
 			_stage.wall_items = _coll_wall.slice(0, 12)
+			_stage.phone_ringing = not run.call_offer.is_empty()
 			_stage.show_scene("home", run.shelf)
 			_stage.showcase(_showcase)
 			_sfx.music("home")
