@@ -1305,3 +1305,11 @@ assets/temp_test/cards/back_lotr.jpg | https://upload.wikimedia.org/wikipedia/en
 assets/temp_test/cards/back_onepiece.jpg | https://upload.wikimedia.org/wikipedia/en/3/32/One_Piece_Card_Game_back.webp | 2026-11-14
 assets/temp_test/games/fes_fes_deluxe_set_with_r_o_b_b_photo.png | https://upload.wikimedia.org/wikipedia/commons/6/6c/NES-ROB.jpg | 2026-11-14
 assets/temp_test/games/fes_fes_action_set_photo.png | https://upload.wikimedia.org/wikipedia/commons/8/82/NES-Console-Set.jpg | 2026-11-14
+assets/temp_test/games/fes_fes_top_loader_fes_101_photo.png | https://upload.wikimedia.org/wikipedia/commons/e/e0/NES-101-Console-Set.jpg | 2026-11-14
+assets/temp_test/games/fes_funicom_hvc_001_photo.png | https://upload.wikimedia.org/wikipedia/commons/0/06/Nintendo-Famicom-Console-Set-FL.jpg | 2026-11-14
+assets/temp_test/games/fes_funicom_av_photo.png | https://upload.wikimedia.org/wikipedia/commons/f/fb/Nintendo-AV-Famicom-Console-FL.jpg | 2026-11-14
+assets/temp_test/coins/gold_1933_saint_gaudens_double_eagl_obv.jpg | https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/NNC-US-1933-G%2420-Saint_Gaudens.jpg/500px-NNC-US-1933-G%2420-Saint_Gaudens.jpg | 2026-11-14
+assets/temp_test/coins/gold_1933_saint_gaudens_double_eagl_rev.jpg | https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/NNC-US-1933-G%2420-Saint_Gaudens.jpg/500px-NNC-US-1933-G%2420-Saint_Gaudens.jpg | 2026-11-14
+assets/temp_test/coins/silv_1794_flowing_hair_silver_dolla_obv.jpg | https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/NNC-US-1795-%241-Flowing_hair.jpg/500px-NNC-US-1795-%241-Flowing_hair.jpg | 2026-11-14
+assets/temp_test/coins/silv_1794_flowing_hair_silver_dolla_rev.jpg | https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/NNC-US-1795-%241-Flowing_hair.jpg/500px-NNC-US-1795-%241-Flowing_hair.jpg | 2026-11-14
+assets/temp_test/games/fes_sharpe_twin_funicom_photo.png | https://upload.wikimedia.org/wikipedia/commons/c/cf/Sharp-Twin-Famicom-Console.jpg | 2026-11-14
