@@ -95,6 +95,49 @@ const BAGS := [
 ]
 
 
+## THE LANDLINE: the phone rings when a new ante starts. Three deals, take one
+## (or hang up for a tip). They last the whole run and bend the rules; about
+## half come with a catch. `caller`: buyer / stranger / arlo. `once` = never
+## offered again once taken. `pitch` = card text, `desc` = the full terms,
+## `quote` = what the voice says. Effects: search the id in run.gd.
+const CALLS := [
+	{"id": "wide_shelf", "caller": "stranger", "name": "Bigger Shelves", "pitch": "+2 shelf slots. Targets +10%.",
+		"desc": "+2 shelf slots for the rest of the run. Every target is 10% higher.", "quote": "\"Shelving Depot, courtesy call. We deliver. He'll notice the extra space, though.\""},
+	{"id": "specialist", "caller": "stranger", "once": true, "name": "The Specialist", "pitch": "One platform x2. All others half.",
+		"desc": "%s items appraise for x2 for the rest of the run. Everything else appraises for half.", "quote": "\"Pick a lane, kid. Nobody respects a generalist.\""},
+	{"id": "night_owl", "caller": "stranger", "name": "Night Owl", "pitch": "+2 Time every stop. Tables hold 1 less.",
+		"desc": "+2 Time at every stop for the rest of the run. Every table starts with one item fewer.", "quote": "\"The good stuff's gone by nine. The patient stuff is still there at midnight.\""},
+	{"id": "bulk_buyer", "caller": "stranger", "once": true, "name": "Bulk Buyer", "pitch": "Sets need 2 items, not 3.",
+		"desc": "Platform Sets start at 2 items instead of 3 (and the big set at 4 instead of 5).", "quote": "\"Two's a pair. A pair's a set. That's what I tell the appraiser, anyway.\""},
+	{"id": "perk_slot", "caller": "stranger", "name": "Wrong Number", "pitch": "+1 perk slot. No catch.",
+		"desc": "+1 perk slot. They hang up before you can ask who Deborah is.", "quote": "\"Deborah? I left the backpack on your porch. ...This isn't Deborah.\""},
+	{"id": "prize", "caller": "stranger", "name": "You've Won!", "pitch": "A free Garage Sale Box, opened.",
+		"desc": "A free Garage Sale Box, already open: keep one of three finds.", "quote": "\"Congratulations! You are our ONE MILLIONTH caller. Please do not ask follow-up questions.\""},
+	{"id": "condition_snob", "caller": "buyer", "once": true, "name": "Condition Snob", "pitch": "Mint + Sealed x2. Damaged + Loose $0.",
+		"desc": "Your two best conditions appraise for x2 for the rest of the run. Your two worst appraise for nothing.", "quote": "\"I don't want it if it's been touched. You understand.\""},
+	{"id": "advance", "caller": "buyer", "name": "An Advance", "pitch": "Cash now. This ante's targets +25%.",
+		"desc": "+$%d right now. Every target this ante is 25%% higher.", "quote": "\"Consider it an investment. I always collect.\""},
+	{"id": "collateral", "caller": "buyer", "name": "Collateral", "pitch": "He takes your best item. x1.5 Mult this ante.",
+		"desc": "He takes %s off your shelf for good. In return: x1.5 Mult at every appraisal this ante.", "quote": "\"Leave it on the porch. My appraiser will be... generous.\""},
+	{"id": "double_nothing", "caller": "buyer", "name": "Double or Nothing", "pitch": "Next stop: beat it by 50% for triple pay.",
+		"desc": "At the next appraisal: beat the target by 50% and your payday is tripled. Pass by less and you're paid nothing.", "quote": "\"Let's make it interesting.\""},
+	{"id": "sealed_fate", "caller": "buyer", "once": true, "name": "Sealed Fate", "pitch": "-1 perk slot. Perk Mult counts double.",
+		"desc": "One perk slot is sealed shut for the rest of the run. Every +Mult your perks add counts double.", "quote": "\"Fewer things. Better things. That's all collecting is.\""},
+	{"id": "static", "caller": "arlo", "name": "Static", "pitch": "Cash, and the want list pays double.",
+		"desc": "+$%d, and this ante's want list reward is doubled.", "quote": "\"...kid? ...don't sell... what he asks for... he pays more than he... kssshh...\""},
+]
+const CALLERS := {
+	"buyer": ["THE BUYER", Color("ff5a5a")], "stranger": ["UNKNOWN", Color("ffb84d")], "arlo": ["ARLO?", Color("7fe0ff")],
+}
+
+
+static func call_def(id: String) -> Dictionary:
+	for c in CALLS:
+		if c["id"] == id:
+			return c
+	return {}
+
+
 static func supply(id: String) -> Dictionary:
 	for s in SUPPLIES:
 		if s["id"] == id:

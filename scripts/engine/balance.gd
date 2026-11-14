@@ -23,6 +23,11 @@ const TIME_LEFT_REWARD := 1
 const INTEREST_PER := 5
 
 const PERK_OFFERS := 3
+## The landline: first ante it rings, redial price (+REDIAL_STEP each), hang-up tip.
+const CALL_FROM_ANTE := 2
+const REDIAL_START := 3
+const REDIAL_STEP := 2
+const HANGUP_TIP := 3
 ## One-use supplies: how many you can carry, how many Home offers each stop.
 const POCKET_SLOTS := 2
 const SUPPLY_OFFERS := 2

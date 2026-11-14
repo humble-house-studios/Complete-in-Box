@@ -374,6 +374,81 @@ func test_home_extras_leave_the_run_alone() -> void:
 	assert_eq(a.dry, dry)
 
 
+func _to_ante_2(r: Run) -> void:
+	r.phase = Run.Phase.APPRAISAL
+	r.stop = 2
+	r.advance()
+
+
+func test_landline_rings_each_new_ante() -> void:
+	var r := _new_run(36)
+	assert_true(r.call_offer.is_empty(), "no call on the first ante")
+	var st := r.rng.state
+	_to_ante_2(r)
+	assert_eq(r.ante, 2)
+	assert_eq(r.call_offer.size(), 3)
+	var first: Array = r.call_offer.duplicate()
+	r.cash = 50
+	assert_true(r.call_redial()["ok"])
+	assert_eq(r.cash, 50 - Balance.REDIAL_START)
+	assert_eq(r.call_offer.size(), 3)
+	assert_ne(r.call_offer, first)
+	var cash := r.cash
+	assert_true(r.call_hangup()["ok"])
+	assert_gt(r.cash, cash)
+	assert_true(r.call_offer.is_empty())
+	assert_false(r.call_take("wide_shelf")["ok"])
+
+
+func test_landline_deals() -> void:
+	for c in Perks.CALLS:
+		var r := _new_run(37)
+		_to_ante_2(r)
+		var id := String(c["id"])
+		r.call_offer = [id]
+		assert_ne(r.call_text(id), "")
+		assert_true(r.call_take(id)["ok"], id)
+		assert_true(r.calls.has(id))
+		r.appraise()
+	var r := _new_run(38)
+	_to_ante_2(r)
+	var t := r.target()
+	var cap := r.shelf_cap
+	r.call_offer = ["wide_shelf"]
+	r.call_take("wide_shelf")
+	assert_eq(r.shelf_cap, cap + 2)
+	assert_eq(r.target(), int(round(t * 1.1)))
+	# Specialist: your top platform doubles, the rest halve.
+	r.shelf.clear()
+	var a := _item(r, String(Catalog.defs_of_tier(0)[0]["id"]))
+	r.shelf.append(a)
+	var base := int(r.appraise()["chips"])
+	r.call_offer = ["specialist"]
+	r.call_take("specialist")
+	assert_eq(r.call_plat, String(a["plat"]))
+	assert_eq(int(r.appraise()["chips"]), base * 2)
+	# Collateral takes the best item and pays x1.5 this ante only.
+	r.call_offer = ["collateral"]
+	var m := float(r.appraise()["mult"])
+	r.shelf.append(_item(r, String(Catalog.defs_of_tier(0)[1]["id"])))
+	var n := r.shelf.size()
+	r.call_take("collateral")
+	assert_eq(r.shelf.size(), n - 1)
+	assert_true((r.appraise()["bonuses"] as Array).any(func(b): return b["label"] == "Collateral"))
+	# Double or Nothing: scraping past pays nothing.
+	r.call_offer = ["double_nothing"]
+	r.call_take("double_nothing")
+	r.enter_venue(String(r.venue_choices[0]))
+	Run.world_target_tweak = 1.0
+	var cash := r.cash
+	var res := r.end_stop()
+	if res["passed"]:
+		var big: bool = int(res["appraisal"]["total"]) * 2 >= r.target() * 3
+		assert_eq(r.cash - cash, int(res["rewards"]["total"]))
+		assert_true(int(res["rewards"]["don"]) > 0 if big else int(res["rewards"]["total"]) == 0)
+	assert_false(r.call_don)
+
+
 func test_moms_basement_adds_slots() -> void:
 	var r := _new_run(32)
 	r.cash = 100

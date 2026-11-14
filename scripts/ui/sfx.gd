@@ -44,6 +44,9 @@ const SOUNDS := {
 	"pc_off": [["pc_off"], -5.0],
 	"doorbell": [["doorbell"], -8.0],
 	"knock": [["knock"], -6.0],
+	# The landline (synthesized by tools/gen_phone_sfx.py).
+	"ring": [["phone_ring"], -7.0],
+	"pickup": [["phone_pickup"], -6.0],
 	# World intro stings (one per world).
 	"sting_sports": [["temp:sports_sting"], -4.0],
 	"sting_comics": [["temp:comics_sting"], -4.0],

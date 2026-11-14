@@ -1599,3 +1599,4 @@ assets/temp_test/coins/wrld_1987_britannia_gold_obv.jpg | https://www.pricechart
 assets/temp_test/coins/wrld_1989_australia_gold_nugget_obv.jpg | https://www.pricecharting.com/game/coins-$50-american-gold-eagle/1989 | 2026-11-14
 assets/temp_test/coins/cent_1944_wheat_penny_obv.jpg | https://www.pricecharting.com/game/coins-lincoln-wheat-penny/1944 | 2026-11-14
 assets/temp_test/coins/silv_1901_morgan_dollar_obv.jpg | https://www.pricecharting.com/game/coins-morgan-dollar/1901 | 2026-11-14
+assets/audio/sfx (phone_ring, phone_pickup) | synthesized in-house (numpy, tools/gen_phone_sfx.py) | 2026-11-14

@@ -61,6 +61,15 @@ var loupe_on: bool = false
 var sure_haggle: bool = false
 var half_off: bool = false
 var spot_mult: float = 0.0
+# The landline: deals on offer this ante, deals taken (ids, doubles allowed).
+var call_offer: Array = []
+var calls: Array = []
+var redial_cost: int = Balance.REDIAL_START
+var call_rolls: int = 0
+var call_plat: String = ""  # the Specialist's platform
+var call_debt_ante: int = -1  # An Advance: targets +25% this ante
+var call_mult_ante: int = -1  # Collateral: x1.5 Mult this ante
+var call_don: bool = false  # Double or Nothing rides on the next appraisal
 # The grab bag at Home: {id, name, desc, cost, picks: [...], open (bool)} or {} once done.
 var bag_offer: Dictionary = {}
 
@@ -177,9 +186,12 @@ func target() -> int:
 	if ws != 1.0:
 		t = int(round(t * ws))
 	if tier >= 4:
-		return int(round(t * 1.45))
-	if tier >= 1:
-		return int(round(t * 1.2))
+		t = int(round(t * 1.45))
+	elif tier >= 1:
+		t = int(round(t * 1.2))
+	var cm := pow(1.1, calls.count("wide_shelf")) * (1.25 if call_debt_ante == ante else 1.0)
+	if cm != 1.0:
+		t = int(round(t * cm))
 	return t
 
 
@@ -890,6 +902,8 @@ func pivot(to: String) -> Dictionary:
 		it["variant"] = "Standard"
 		shelf.append(it)
 		starters.append(it["name"])
+	if call_plat != "":
+		call_plat = call_plat_pick()
 	pivot_time = Balance.PIVOT_TIME
 	var perks_before := perk_offers.duplicate()
 	var up_before := upgrade_offer.duplicate()
@@ -1011,6 +1025,9 @@ func enter_venue(id: String) -> Dictionary:
 	var n := int(venue["stock"])
 	if venue["slot"] == "hunt" and has_perk("early_bird") and n > 0:
 		n += 2
+	if n > 1:
+		n = maxi(1, n - calls.count("night_owl"))
+	call_offer.clear()
 	for i in n:
 		stock.append(_make_offer())
 	var bargains := int(venue.get("bargain", 0))
@@ -1446,6 +1463,10 @@ func end_stop() -> Dictionary:
 		var base := int(Balance.STOP_REWARD[stop]) + ante
 		var tl := time_left * Balance.TIME_LEFT_REWARD
 		rewards = {"base": base, "interest": interest, "time": tl, "total": base + interest + tl}
+		if call_don:
+			var big := int(ap["total"]) * 2 >= target() * 3
+			rewards["don"] = int(rewards["total"]) * 2 if big else -int(rewards["total"])
+			rewards["total"] = int(rewards["total"]) + int(rewards["don"])
 		var wp := want_progress()
 		if not want.is_empty() and not bool(want["done"]) and int(wp[0]) >= int(wp[1]):
 			want["done"] = true
@@ -1462,6 +1483,7 @@ func end_stop() -> Dictionary:
 			phase = Phase.WON
 	else:
 		phase = Phase.OVER
+	call_don = false
 	last_rewards = rewards
 	changed.emit()
 	return {"ok": true, "msg": "", "passed": passed, "appraisal": ap, "events": events, "rewards": rewards}
@@ -1486,6 +1508,149 @@ func advance() -> void:
 	_roll_trends()
 	_prepare_home()
 	_roll_event()
+	if stop == 0 and ante >= Balance.CALL_FROM_ANTE:
+		redial_cost = Balance.REDIAL_START
+		_roll_call()
+
+
+# ================================================================ the landline
+
+## Three deals for this ante's call, on a side stream like the Home extras.
+func _roll_call() -> void:
+	var st := rng.state
+	call_rolls += 1
+	rng.seed = hash([seed_value, ante, call_rolls, "call"])
+	var pool: Array = []
+	for c in Perks.CALLS:
+		var id := String(c["id"])
+		if bool(c.get("once", false)) and calls.has(id):
+			continue
+		if (id == "specialist" or id == "collateral") and shelf.is_empty():
+			continue
+		if id == "sealed_fate" and perk_cap <= 1:
+			continue
+		if id == "static" and (want.is_empty() or bool(want.get("done", false))):
+			continue
+		pool.append(id)
+	call_offer.clear()
+	while call_offer.size() < 3 and not pool.is_empty():
+		var i := rng.randi_range(0, pool.size() - 1)
+		call_offer.append(pool[i])
+		pool.remove_at(i)
+	rng.state = st
+
+
+## The platform the Specialist would lock in: the one you own most of.
+func call_plat_pick() -> String:
+	var n := {}
+	var best := ""
+	for it in shelf:
+		var p := String(it["plat"])
+		n[p] = int(n.get(p, 0)) + 1
+		if best == "" or int(n[p]) > int(n[best]):
+			best = p
+	return best
+
+
+## The item Collateral would take: your most valuable.
+func call_best_item() -> Dictionary:
+	var best: Dictionary = {}
+	for it in shelf:
+		if best.is_empty() or market_value(it) > market_value(best):
+			best = it
+	return best
+
+
+func call_cash(id: String) -> int:
+	return 25 + 10 * ante if id == "advance" else 4 + 2 * ante
+
+
+## The deal's full terms with this run's numbers filled in.
+func call_text(id: String) -> String:
+	var d := Perks.call_def(id)
+	var t := String(d["desc"])
+	match id:
+		"specialist":
+			var p := call_plat if calls.has(id) else call_plat_pick()
+			return t % (String(Catalog.platform(p)["name"]) if p != "" else "Your top platform's")
+		"advance", "static":
+			return t % call_cash(id)
+		"collateral":
+			var it := call_best_item()
+			return t % (String(it["name"]) if not it.is_empty() else "your best item")
+	return t
+
+
+func call_take(id: String) -> Dictionary:
+	if phase != Phase.HOME or not call_offer.has(id):
+		return _fail("The line's dead.")
+	match id:
+		"wide_shelf":
+			shelf_cap += 2
+		"specialist":
+			call_plat = call_plat_pick()
+		"night_owl":
+			time_bonus += 2
+		"perk_slot":
+			perk_cap += 1
+		"prize":
+			var st := rng.state
+			var d := dry
+			var gc := grail_cool
+			rng.seed = hash([seed_value, ante, "prize"])
+			var bag: Dictionary = Perks.BAGS[0].duplicate()
+			var picks: Array = []
+			for i in int(bag["picks"]):
+				picks.append(roll_item(1, Balance.BAG_CONDS))
+			bag["picks"] = picks
+			bag["cost"] = 0
+			bag["open"] = true
+			bag_offer = bag
+			rng.state = st
+			dry = d
+			grail_cool = gc
+		"advance":
+			cash += call_cash(id)
+			call_debt_ante = ante
+		"collateral":
+			var it := call_best_item()
+			if it.is_empty():
+				return _fail("Nothing to put up.")
+			shelf.erase(it)
+			call_mult_ante = ante
+		"double_nothing":
+			call_don = true
+		"sealed_fate":
+			perk_cap = maxi(1, perk_cap - 1)
+		"static":
+			cash += call_cash(id)
+			if not want.is_empty():
+				want["reward"] = int(want["reward"]) * 2
+	calls.append(id)
+	call_offer.clear()
+	stats["calls"] = int(stats.get("calls", 0)) + 1
+	changed.emit()
+	return _ok("Deal: %s." % Perks.call_def(id)["name"])
+
+
+func call_redial() -> Dictionary:
+	if phase != Phase.HOME or call_offer.is_empty():
+		return _fail("The line's dead.")
+	if cash < redial_cost:
+		return _fail("Need $%d." % redial_cost)
+	cash -= redial_cost
+	redial_cost += Balance.REDIAL_STEP
+	_roll_call()
+	return _ok("")
+
+
+func call_hangup() -> Dictionary:
+	if call_offer.is_empty():
+		return _fail("Nobody's there.")
+	call_offer.clear()
+	var tip := Balance.HANGUP_TIP + ante
+	cash += tip
+	return _ok("Click. Found $%d in the couch on the way back." % tip)
 
 
 # ================================================================ appraisal
@@ -1541,6 +1706,17 @@ func appraise() -> Dictionary:
 		if it["kind"] == "coin" and has_perk("gold_bug") and String(Catalog.get_def(String(it["id"])).get("metal", "")) == "gold":
 			v *= 2.0
 			notes.append("Gold Bug x2")
+		if calls.has("condition_snob"):
+			if cond == "Mint" or cond == "Sealed":
+				v *= 2.0
+				notes.append("Condition Snob x2")
+			elif cond == "Damaged" or cond == "Loose":
+				v = 0.0
+				notes.append("Condition Snob: $0")
+		if call_plat != "":
+			var mine := String(it["plat"]) == call_plat
+			v *= 2.0 if mine else 0.5
+			notes.append("Specialist x2" if mine else "Specialist x0.5")
 		if boss_active("picky") and (cond == "Damaged" or cond == "Loose"):
 			v *= 0.5
 			notes.append("Picky x0.5")
@@ -1574,8 +1750,9 @@ func appraise() -> Dictionary:
 		var set_scale := 2.0 if has_perk("completionist") else 1.0
 		for p in per_plat.keys():
 			var n := int(per_plat[p])
-			if n >= 3:
-				var b := (1.0 if n >= 5 else 0.5) * set_scale
+			var bulk := 1 if calls.has("bulk_buyer") else 0
+			if n >= 3 - bulk:
+				var b := (1.0 if n >= 5 - bulk else 0.5) * set_scale
 				add += b
 				bonuses.append({"label": "%s Set (%d)" % [Catalog.platform(p)["short"], n], "add": b, "times": 1.0})
 			var k: Dictionary = kinds[p]
@@ -1661,8 +1838,11 @@ func appraise() -> Dictionary:
 	_perk_add(bonuses, "key_issue", 0.3 * keys, "Key Issues")
 	_perk_add(bonuses, "debut_novel", 0.3 * debuts, "First Novels")
 	_perk_add(bonuses, "forty_five", 0.3 * singles, "45 Collector")
+	var sealed := calls.has("sealed_fate")
 	for b in bonuses:
 		if b.get("perk", false):
+			if sealed:
+				b["add"] = snappedf(float(b["add"]) * 2.0, 0.01)
 			add += float(b["add"])
 	if has_perk("curator") and per_plat.size() >= 5:
 		times *= 2.0
@@ -1670,6 +1850,9 @@ func appraise() -> Dictionary:
 	if has_perk("cursed_cart"):
 		times *= 2.0
 		bonuses.append({"label": perk_name("cursed_cart"), "add": 0.0, "times": 2.0})
+	if call_mult_ante == ante:
+		times *= 1.5
+		bonuses.append({"label": "Collateral", "add": 0.0, "times": 1.5})
 	if spot_mult > 0.0:
 		add += spot_mult
 		bonuses.append({"label": "Display Spotlight", "add": spot_mult, "times": 1.0})
