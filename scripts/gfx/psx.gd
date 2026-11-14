@@ -43,15 +43,17 @@ static func mat(color: Color, texture: Texture2D = null, uv := Vector2.ONE, emit
 
 ## `aspect` = the sticker's real width / height: the art is fitted inside it
 ## (never stretched), with `bg` filling any spare edge.
-static func label_mat(base: Texture2D, label: Texture2D, rect: Rect2, tint: Color, aspect: float = 0.0, bg := Color(0.06, 0.06, 0.07)) -> ShaderMaterial:
+static func label_mat(base: Texture2D, label: Texture2D, rect: Rect2, tint: Color, aspect: float = 0.0, bg := Color(0.06, 0.06, 0.07), crop := Rect2(0, 0, 1, 1)) -> ShaderMaterial:
 	var m := mat(Color.WHITE, base)
 	m.set_shader_parameter("use_label", label != null)
 	m.set_shader_parameter("label_tex", label)
 	m.set_shader_parameter("label_rect", Vector4(rect.position.x, rect.position.y, rect.size.x, rect.size.y))
 	m.set_shader_parameter("body_tint", tint)
 	m.set_shader_parameter("label_bg", bg)
+	m.set_shader_parameter("label_crop", Vector4(crop.position.x, crop.position.y, crop.size.x, crop.size.y))
 	if label != null and aspect > 0.0:
-		m.set_shader_parameter("label_fit", fit(float(label.get_width()) / maxf(1.0, label.get_height()), aspect, false))
+		var pic := float(label.get_width()) / maxf(1.0, label.get_height()) * crop.size.x / maxf(0.01, crop.size.y)
+		m.set_shader_parameter("label_fit", fit(pic, aspect, false))
 	return m
 
 

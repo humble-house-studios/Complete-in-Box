@@ -608,6 +608,28 @@ def coin_items(rows):
     return items
 
 
+# Real card backs per game (test-only, assets/temp_test/cards/back_<key>.jpg).
+BACK_KEY = {"CRIT": "pokemon", "MAGI": "magic", "YUGI": "yugioh", "Lord of the Rangs TCG": "lotr", "Lorecana": "lorcana",
+            "World of Warcrate TCG": "wow", "Dragon Brawl": "dbz", "Starr Warz CCG": "swccg", "Digimonz": "digimon",
+            "One Peace": "onepiece", "Flesh and Bones": "fab", "Duel Mastors": "duelmasters", "Harry Plotter TCG": "harrypotter",
+            "Marble OverPower": "overpower", "Final Fantasia TCG": "fftcg", "Neopuppets TCG": "neopets", "Weiss Schwartz": "weiss",
+            "Vampyre: Eternal Struggle": "vtes", "Legend of the Five Rangs": "l5r"}
+COIN_ART = os.path.join(ROOT, "assets/temp_test/coins")
+
+
+def back_key(d):
+    k = BACK_KEY.get(d["plat"]) or BACK_KEY.get(d.get("game", ""), "")
+    if k == "dbz" and "Super" in d.get("set", ""):
+        k = "dbs"
+    if k == "swccg" and "Unlimited" in d.get("set", ""):
+        k = "swu"
+    return k
+
+
+def res(f):
+    return "res://" + os.path.relpath(f, ROOT).replace(os.sep, "/")
+
+
 def main():
     cards = card_items(parse(CARDS))
     coins = coin_items(parse(COINS))
@@ -615,8 +637,16 @@ def main():
         for ext in ("jpg", "png"):
             f = os.path.join(CARD_ART, "%s_scan.%s" % (d["id"], ext))
             if os.path.exists(f):
-                d["scan"] = "res://" + os.path.relpath(f, ROOT).replace(os.sep, "/")
+                d["scan"] = res(f)
                 break
+        f = os.path.join(CARD_ART, "back_%s.jpg" % back_key(d))
+        if d["kind"] == "card" and back_key(d) and os.path.exists(f):
+            d["back"] = res(f)
+    for d in coins:
+        for side in ("obv", "rev"):
+            f = os.path.join(COIN_ART, "%s_%s.jpg" % (d["id"], side))
+            if os.path.exists(f):
+                d[side + "_img"] = res(f)
 
     def val(v):
         if isinstance(v, str):

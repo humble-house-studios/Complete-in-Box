@@ -468,6 +468,11 @@ static func _playtest(c: Control, d: Dictionary) -> void:
 
 
 static func _card_back(c: Control, plat: String, d: Dictionary) -> void:
+	# Test-only real back of that game's cards (tools/gen_collectibles.py "back").
+	var real := _photo(String(d.get("back", "")))
+	if real != null:
+		_cover(c, real, Rect2(0, 0, W, H))
+		return
 	match plat:
 		"CRIT":
 			BoxArt.rect(c, Rect2(0, 0, W, H), Color("1f4fa8"))
@@ -951,7 +956,32 @@ static func _year_text(y: int) -> String:
 	return "%d BC" % -y if y < 0 else str(y)
 
 
+static func _photo(path: String) -> Texture2D:
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path)
+
+
+static func _cover(c: Control, t: Texture2D, r: Rect2) -> void:
+	var tr := TextureRect.new()
+	tr.texture = t
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.position = r.position
+	tr.size = r.size
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	c.add_child(tr)
+
+
 static func _coin(c: Control, d: Dictionary, obverse: bool) -> void:
+	# Test-only real photo of that face (tools/fetch_commons_art.py), cropped
+	# to the disc: the model cuts the square to a circle.
+	var real := _photo(String(d.get("obv_img" if obverse else "rev_img", "")))
+	if real != null:
+		var side := minf(W, H)
+		BoxArt.rect(c, Rect2(0, 0, W, H), Color(0.1, 0.1, 0.11))
+		_cover(c, real, Rect2((W - side) * 0.5, (H - side) * 0.5, side, side))
+		return
 	var mc := metal_cols(d)
 	var v := String(d.get("variant", ""))
 	var key := String(d["id"]) + ("o" if obverse else "r")

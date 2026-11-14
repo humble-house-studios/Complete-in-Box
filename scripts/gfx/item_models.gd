@@ -148,7 +148,7 @@ static func build(item: Dictionary, label: Texture2D = null, boxed: int = -1) ->
 		elif is_disc(item):
 			_disc(model, label, plat)
 		else:
-			_cart(model, plat, label)
+			_cart(model, plat, label, item)
 	elif kind == "console":
 		if box:
 			_retail_box(model, Vector3(1.5, 1.0, 0.45), label, col, plat, false, item)
@@ -202,12 +202,18 @@ static func _tint(n: Node, t: Color) -> void:
 
 # ---------------------------------------------------------------- games
 
-static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
+static func _cart(model: Node3D, plat: String, label: Texture2D, item: Dictionary = {}) -> void:
+	# A real box scan carries the platform's trade dress (the N64's red side
+	# band, the NES banner and seals): the sticker shows only the art part.
+	var crop := Rect2(0, 0, 1, 1)
+	var lc: Array = item.get("label_crop", Catalog.get_def(String(item.get("id", ""))).get("label_crop", []))
+	if lc.size() == 4 and String(item.get("variant", "")) != "Test Cart" and label != null:
+		crop = Rect2(float(lc[0]), float(lc[1]), float(lc[2]), float(lc[3]))
 	if plat == "F64" and ResourceLoader.exists(CART_F64):
 		if not _carts.has(CART_F64):
 			_carts[CART_F64] = load(CART_F64)
 		var n64: Node3D = (_carts[CART_F64] as PackedScene).instantiate()
-		_apply(n64, Psx.label_mat(_white(), label, F64_LABEL, Color(0.36, 0.36, 0.39), F64_LABEL_ASPECT))
+		_apply(n64, Psx.label_mat(_white(), label, F64_LABEL, Color(0.36, 0.36, 0.39), F64_LABEL_ASPECT, Color(0.06, 0.06, 0.07), crop))
 		model.add_child(n64)
 		return
 	var spec: Array = CART.get(plat, CART["FES"])
@@ -220,7 +226,7 @@ static func _cart(model: Node3D, plat: String, label: Texture2D) -> void:
 	var base: Texture2D = load(CART_SMALL_TEX if small else CART_BIG_TEX)
 	var sc: Vector3 = spec[1]
 	var aspect := (SMALL_LABEL_ASPECT if small else BIG_LABEL_ASPECT) * sc.z / sc.y
-	var m := Psx.label_mat(base, label, SMALL_LABEL if small else BIG_LABEL, spec[2], aspect)
+	var m := Psx.label_mat(base, label, SMALL_LABEL if small else BIG_LABEL, spec[2], aspect, Color(0.06, 0.06, 0.07), crop)
 	_apply(inner, m)
 	inner.scale = spec[1]
 	inner.rotation_degrees.y = -90.0
