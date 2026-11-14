@@ -50,6 +50,7 @@ CAND = os.path.join(CACHE, "candidates.json")
 LOC = "https://tile.loc.gov/storage-services/service/pnp/bbc/"
 PICKS = {
     "base_ty_kobb_1909": {"front": LOC + "0900/0930/0939fv.jpg", "back": LOC + "0900/0930/0939bv.jpg"},
+    "grid_peyton_manninger_1998": {"back": ""},  # the only back found is a pennant insert
 }
 
 
