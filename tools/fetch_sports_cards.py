@@ -280,9 +280,14 @@ def save_card(data, path):
         im = bg
     im = trim(im.convert("RGB"))
     w, h = im.size
-    if w > h * 1.1:  # sideways card (most backs): stand it up
-        im = im.rotate(90, expand=True)
-        w, h = im.size
+    if w > h * 1.1:
+        # A sideways card (1952 Topps backs, 1955 Topps fronts): keep it the
+        # right way up, whole; sports_art.gd fits it across the card face.
+        im = im.resize((H, max(1, int(round(H * h / w)))), Image.LANCZOS)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        im.save(path, quality=86, optimize=True)
+        _imp(path)
+        return
     ar = w / h
     if ar > ASPECT:
         nw = int(h * ASPECT)
@@ -293,6 +298,10 @@ def save_card(data, path):
     im = im.resize((int(round(H * ASPECT)), H), Image.LANCZOS)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, quality=86, optimize=True)
+    _imp(path)
+
+
+def _imp(path):
     imp = path + ".import"
     if not os.path.exists(imp):
         open(imp, "w").write('[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\n\n'
