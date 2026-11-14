@@ -2083,7 +2083,8 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	var outer := Panel.new()
 	outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var ost := StyleBoxFlat.new()
-	ost.bg_color = CARD_CREAM if not dim else CARD_CREAM.darkened(0.35)
+	var cream: Color = [CARD_CREAM, CARD_CREAM, Color("dbe6f7"), Color("ffd45a")][tier]
+	ost.bg_color = cream if not dim else cream.darkened(0.35)
 	ost.set_corner_radius_all(int(10 * k + 2))
 	ost.set_border_width_all(2)
 	ost.border_color = Color("17131f")
@@ -2132,8 +2133,18 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 			stripes.draw_line(Vector2(x, s.y), Vector2(x + s.y, 0), Color(1, 1, 1, 0.07), 6.0 * k)
 			x += step)
 	inner.add_child(stripes)
+	# Big faded platform name across the face, like a card's suit watermark.
+	var wm := _title_label(String(plat["short"]), int(64 * kt), Color(1, 1, 1, 0.1))
+	wm.add_theme_constant_override("outline_size", 0)
+	wm.add_theme_constant_override("shadow_offset_y", 0)
+	wm.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	wm.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	wm.grow_vertical = Control.GROW_DIRECTION_BOTH
+	wm.rotation_degrees = -24.0
+	wm.resized.connect(func(): wm.pivot_offset = wm.size * 0.5)
+	inner.add_child(wm)
 
-	var worth_h := roundf(maxf(24.0, 28.0 * k))
+	var worth_h := roundf(maxf(26.0, 30.0 * k))
 	var col := _vbox(int(3 * k))
 	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	col.offset_left = 6 * k
@@ -2146,12 +2157,7 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	var top := _hbox(2)
 	top.add_child(_card_pip(String(plat["short"]), tier, kt))
 	top.add_child(_spacer(false))
-	var cond := _label(Catalog.cond_short(item).to_upper(), int(14 * kt), Color(1, 1, 1, 0.9))
-	cond.add_theme_font_override("font", FONT_DISPLAY)
-	cond.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
-	cond.add_theme_constant_override("outline_size", 4)
-	cond.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	top.add_child(cond)
+	top.add_child(_tier_gems(tier, 11.0 * k))
 	col.add_child(top)
 	# Art window framed in the tier colour (glows for rare and grail).
 	var art := PanelContainer.new()
@@ -2166,7 +2172,7 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	for side in ["left", "right", "top", "bottom"]:
 		as_.set("content_margin_" + side, 3)
 	art.add_theme_stylebox_override("panel", as_)
-	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	art.size_flags_horizontal = Control.SIZE_FILL
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var spot := TextureRect.new()
 	spot.texture = _card_spot_tex()
@@ -2175,7 +2181,8 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	spot.modulate = Color(tcol if tier > 0 else Color(1, 1, 1), 0.5 if tier > 0 else 0.25)
 	spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(spot)
-	var ic := _icon(item, roundf(w * 0.4))
+	var ic := _icon(item, roundf(w * 0.47))
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if dim:
 		ic.modulate = Color(0.6, 0.6, 0.7)
 	art.add_child(ic)
@@ -2187,7 +2194,7 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	col.add_child(art)
 	# Name, kept clear of the flipped corner pip.
 	var nmt := String(item["name"])
-	var nm := _title_label(nmt, int((19 if nmt.length() < 16 else 16) * kt), INK if not dim else MUTED)
+	var nm := _title_label(nmt, int(minf((19.0 if nmt.length() < 16 else 16.0) * kt, 27.0 if nmt.length() < 16 else 23.0)), INK if not dim else MUTED)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -2196,22 +2203,25 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nm.custom_minimum_size = Vector2(1, 0)
 	var nmm := MarginContainer.new()
-	nmm.add_theme_constant_override("margin_left", int(18 * k))
-	nmm.add_theme_constant_override("margin_right", int(18 * k))
+	nmm.add_theme_constant_override("margin_left", int(4 * k))
+	nmm.add_theme_constant_override("margin_right", int(4 * k))
 	nmm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nmm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	nmm.add_child(nm)
-	col.add_child(nmm)
-	# Flipped pip, bottom-right above the worth bar.
-	var br := _card_pip(String(plat["short"]), tier, kt)
-	br.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE)
-	br.offset_right -= 4 * k
-	br.offset_left -= 4 * k
-	br.offset_bottom -= worth_h + 2 * k
-	br.offset_top -= worth_h + 2 * k
-	br.rotation = PI
-	br.resized.connect(func(): br.pivot_offset = br.size * 0.5)
-	inner.add_child(br)
+	var plate := PanelContainer.new()
+	var pst := StyleBoxFlat.new()
+	pst.bg_color = Color(0, 0, 0, 0.28)
+	pst.set_corner_radius_all(int(6 * k))
+	pst.content_margin_top = 1
+	pst.content_margin_bottom = 1
+	plate.add_theme_stylebox_override("panel", pst)
+	plate.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(nmm)
+	col.add_child(plate)
+	var cp := _pill(Catalog.cond_short(item).to_upper(), (Catalog.COND_COLORS.get(String(item.get("cond", "")), Color(1, 1, 1)) as Color).lightened(0.1), int(13 * kt))
+	cp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(cp)
 	# Foil shine on rare and grail cards.
 	if tier >= 2 and not Lite.perf and not dim:
 		var foil := ColorRect.new()
@@ -2236,7 +2246,7 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	bar.offset_top = -worth_h
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bh := _hbox(int(4 * k))
-	var wl := _title_label(String(money.get("worth", "")), int(15 * kt), money.get("worth_col", CARD_CREAM))
+	var wl := _title_label(String(money.get("worth", "")), int(17 * kt), money.get("worth_col", CARD_CREAM))
 	wl.add_theme_constant_override("outline_size", 0)
 	wl.add_theme_constant_override("shadow_offset_y", 0)
 	wl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -2304,19 +2314,44 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	return b
 
 
-## Corner index: platform short over the tier letter.
-func _card_pip(short: String, tier: int, k: float) -> VBoxContainer:
-	var v := _vbox(int(-9 * k))
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+## Corner index: the platform in a chunky dark badge.
+func _card_pip(short: String, tier: int, k: float) -> PanelContainer:
+	var p := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.05, 0.04, 0.08, 0.55)
+	st.set_corner_radius_all(int(5 * k + 1))
+	st.content_margin_left = 6 * k
+	st.content_margin_right = 6 * k
+	st.border_width_bottom = 2
+	st.border_color = Catalog.TIER_COLORS[tier] if tier > 0 else Color(1, 1, 1, 0.3)
+	p.add_theme_stylebox_override("panel", st)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var a := _title_label(short, int(17 * k), Color.WHITE)
 	a.add_theme_constant_override("outline_size", 4)
-	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(a)
-	var t := _title_label(["C", "U", "R", "G"][tier], int(13 * k), Catalog.TIER_COLORS[tier] if tier > 0 else Color(1, 1, 1, 0.75))
-	t.add_theme_constant_override("outline_size", 4)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
-	return v
+	p.add_child(a)
+	return p
+
+
+## Rarity as gems in the top-right: one per tier step, tier-coloured.
+func _tier_gems(tier: int, s: float) -> Control:
+	var c := Control.new()
+	var n := tier + 1
+	c.custom_minimum_size = Vector2(n * s * 1.05, s * 1.3)
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var col: Color = Catalog.TIER_COLORS[tier] if tier > 0 else Color(1, 1, 1, 0.8)
+	c.draw.connect(func():
+		var y := c.size.y * 0.5
+		for i in n:
+			var x := s * 0.5 + i * s * 1.05
+			var pts := PackedVector2Array([Vector2(x, y - s * 0.62), Vector2(x + s * 0.48, y), Vector2(x, y + s * 0.62), Vector2(x - s * 0.48, y)])
+			c.draw_colored_polygon(pts, Color(0, 0, 0, 0.55))
+			var inner_pts := PackedVector2Array()
+			for q in pts:
+				inner_pts.append(Vector2(x, y) + (q - Vector2(x, y)) * 0.7)
+			c.draw_colored_polygon(inner_pts, col)
+			c.draw_colored_polygon(PackedVector2Array([inner_pts[0], inner_pts[1], Vector2(x, y)]), col.lightened(0.45)))
+	return c
 
 
 ## Little triangle: green up = priced under worth, red down = over.
@@ -2811,7 +2846,7 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 	if screen == "home":
 		var vb := _button("VIEW YOUR SHELF IN 3D", _set_showcase.bind(true), Color("2f5d7a"), 20, 72)
 		parent.add_child(vb)
-	var gc: Array = _grid(avail, 150, 12)
+	var gc: Array = _grid(avail, 150 if is_landscape() else 200, 14)
 	var g: GridContainer = gc[0]
 	g.add_theme_constant_override("v_separation", 22)
 	var w: float = gc[1]
@@ -4404,7 +4439,7 @@ func _build_showcase() -> void:
 	_root_box.add_child(gap)
 	# Your items in a strip: highlight one for its trading card, A for full.
 	if not run.shelf.is_empty():
-		_root_box.add_child(_hand_fan(run.shelf, 128.0 if is_landscape() else 168.0))
+		_root_box.add_child(_hand_fan(run.shelf, 150.0 if is_landscape() else 200.0))
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
 	var h := _hbox(12)
 	bar.add_child(h)
@@ -5600,7 +5635,7 @@ func _build_venue() -> void:
 		var done0 := _button("APPRAISE & LEAVE   %s / %s" % [_money(total), _money(tgt)], _confirm_done, STICKER if total >= tgt else Color("8a4a3a"), 26, 96)
 		_main_action(done0)
 		return
-	var gc: Array = _grid(_main_w(), 170 if is_landscape() else 200, 12)
+	var gc: Array = _grid(_main_w(), 170 if is_landscape() else 260, 14)
 	var g: GridContainer = gc[0]
 	g.add_theme_constant_override("v_separation", 24)
 	var w: float = gc[1]

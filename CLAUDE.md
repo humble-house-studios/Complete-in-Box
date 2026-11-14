@@ -283,7 +283,7 @@ The web build in Safari is the test for every platform.
   subtle Xbox glyphs (`_glyph`: Y on main buttons, LB/RB on tab bars) and a
   hint strip at the bottom; touch or mouse turns it all off. Focus is restored
   by button identity after each rebuild and kept inside the top layer.
-- Shop + shelf items are Balatro-size play cards (`_play_card`, via `_offer_play` / `_shelf_tile`): cream border, platform face, corner pips, tier-framed art, WORTH bar (+ deal arrow), price or profit/loss sticker, top tag; idle sway + springy lift in `_card_motion` (pad focus, mouse hover with tilt toward the pointer, or while a finger is down; sway off in Lite.perf), ground shadow, top-lit face, foil shine on rare/grail (`card_foil.gdshader`). Never give card parts a z_index: it draws them over sheets. VIEW YOUR SHELF deals the shelf as a fanned hand (`_hand_fan`).
+- Shop + shelf items are Balatro-size play cards (`_play_card`, via `_offer_play` / `_shelf_tile`): cream border (silver for rare, gold for grail), platform face with a faded platform watermark, platform badge + tier gems (`_card_pip`, `_tier_gems`) top row, wide tier-framed art, name plate, condition pill, WORTH bar (+ deal arrow), price or profit/loss sticker, top tag; idle sway + springy lift in `_card_motion` (pad focus, mouse hover with tilt toward the pointer, or while a finger is down; sway off in Lite.perf), ground shadow, top-lit face, foil shine on rare/grail (`card_foil.gdshader`). Never give card parts a z_index: it draws them over sheets. VIEW YOUR SHELF deals the shelf as a fanned hand (`_hand_fan`).
 - Landscape shows the same cards so a whole
   table fits; highlighting a tile (pad focus, or mouse hover on desktop) pops a
   trading-card preview (`_show_preview`) that fills the
