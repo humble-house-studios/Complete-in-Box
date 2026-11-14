@@ -48,9 +48,9 @@ STOP = {"the", "of", "a", "an", "and", "edition", "japan", "game", "video", "vid
         "version", "console", "model", "with", "bundle", "limited", "sealed", "cib", "complete", "in", "box"}
 
 
-def get(url, tries=4, pause=1.0, headers=(), timeout=40):
+def get(url, tries=4, pause=1.0, headers=(), timeout=90):
     for k in range(tries):
-        time.sleep(pause + k * 5)
+        time.sleep(pause + k * (15 if "wikipedia.org/w/" in url else 5))
         cmd = ["curl", "-sS", "-L", "-m", str(timeout), "-A", UA]
         for hd in headers:
             cmd += ["-H", hd]
@@ -120,6 +120,10 @@ def store(world, iid, kind, url, aspect, force, **kw):
     rel = "assets/temp_test/%s/%s_%s.jpg" % (world, iid, kind)
     full = os.path.join(ROOT, rel)
     data = get(url, **kw)
+    if data and len(data) < 400 and data.strip().endswith(b".png") and "/Named_Boxarts/" in url:
+        # A git symlink in libretro-thumbnails: the file holds the real file's name.
+        url = url.rsplit("/", 1)[0] + "/" + urllib.parse.quote(data.decode("utf-8", "replace").strip().split("/")[-1])
+        data = get(url, **kw)
     if not data:
         return False
     try:
@@ -291,7 +295,7 @@ HW_ARTICLES = [
     ("Miracle Piano", "Miracle Piano Teaching System"), ("PlayChoice-10", "PlayChoice-10"), ("Vs. System", "Nintendo Vs. System"),
     ("SNES Model 1", "Super Nintendo Entertainment System"), ("Super Famicom (SHVC-001)", "Super Famicom"),
     ("SNES Mouse", "Super NES Mouse"), ("SNES Super Scope", "Super Scope"), ("Super Game Boy", "Super Game Boy"),
-    ("SNES Multitap", "Super Multitap"), ("SNES Justifier", "Konami Justifier"), ("Sufami Turbo", "Sufami Turbo"),
+    ("SNES Justifier", "Konami Justifier"), ("Sufami Turbo", "Sufami Turbo"),
     ("X-Band", "XBAND"), ("Nintendo Power Flash", "Nintendo Power (cartridge)"), ("Nintendo 64 Console", "Nintendo 64"),
     ("Nintendo 64 Expansion Pak", "Expansion Pak"), ("Nintendo 64 Rumble Pak", "Rumble Pak"), ("Nintendo 64 Transfer Pak", "Transfer Pak"),
     ("Nintendo 64 Controller Pak", "Controller Pak"), ("Nintendo 64 Mouse", "Nintendo 64 Mouse"), ("Nintendo 64 GameShark", "GameShark"),
@@ -333,12 +337,14 @@ def lead_images(titles):
     """Lead image + file name for many exact article titles (40 per request)."""
     out = {}
     titles = sorted(set(titles))
-    for i in range(0, len(titles), 40):
-        chunk = titles[i:i + 40]
+    for i in range(0, len(titles), 25):
+        chunk = titles[i:i + 25]
         j = jget("https://en.wikipedia.org/w/api.php?" + urllib.parse.urlencode({
             "action": "query", "format": "json", "titles": "|".join(chunk), "prop": "pageimages|pageprops",
             "piprop": "thumbnail|name", "pithumbsize": 500, "pilicense": "any", "redirects": 1, "ppprop": "disambiguation"}),
-            pause=25.0, tries=6)
+            pause=30.0, tries=10)
+        if "query" not in j:
+            print("  wiki batch failed", flush=True)
         q = j.get("query", {})
         back = {}
         for n in q.get("normalized", []) + q.get("redirects", []):
