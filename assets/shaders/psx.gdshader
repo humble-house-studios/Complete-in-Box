@@ -19,6 +19,8 @@ uniform bool circle = false;
 // outside shows label_bg (letterbox). tex_fit crops the main texture (cover).
 uniform vec4 label_fit = vec4(0.0, 0.0, 1.0, 1.0);
 uniform vec4 label_bg : source_color = vec4(0.06, 0.06, 0.07, 1.0);
+// Part of label_tex to show (x, y, w, h in UV): a box scan's art without its trade dress.
+uniform vec4 label_crop = vec4(0.0, 0.0, 1.0, 1.0);
 uniform vec4 tex_fit = vec4(0.0, 0.0, 1.0, 1.0);
 uniform vec4 fog_color : source_color = vec4(0.04, 0.03, 0.05, 1.0);
 uniform float fog_near = 4.0;
@@ -51,7 +53,7 @@ void fragment() {
 		if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0) {
 			vec2 f = (l - label_fit.xy) / label_fit.zw;
 			if (f.x >= 0.0 && f.x <= 1.0 && f.y >= 0.0 && f.y <= 1.0) {
-				c = texture(label_tex, f);
+				c = texture(label_tex, label_crop.xy + f * label_crop.zw);
 			} else {
 				c = label_bg;
 			}

@@ -83,17 +83,23 @@ static func _photo(c: Control, r: Rect2, d: Dictionary, tint := Color.WHITE) -> 
 
 
 ## A real scan (tools/fetch_sports_cards.py) filling the whole face. A
-## sideways card (wider than tall) stays the right way up, fitted across the
-## face on a dark backing, so its text reads normally.
+## sideways card (wider than tall: 1955 Topps fronts, 1952 Topps backs) is
+## turned a quarter clockwise so every card, front and back, stands upright
+## like the others in a binder page.
 static func _scan_face(c: Control, t: Texture2D) -> void:
 	var sideways := t.get_width() > t.get_height() * 1.1
-	BoxArt.rect(c, Rect2(0, 0, W, H), Color(0.12, 0.11, 0.14) if sideways else Color(0.92, 0.88, 0.78))
+	BoxArt.rect(c, Rect2(0, 0, W, H), Color(0.92, 0.88, 0.78))
 	var tr := TextureRect.new()
 	tr.texture = t
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if sideways else TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	tr.size = Vector2(W, H)
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if sideways:
+		tr.size = Vector2(H, W)
+		tr.position = Vector2(W, 0)
+		tr.rotation = PI * 0.5
+	else:
+		tr.size = Vector2(W, H)
 	c.add_child(tr)
 
 

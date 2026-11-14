@@ -538,14 +538,21 @@ def collect():
     return items, merged, real, games, hw
 
 
-def pictures(iid):
-    """Real pictures fetched by tools/fetch_retro_art.py (test-only assets)."""
+def pictures(iid, plat="", japan=False):
+    """Real pictures fetched by tools/fetch_retro_art.py (test-only assets).
+    NES / N64 / Genesis scans also get "label_crop": the art part of the box
+    (no side band, banner or seals) for the loose cart's sticker."""
     out = {}
     for kind in ("scan", "photo"):
         for ext in ("jpg", "png"):
             f = os.path.join(ART_DIR, "%s_%s.%s" % (iid, kind, ext))
             if os.path.exists(f):
                 out[kind] = "res://" + os.path.relpath(f, ROOT).replace(os.sep, "/")
+                if kind == "scan" and plat in ("FES", "F64", "GEN"):
+                    from label_crop import label_crop
+                    crop = list(label_crop(f, plat, japan))
+                    if crop != [0.0, 0.0, 1.0, 1.0]:
+                        out["label_crop"] = crop
                 break
     return out
 
@@ -553,9 +560,9 @@ def pictures(iid):
 def main():
     items, merged, real, games, hw = collect()
     for d in items:
-        d.update(pictures(d["id"]))
+        d.update(pictures(d["id"], d.get("plat", ""), "(Japan)" in real.get(d["id"], ("",))[0]))
     for k, m in merged.items():
-        m.update(pictures(k))
+        m.update(pictures(k, m.get("plat", ""), "(Japan)" in real.get(k, ("",))[0]))
 
     # Write GDScript.
     def val(v):

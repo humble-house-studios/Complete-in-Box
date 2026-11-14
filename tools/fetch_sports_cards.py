@@ -283,7 +283,7 @@ def save_card(data, path):
     w, h = im.size
     if w > h * 1.1:
         # A sideways card (1952 Topps backs, 1955 Topps fronts): keep it the
-        # right way up, whole; sports_art.gd fits it across the card face.
+        # whole; sports_art.gd turns it upright to fill the card face.
         im = im.resize((H, max(1, int(round(H * h / w)))), Image.LANCZOS)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         im.save(path, quality=86, optimize=True)
