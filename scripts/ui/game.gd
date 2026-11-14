@@ -2157,7 +2157,10 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	var top := _hbox(2)
 	top.add_child(_card_pip(String(plat["short"]), tier, kt))
 	top.add_child(_spacer(false))
-	top.add_child(_tier_gems(tier, 11.0 * k))
+	var cp := _pill(Catalog.cond_short(item).to_upper(), (Catalog.COND_COLORS.get(String(item.get("cond", "")), Color(1, 1, 1)) as Color).lightened(0.1), int(12 * kt))
+	cp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(cp)
+	top.add_child(_tier_gems(tier, 10.0 * k))
 	col.add_child(top)
 	# Art window framed in the tier colour (glows for rare and grail).
 	var art := PanelContainer.new()
@@ -2181,7 +2184,7 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	spot.modulate = Color(tcol if tier > 0 else Color(1, 1, 1), 0.5 if tier > 0 else 0.25)
 	spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(spot)
-	var ic := _icon(item, roundf(w * 0.47))
+	var ic := _icon(item, roundf(w * 0.4))
 	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if dim:
 		ic.modulate = Color(0.6, 0.6, 0.7)
@@ -2195,17 +2198,13 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	# Name, kept clear of the flipped corner pip.
 	var nmt := String(item["name"])
 	var nm := _title_label(nmt, int(minf((19.0 if nmt.length() < 16 else 16.0) * kt, 27.0 if nmt.length() < 16 else 23.0)), INK if not dim else MUTED)
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	nm.max_lines_visible = 2
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nm.custom_minimum_size = Vector2(1, 0)
 	var nmm := MarginContainer.new()
 	nmm.add_theme_constant_override("margin_left", int(4 * k))
 	nmm.add_theme_constant_override("margin_right", int(4 * k))
-	nmm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nmm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	nmm.add_child(nm)
 	var plate := PanelContainer.new()
@@ -2215,13 +2214,10 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	pst.content_margin_top = 1
 	pst.content_margin_bottom = 1
 	plate.add_theme_stylebox_override("panel", pst)
-	plate.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.add_child(nmm)
 	col.add_child(plate)
-	var cp := _pill(Catalog.cond_short(item).to_upper(), (Catalog.COND_COLORS.get(String(item.get("cond", "")), Color(1, 1, 1)) as Color).lightened(0.1), int(13 * kt))
-	cp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	col.add_child(cp)
+	col.add_child(_card_textbox(item, k, kt))
 	# Foil shine on rare and grail cards.
 	if tier >= 2 and not Lite.perf and not dim:
 		var foil := ColorRect.new()
@@ -2312,6 +2308,63 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	_card_faces.append(face)
 	_ignore_mouse(b)
 	return b
+
+
+## TCG-style text box: a parchment panel with the basics (genre, maker,
+## year) and the item's one-line blurb in small print.
+func _card_textbox(item: Dictionary, k: float, kt: float) -> Control:
+	var def := Catalog.get_def(String(item["id"]))
+	var bits: Array = []
+	for key in ["genre", "artist", "year"]:
+		var v = def.get(key, "")
+		if str(v) != "" and str(v) != "0" and bits.size() < 2:
+			bits.append(str(v))
+	if bits.is_empty():
+		bits.append(String(item.get("kind", "")).capitalize())
+	var body := String(def.get("blurb", def.get("note", "")))
+	if body == "":
+		body = Flavor.cond_line(item)
+	var p := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color("efe4c6")
+	st.set_corner_radius_all(int(4 * k + 1))
+	st.set_border_width_all(maxi(1, int(2 * k)))
+	st.border_color = Color("b59a5a")
+	st.content_margin_left = 6 * k
+	st.content_margin_right = 6 * k
+	st.content_margin_top = 2 * k
+	st.content_margin_bottom = 3 * k
+	p.add_theme_stylebox_override("panel", st)
+	p.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.clip_contents = true
+	var v := _vbox(0)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var info := _title_label("  ·  ".join(bits).to_upper(), int(12 * kt), Color("5a3d1e"))
+	info.add_theme_constant_override("outline_size", 0)
+	info.add_theme_constant_override("shadow_offset_y", 0)
+	info.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	info.custom_minimum_size = Vector2(1, 0)
+	v.add_child(info)
+	var line := ColorRect.new()
+	line.color = Color("b59a5a")
+	line.custom_minimum_size = Vector2(0, maxf(1.0, k))
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(line)
+	var mk := String(def.get("pub", def.get("imprint", "")))
+	if mk != "":
+		body = mk + ". " + body
+	var bl := _label(body, int(12 * kt), Color("2e2416"), true)
+	bl.max_lines_visible = 3
+	bl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	bl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bl.add_theme_constant_override("line_spacing", -3)
+	var lines := 1 if is_landscape() else 2
+	bl.max_lines_visible = lines + 1 if not is_landscape() else 1
+	bl.custom_minimum_size = Vector2(1, bl.get_line_height() * lines - 3 * (lines - 1))
+	v.add_child(bl)
+	p.add_child(v)
+	return p
 
 
 ## Corner index: the platform in a chunky dark badge.
