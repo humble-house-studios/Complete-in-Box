@@ -439,8 +439,14 @@ def slug(s):
     return re.sub(r"[^a-z0-9]+", "_", s).strip("_")[:28].strip("_")
 
 
-def main():
+ART_DIR = os.path.join(ROOT, "assets/temp_test/games")
+
+
+def collect():
+    """Every list entry as (items, merged legacy meta, real names, games, hw).
+    real = {id: (real title, platform code, kind)} for tools/fetch_retro_art.py."""
     items = []
+    real = {}
     seen = set()
     ids = set()
     merged = {}
@@ -509,6 +515,7 @@ def main():
         }
         if key in LEGACY:
             merged[LEGACY[key]] = meta
+            real[LEGACY[key]] = (title, plat, kind)
             return
         pname = parody(title)
         iid = (plat.lower() + "_" + slug(pname))
@@ -522,11 +529,33 @@ def main():
              "base": base_for(kind, tier, tfrac, title), "tags": tags}
         d.update(meta)
         items.append(d)
+        real[iid] = (title, plat, kind)
 
     for r, n, s in games:
         add(r, n, s, "games")
     for r, n, s in hw:
         add(r, n, s, "hardware")
+    return items, merged, real, games, hw
+
+
+def pictures(iid):
+    """Real pictures fetched by tools/fetch_retro_art.py (test-only assets)."""
+    out = {}
+    for kind in ("scan", "photo"):
+        for ext in ("jpg", "png"):
+            f = os.path.join(ART_DIR, "%s_%s.%s" % (iid, kind, ext))
+            if os.path.exists(f):
+                out[kind] = "res://" + os.path.relpath(f, ROOT).replace(os.sep, "/")
+                break
+    return out
+
+
+def main():
+    items, merged, real, games, hw = collect()
+    for d in items:
+        d.update(pictures(d["id"]))
+    for k, m in merged.items():
+        m.update(pictures(k))
 
     # Write GDScript.
     def val(v):
@@ -556,7 +585,8 @@ def main():
     for d in items:
         tiers[d["tier"]] += 1
         plats[d["plat"]] = plats.get(d["plat"], 0) + 1
-    print("items", len(items), "merged", len(merged), "tiers", tiers)
+    print("items", len(items), "merged", len(merged), "tiers", tiers,
+          "pictures", sum(1 for d in list(items) + list(merged.values()) if "scan" in d or "photo" in d))
     print("plats", plats)
     unchanged = [d["name"] for d in items if d["name"] in [n for _, n, _ in games + hw]]
     print("UNCHANGED", unchanged)

@@ -386,6 +386,11 @@ def base_for(bands, tier, frac, key):
     return max(1, int(round(v)))
 
 
+# {card id: research row} for tools/fetch_retro_art.py (real card scans).
+REAL = {}
+CARD_ART = os.path.join(ROOT, "assets/temp_test/cards")
+
+
 def card_items(rows):
     items = []
     ids = set()
@@ -408,6 +413,7 @@ def card_items(rows):
             iid = "%s_%d" % (b, k)
             k += 1
         ids.add(iid)
+        REAL[iid] = r
         key = real + r["detail"]
         tags = []
         if is_pack:
@@ -605,6 +611,12 @@ def coin_items(rows):
 def main():
     cards = card_items(parse(CARDS))
     coins = coin_items(parse(COINS))
+    for d in cards:
+        for ext in ("jpg", "png"):
+            f = os.path.join(CARD_ART, "%s_scan.%s" % (d["id"], ext))
+            if os.path.exists(f):
+                d["scan"] = "res://" + os.path.relpath(f, ROOT).replace(os.sep, "/")
+                break
 
     def val(v):
         if isinstance(v, str):
