@@ -2483,8 +2483,8 @@ func _card_motion(delta: float) -> void:
 		var r := 0.0
 		var y := 0.0
 		if sway:
-			r = sin(t * 1.9 + ph) * deg_to_rad(1.5) * (1.0 - clampf(l, 0.0, 1.0))
-			y = sin(t * 1.5 + ph * 1.3) * 2.0
+			r = sin(t * 0.55 + ph) * deg_to_rad(0.45) * (1.0 - clampf(l, 0.0, 1.0))
+			y = sin(t * 0.42 + ph * 1.3) * 0.8
 		var tilt := 0.0
 		var btn: Control = face.get_meta("btn")
 		if goal > 0.5 and not _pad and not _touchy() and is_instance_valid(btn):
