@@ -1300,3 +1300,6 @@ assets/temp_test/cards/back_overpower.jpg | https://upload.wikimedia.org/wikiped
 assets/temp_test/cards/back_swu.jpg | https://upload.wikimedia.org/wikipedia/en/f/f5/Star_Wars_Unlimited_card_back.png | 2026-11-14
 assets/temp_test/cards/back_swccg.jpg | https://upload.wikimedia.org/wikipedia/en/3/33/Star_Wars_CCG_Light_Side_cardback.jpg | 2026-11-14
 assets/temp_test/cards/back_vtes.jpg | https://upload.wikimedia.org/wikipedia/en/f/fa/Vampire_TES_Library_cardback.png | 2026-11-14
+assets/temp_test/cards/back_l5r.jpg | https://upload.wikimedia.org/wikipedia/en/a/a4/Legend_of_the_Five_Rings_cardback.png | 2026-11-14
+assets/temp_test/cards/back_lotr.jpg | https://upload.wikimedia.org/wikipedia/en/c/c4/The_Lord_of_the_Rings_Trading_Card_Game_cardback.jpg | 2026-11-14
+assets/temp_test/cards/back_onepiece.jpg | https://upload.wikimedia.org/wikipedia/en/3/32/One_Piece_Card_Game_back.webp | 2026-11-14

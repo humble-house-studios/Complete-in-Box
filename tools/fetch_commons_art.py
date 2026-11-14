@@ -72,8 +72,68 @@ COLOURS = {"berry", "dandelion", "grape", "kiwi", "teal", "fuchsia", "indigo", "
            "white", "clear", "crystal", "platinum", "spice", "ceramic", "satin", "ocean", "sakura", "lavender", "felicia", "lime",
            "pikachu", "zelda", "halo", "skeleton", "atomic", "hello", "kitty", "light", "gray", "grey"}
 
-# id -> Commons file title (or "" = keep the painted / rendered art).
-PICKS = {}
+# id -> Commons file (Evan-Amos's product photos, checked by eye), or
+# [file, "tint"] = that photo of the plain model recoloured to the edition.
+# Items left out keep their painted art / rendered model.
+T = "tint"
+PICKS = {
+    "fes_fes_deluxe_set_with_r_o_b_b": "NES-ROB.jpg", "fes_fes_action_set": "NES-Console-Set.jpg",
+    "fes_fes_top_loader_fes_101": "NES-101-Console-Set.jpg", "fes_funicom_hvc_001": "Nintendo-Famicom-Console-Set-FL.jpg",
+    "fes_funicom_av": "Nintendo-AV-Famicom-Console-FL.jpg", "fes_sharpe_twin_funicom": "Sharp-Twin-Famicom-Console.jpg",
+    "fes_funicom_network_system": "Nintendo-Famicom-Modem-Network-System-01.jpg",
+    "fes_fes_zappr_orange": "Nintendo-Entertainment-System-NES-Zapper-Orange-R.jpg", "fes_fes_satellyte": "NES-Satellite.jpg",
+    "fes_fes_max": "NES-MAX-Controller-FL.jpg",
+    "sfes_super_fes_model_2_sns_101": "Nintendo-Super-NES-Console-101-FL.jpg",
+    "sfes_super_funicom_shvc_001": "Nintendo-Super-Famicom-Console-FL.jpg", "sfes_super_fes_plumber_paint_bund": "SNES-Mouse-and-Pad.jpg",
+    "f64_console": "Nintendo-64-Console-FL.jpg", "f64_funtendo_64_funtastick_fire": "N64-Console-Orange.jpg",
+    "f64_jungle": ["Nintendo-64-Console-FL.jpg", T], "f64_funtendo_64_funtastick_ice_b": ["Nintendo-64-Console-FL.jpg", T],
+    "f64_funtendo_64_funtastick_grape": ["Nintendo-64-Console-FL.jpg", T], "f64_funtendo_64_funtastick_water": ["Nintendo-64-Console-FL.jpg", T],
+    "f64_funtendo_64_funtastick_smoke": ["Nintendo-64-Console-FL.jpg", T],
+    "f64_funtendo_64_controller_pakk": "Nintendo-64-Controller-Pak.jpg", "f64_funtendo_64_gamesnark": "GameShark-Pro-N64.jpg",
+    "f64_funtendo_64_gold_controller": ["N64-Controller-Gray.jpg", T], "f64_funtendo_64_atomic_purple_co": ["N64-Controller-Gray.jpg", T],
+    "fcube_funcube_jet_black": ["Nintendo-GameCube-Console-FL.jpg", T], "fcube_funcube_platinum": "GameCube-Silver-Optional-Set.jpg",
+    "fcube_funcube_spice_orange": ["Nintendo-GameCube-Console-FL.jpg", T], "fcube_funcube_pocketboy_player_sta": "GameCube-Game-Boy-Player.jpg",
+    "fcube_funcube_broadbland_adapter": "Nintendo-GameCube-Broadband-Adapter-01.jpg", "fcube_funcube_modem_adapter": "Nintendo-GameCube-Modem-Adapter-01.jpg",
+    "pboy_pocketboy_pocket": "Game-Boy-Pocket-FL.jpg", "pboy_gold": "Game-Boy-Light-FL.jpg",
+    "pboy_pocketboy_pocket_clear_editi": ["Game-Boy-Pocket-FL.jpg", T],
+    "pboy_pocketboy_color_dandelion": "Game-Boy-Color-Yellow.jpg", "pboy_pocketboy_color_grape": "Game-Boy-Color-Purple.jpg",
+    "pboy_pocketboy_color_berry": ["Game-Boy-Color-Yellow.jpg", T], "pboy_pocketboy_color_kiwi": ["Game-Boy-Color-Yellow.jpg", T],
+    "pboy_pocketboy_color_teal": ["Game-Boy-Color-Yellow.jpg", T],
+    "pba_pocketboy_advance_fuchsia": "Nintendo-Game-Boy-Advance-Pink-FL.jpg", "pba_pocketboy_advance_arctic": "Nintendo-Game-Boy-Advance-White-FL.jpg",
+    "pba_pocketboy_advance_black": "Nintendo-Game-Boy-Advance-Black-FL.jpg",
+    "pba_pocketboy_advance_indigo": ["Nintendo-Game-Boy-Advance-White-FL.jpg", T], "pba_pocketboy_advance_orange": ["Nintendo-Game-Boy-Advance-White-FL.jpg", T],
+    "pba_pocketboy_advance_sp_ags_101": "Game-Boy-Advance-SP-Mk2.png",
+    "pba_pocketboy_advance_sp_pearl_p": ["Game-Boy-Advance-SP-Mk1-Blue.jpg", T], "pba_pocketboy_advance_sp_onyx": ["Game-Boy-Advance-SP-Mk1-Blue.jpg", T],
+    "pba_pocketboy_advance_sp_flame": ["Game-Boy-Advance-SP-Mk1-Blue.jpg", T], "pba_pocketboy_advance_sp_tribal": ["Game-Boy-Advance-SP-Mk1-Blue.jpg", T],
+    "pst_playstatia_scph_1000_japan_l": "PlayStation-SCPH-1000-with-Controller.jpg", "pst_console": "PSX-Console-wController.jpg",
+    "pst_playstatia_scph_5501": "Sony-PlayStation-5501-Console-FL.jpg", "pst_playstatia_scph_7501": "Sony-PlayStation-5501-Console-FR.jpg",
+    "pst_pst_one": "PSone-Console-Set-NoLCD.jpg", "pst_pst_one_lcd_screen": "Sony-PSone-Console-wScreen-Open-FL.jpg",
+    "pst_dualpad": "PSX-DualShock-Controller.jpg", "pst_playstatia_multitapp": "PlayStation-Multitap-Adaptor.jpg",
+    "pst_memcard": "PSX-Memory-Card.jpg", "pst_playstatia_gunkon_namcoo": "Namco-GunCon-PS1.jpg", "pst_playstatia_g_kon_45_namcoo": "Namco-GunCon-PS1.jpg",
+    "pst2_pst2_scph_10000_japan_launch": "Sony-PlayStation-2-30001-Console-FL.jpg",
+    "pst2_pst2_ceramic_white_japan": ["Sony-PlayStation-2-30001-Console-FL.jpg", T], "pst2_pst2_satin_silver": ["Sony-PlayStation-2-30001-Console-FL.jpg", T],
+    "pst2_pst2_ocean_blue_japan": ["Sony-PlayStation-2-30001-Console-FL.jpg", T], "pst2_pst2_sakura_pink_japan": ["Sony-PlayStation-2-30001-Console-FL.jpg", T],
+    "pst2_pst2_slimline_pink": ["PS2-slim-console.jpg", T], "pst2_pst2_network_adapter": "Sony-PlayStation-2-Network-Adaptor-Front.jpg",
+    "pst2_pst2_hard_disk_drive": "Sony-PlayStation-2-Hard-Drive-40GB.jpg", "pst2_pst2_multitapp": "Sony-PlayStation-2-Multitap.jpg",
+    "pst2_pst2_dvd_remote": "PS2-DVD-Remote.jpg", "pst2_pst2_vertical_stand": "PS2-Fat-Console-Vert.jpg",
+    "pspk_pspocket_1000_ceramic_white": ["PSP-1000.png", T], "pspk_pspocket_1000_ice_silver": ["PSP-1000.png", T],
+    "pspk_pspocket_1000_felicia_blue": ["PSP-1000.png", T], "pspk_pspocket_1000_lavender_purpl": ["PSP-1000.png", T],
+    "xbx_xbux_crystal_edition": ["Xbox-Console-FL.jpg", T], "xbx_xbux_lime_green": ["Xbox-Console-FL.jpg", T],
+    "xbx_xbux_developer_kit": "Xbox-Debug-Kit.jpg", "xbx_xbux_controller_s": "Xbox-Controller-S-FR.jpg",
+    "xbx_xbux_crystal_controller": ["Xbox-Controller-S-FR.jpg", T], "xbx_xbux_dvd_playback_kit": "Xbox-Remote-wReceiver.jpg",
+    "xbx_xbux_361_elite": "Microsoft-Xbox-360-Elite-Console-FL.jpg", "xbx_xbux_361_kinnect": "Xbox-360-Kinect-Standalone.png",
+    "dc_console": "Sega-Dreamcast-Console-FL.jpg", "dc_saga_dreamcaster_saga_sports": "Sega-Dreamcast-Sports-Black-Console.jpg",
+    "dc_dreamcaster_light_gun": "Sega-Dreamcast-Lightgun-FL.jpg", "dc_dreamcaster_arcade_stick": "Sega-Dreamcast-Arcade-Stick.jpg",
+    "dc_dreamcaster_keyboard": "Sega-Dreamcast-Keyboard.jpg", "dc_dreamcaster_mouse": "Sega-Dreamcast-Mouse-BR.jpg",
+    "dc_dreamcaster_broadbland_adapt": "Sega-Dreamcast-Broadband-Adapter-BL.jpg", "dc_dreamcaster_modem": "Sega-Dreamcast-Modem-Dialup-BL.jpg",
+    "dc_dreamcaster_jump_pack": "Dreamcast-Jump-Pack.jpg", "dc_dreamcaster_microphone": "Dreamcast-Microphone.jpg",
+    "dc_dreamcaster_vga_box": "Sega-Dreamcast-VGA-Kuro-Box.jpg",
+    "gen_saga_genesys_model_2": "Sega-Genesis-Mod2-Set.jpg", "gen_saga_genesys_model_3": "Sega-Genesis-Mod3-Set.jpg",
+    "a26_ataro_2600_light_sixxer": "Atari-2600-Light-Sixer-FL.jpg", "a26_ataro_2600_vadur": "Atari-2600-Vader-FL.jpg",
+    "a26_ataro_2600_jr": "Atari-2600-Jr-FL.jpg", "a26_ataro_2600_seers_video_arcad": "Atari-2600-Video-Arcade-II-FL.jpg",
+    "neo_neon_geo_aes_controller": "Neo-Geo-CD-Controller-FL.jpg", "neo_neon_geo_aes_arcade_stick": "Neo-Geo-AES-Controller-FL.jpg",
+    "neo_neon_geo_aes_memory_card": "Neo-Geo-Memory-Card.jpg", "neo_neon_geo_cd_front_loader": "Neo-Geo-CD-FrontLoader-wController-FL.jpg",
+}
 
 
 def api(params, pause=0.4):
@@ -186,13 +246,32 @@ def hw_queries(name):
 
 # ------------------------------------------------------------------ bulk index
 
-def thumb(url, width=640):
+def original(url):
+    """Thumbnail url -> the full file (thumbnails get throttled from here)."""
+    m = re.match(r"(.*)/thumb/(\w/\w\w/[^/]+)/\d+px-[^/]+$", url.split("?")[0])
+    return "%s/%s" % (m.group(1), m.group(2)) if m else url
+
+
+def fetch_img(url, pause=20.0, tries=7):
+    """Picture bytes, waiting out Wikimedia's throttle pages (429 / HTML):
+    upload.wikimedia.org allows only a slow trickle from cloud machines."""
+    for k in range(tries):
+        time.sleep(pause + (2 ** k) * 30 * (k > 0))
+        r = subprocess.run(["curl", "-sS", "-L", "-m", "180", "-A", fra.UA, url if k % 2 else original(url)], capture_output=True)
+        b = r.stdout
+        if b[:3] == b"\xff\xd8\xff" or b[:8] == b"\x89PNG\r\n\x1a\n" or b[:4] == b"RIFF":
+            return b
+    return b""
+
+
+def thumb(url, width=500):
     """Full Commons file url -> its thumbnail url."""
+    url = url.split("?")[0]
     m = re.match(r"(https://upload\.wikimedia\.org/wikipedia/commons)/(\w/\w\w)/(.+)$", url)
     if not m:
         return url
     name = m.group(3)
-    return "%s/thumb/%s/%s/%dpx-%s%s" % (m.group(1), m.group(2), name, width, name, ".png" if name.lower().endswith(".png") else "")
+    return "%s/thumb/%s/%s/%dpx-%s" % (m.group(1), m.group(2), name, width, name)
 
 
 def index(name, params):
@@ -201,7 +280,7 @@ def index(name, params):
     is a handful of calls. [(title, thumb url, w, h, user, mime)]"""
     f = os.path.join(CACHE, "commons_index_%s.json" % name)
     if os.path.exists(f):
-        return [tuple(x) for x in json.load(open(f))]
+        return [tuple(x[:1] + [thumb(x[1].split("?")[0].replace("/thumb/", "/"))] + x[2:]) for x in json.load(open(f))]
     part = f + ".part"
     out, cont = [], {}
     if os.path.exists(part):
@@ -346,36 +425,26 @@ def base_photo(iid, title):
 
 
 def save_hw(cand, force, only):
+    """Saves the hand-picked photos (PICKS) from the Evan-Amos listing."""
+    by = {h[0][5:]: h for h in index("evan_amos", {"aiuser": "Evan-Amos", "aisort": "timestamp"})}
+    names = {}
+    for iid, title, _p, _k in hw_items(""):
+        names[iid] = title
     got = 0
-    for iid, c in cand.items():
+    for iid, pick in PICKS.items():
         if only and only not in iid:
             continue
         if fra.have("games", iid, "photo") and not force:
             continue
-        hit = None
-        if iid in PICKS:
-            hit = next((h for h in c["hits"] if h[1] == PICKS[iid]), None)
-            if hit is None and PICKS[iid]:
-                r = api({"action": "query", "titles": PICKS[iid], "prop": "imageinfo", "iiprop": "url", "iiurlwidth": 640})
-                for p in r.get("query", {}).get("pages", {}).values():
-                    ii = (p.get("imageinfo") or [{}])[0]
-                    if ii.get("thumburl"):
-                        hit = [99, p["title"], ii["thumburl"]]
-        elif c["hits"] and c["hits"][0][0] >= 8:
-            hit = c["hits"][0]
+        f, tint = (pick[0], True) if isinstance(pick, list) else (pick, False)
+        hit = by.get(f)
         if not hit:
-            rgb = edition_rgb(c["name"])
-            b = base_photo(iid, c["name"]) if rgb else None
-            if b:
-                png = os.path.join(ROOT, "assets/temp_test/games/%s_photo.png" % iid)
-                if recolour(b[1], rgb, png):
-                    fwa.log(os.path.relpath(png, ROOT), "recoloured from " + os.path.relpath(b[1], ROOT))
-                    got += 1
-                    print("tint", iid, "<-", b[2], flush=True)
+            print("  not listed", iid, f)
             continue
         rel = "assets/temp_test/games/%s_photo.jpg" % iid
-        data = fra.get(hit[2], pause=0.3)
+        data = fetch_img(hit[1])
         if not data:
+            print("  no data", iid)
             continue
         try:
             fra.save(data, os.path.join(ROOT, rel), 0.0)
@@ -383,9 +452,16 @@ def save_hw(cand, force, only):
             print("  skip", iid, e)
             continue
         png = fra.cutout(os.path.join(ROOT, rel))
-        fwa.log(os.path.relpath(png, ROOT), hit[2])
+        if tint:
+            rgb = edition_rgb(names.get(iid, ""))
+            out = os.path.join(ROOT, "assets/temp_test/games/%s_photo.png" % iid)
+            if rgb and recolour(png, rgb, out):
+                if png != out:
+                    os.remove(png)
+                png = out
+        fwa.log(os.path.relpath(png, ROOT), hit[1].replace("/thumb/", "/").rsplit("/", 1)[0] + (" (recoloured)" if tint else ""))
         got += 1
-        print("ok", iid, "<-", hit[1], flush=True)
+        print("ok", iid, "<-", f, "tint" if tint else "", flush=True)
     print("hw photos saved", got)
     subprocess.run([sys.executable, os.path.join(ROOT, "tools", "gen_catalog.py")])
 
@@ -403,6 +479,80 @@ COIN_TYPE = [  # name words -> Commons search words for the type
     ("Chain Cent", "chain cent"), ("Wreath Cent", "wreath cent"), ("Large Cent", "large cent"), ("Two-Cent", "two-cent piece"),
     ("Three-Cent", "three-cent"), ("Twenty-Cent", "twenty-cent piece"), ("Half Cent", "half cent"), ("Eisenhower", "Eisenhower dollar"),
     ("Sacagawea", "Sacagawea dollar"), ("Susan B", "Susan B. Anthony dollar"), ("Brasher", "Brasher doubloon"), ("Gobrecht", "Gobrecht dollar")]
+
+# US coins -> the Smithsonian NNC photo of that design (obverse and reverse
+# side by side). Same design = same look; the year matches where the NNC has
+# that very coin (1913 Liberty nickel, 1822 half eagle, 1849 pattern...).
+# First rule whose words are all in the name wins; "!" = must not contain.
+NNC_RULES = [
+    (["1933", "Saint-Gaudens"], "NNC-US-1933-G$20-Saint Gaudens.jpg"),
+    (["Ultra High Relief"], "NNC-US-1907-G$20-Saint Gaudens (Roman, ultra high relief, wire edge).jpg"),
+    (["1907 High Relief"], "NNC-US-1907-G$20-Saint Gaudens (Roman, high relief).jpg"),
+    (["Saint-Gaudens"], "NNC-US-1908-D-G$20-Saint Gaudens (Arabic & motto).jpg"),
+    (["Flowing Hair Silver Dollar"], "NNC-US-1795-$1-Flowing hair.jpg"),
+    (["Draped Bust Dollar"], "NNC-US-1798-$1-Draped bust (heraldic eagle).jpg"),
+    (["1913 Liberty Head Nickel"], "NNC-US-1913-5C-Liberty Nickel (cents).jpg"),
+    (["No Cents Liberty Nickel"], "NNC-US-1883-5C-Liberty Nickel (no cents).jpg"),
+    (["Liberty Head Nickel"], "NNC-US-1887-5C-Liberty Nickel (cents).jpg"),
+    (["1822 Capped Bust Half Eagle"], "NNC-US-1822-G$5-Capped Head (large diameter).jpg"),
+    (["Capped Bust Half Eagle"], "NNC-US-1795-G$5-Turban Head (small eagle).jpg"),
+    (["Double Eagle Pattern"], "NNC-US-1849-G$20-Liberty Head (Twenty D.).jpg"),
+    (["Seated Liberty Dollar"], "NNC-US-1873-1$-Seated Liberty (motto).jpg"),
+    (["Barber Dime"], "NNC-US-1892-10C-Barber Dime.jpg"),
+    (["Steel Lincoln"], "NNC-US-1943-1C-Lincoln Cent (wheat, zinc-coated steel).jpg"),
+    (["Lincoln Cent", "!19 6", "!1969", "!1972", "!1983", "!1995"], "NNC-US-1909-1C-Lincoln Cent (wheat).jpg"),
+    (["Wheat Penny"], "NNC-US-1909-1C-Lincoln Cent (wheat).jpg"),
+    (["Chain Cent"], "NNC-US-1793-1C-Flowing Hair Cent (chain).jpg"),
+    (["Wreath Cent"], "NNC-US-1793-1C-Flowing Hair Cent (wreath).jpg"),
+    (["Liberty Cap Cent"], "NNC-US-1794-1C-Liberty Cap Cent.jpg"),
+    (["Draped Bust Cent"], "NNC-US-1803-1C-Draped Bust Cent.jpg"),
+    (["Flying Eagle Cent"], "NNC-US-1858-1C-Flying Eagle Cent.jpg"),
+    (["Buffalo Nickel"], "NNC-US-1913-5C-Buffalo Nickel (TyII-line).jpg"),
+    (["Indian Head Cent"], "NNC-US-1860-1C-Indian Head Cent (wreath & shield).jpg"),
+    (["Liberty Cap Half Cent"], "NNC-US-1794-½C-Liberty Cap Half Cent (right).jpg"),
+    (["Classic Head Half Cent"], "NNC-US-1828-½C-Classic Head Half Cent (proof).jpg"),
+    (["Braided Hair Half Cent"], "NNC-US-1844-½C-Braided Hair Half Cent (proof).jpg"),
+    (["Shield Nickel With Rays"], "NNC-US-1866-5C-Shield Nickel (rays).jpg"),
+    (["Shield Nickel"], "NNC-US-1873-5C-Shield Nickel (stars).jpg"),
+    (["Three Cent Nickel"], "NNC-US-1865-3C-Three-Cent, Nickel.jpg"),
+    (["Booby Head Cent"], "NNC-US-1839-1C-Matron Head Cent.jpg"),
+    (["Jefferson Nickel"], "NNC-US-1938-5C-Jefferson Nickel.jpg"),
+    (["Monticello Nickel"], "NNC-US-1938-5C-Jefferson Nickel.jpg"),
+    (["Seated Dime"], "NNC-US-1860-10C-Seated Liberty (legend).jpg"),
+    (["Morgan Dollar"], "NNC-US-1878-CC-1$-Morgan dollar.jpg"),
+    (["Gobrecht Dollar"], "NNC-US-1836-1$-Gobrecht dollar (plain edge & name).jpg"),
+    (["Seated Liberty Quarter"], "NNC-US-1873-25C-Seated Liberty (no arrows).jpg"),
+    (["Trade Dollar"], "NNC-US-1873-1$-Seated Liberty (Trade dollar).jpg"),
+    (["Peace Dollar"], "NNC-US-1921-1$-Peace dollar.jpg"),
+    (["Draped Bust Dime"], "NNC-US-1797-10C-Draped Bust (small eagle).jpg"),
+    (["Indian Princess Three Dollar"], "NNC-US-1854-G$3-Indian Princess Head.jpg"),
+    (["Flowing Hair Stella"], "NNC-US-1879-G$4-Stella Pattern (Flowing Hair).jpg"),
+    (["Coiled Hair Stella"], "NNC-US-1880-G$4-Stella Pattern (Coiled Hair).jpg"),
+    (["Draped Bust Eagle"], "NNC-US-1797-G$10-Turban Head (heraldic eagle).jpg"),
+    (["1854-O Liberty Double Eagle"], "NNC-US-1849-G$20-Liberty Head (Twenty D.).jpg"),
+    (["Paquet Reverse"], "NNC-US-1849-G$20-Liberty Head (Twenty D.).jpg"),
+    (["Liberty Head Double Eagle"], "NNC-US-1877-G$20-Liberty Head (Twenty Dollars & motto).jpg"),
+    (["No Stars Quarter Eagle"], "NNC-US-1796-G$2½-Turban Head (no stars).jpg"),
+    (["Liberty Head Quarter Eagle"], "NNC-US-1848-G$2½-Liberty Head (CAL).jpg"),
+    (["Rolled Edge Indian Eagle"], "NNC-US-1907-G$10-Indian Head (no motto).jpg"),
+    (["Indian Head Eagle"], "NNC-US-1908-G$10-Indian Head (motto).jpg"),
+    (["Classic Head Half Eagle"], "NNC-US-1834-G$5-Classic Head.jpg"),
+    (["1853 Liberty Gold Dollar"], "NNC-US-1849-G$1-Liberty head (Ty1).jpg"),
+    (["Gold Dollar", "!Louisiana"], "NNC-US-1856-G$1-Indian head (Ty3).jpg"),
+    (["Indian Head Quarter Eagle"], "NNC-US-1908-G$2½-Indian Head.jpg"),
+    (["Indian Head Half Eagle"], "NNC-US-1908-G$5-Indian Head.jpg"),
+    (["Liberty Head Eagle"], "NNC-US-1866-G$10-Liberty Head (new style & motto).jpg"),
+    (["Liberty Head Half Eagle"], "NNC-US-1866-G$5-Liberty Head (motto).jpg"),
+]
+
+
+def nnc_file(name):
+    for words, f in NNC_RULES:
+        if all((w[1:] not in name) if w.startswith("!") else (w in name) for w in words):
+            return f
+    return ""
+
+
 COIN_BAD = ("banknote", "note", "stamp", "medal", "token", "box", "holder", "slab", "pcgs", "ngc", "map", "portrait", "painting",
             "statue", "building", "die", "dies", "press", "hoard", "pile", "lot", "roll", "bag", "jewelry", "pendant")
 
@@ -469,9 +619,12 @@ def find_coins(force, only):
         if iid in cand and not force:
             continue
         hits = {}
-        if d["country"] == "United States":
-            hits = {h[0]: h for h in index("nnc_us", {"aiprefix": "NNC-US-"})}
-        if "--search" in sys.argv or d["country"] != "United States":
+        if nnc_file(d["name"]):
+            cand[iid] = {"name": d["name"], "hits": []}
+            continue
+        if "--search" not in sys.argv:
+            continue  # one search per coin, ~30 s each from here: opt in
+        if True:
             for q in coin_queries(d)[:1]:
                 for hit in search(q, 20):
                     hits[hit[0]] = hit
@@ -481,6 +634,8 @@ def find_coins(force, only):
         print("%-40s %s" % (iid, ("%3d %s" % (best[0], best[1][0])) if best else "-"), flush=True)
         os.makedirs(CACHE, exist_ok=True)
         json.dump(cand, open(f, "w"), indent=1)
+    os.makedirs(CACHE, exist_ok=True)
+    json.dump(cand, open(f, "w"), indent=1)
     return cand
 
 
@@ -532,6 +687,11 @@ def save_coins(cand, force, only):
         if os.path.exists(os.path.join(ROOT, rel)) and not force:
             continue
         hits = c["hits"]
+        nf = nnc_file(c["name"])
+        if nf:
+            by = {h[0][5:]: h for h in index("nnc_us", {"aiprefix": "NNC-US-"})}
+            if nf in by:
+                hits = [[99] + list(by[nf])]
         pick = PICKS.get(iid)
         if pick is not None:
             hits = [h for h in hits if h[1] == pick]
@@ -540,7 +700,7 @@ def save_coins(cand, force, only):
         if not hits:
             continue
         hit = hits[0]
-        data = fra.get(hit[2], pause=0.3)
+        data = fetch_img(hit[2].replace("/500px-", "/960px-"))
         if not data:
             continue
         try:
@@ -556,7 +716,7 @@ def save_coins(cand, force, only):
                 other = t.replace("reverse", "obverse").replace("Reverse", "Obverse").replace("rev", "obv").replace("Rev", "Obv")
             mate = next((h for h in c["hits"] if h[1] == other and other != t), None)
             if mate:
-                d2 = fra.get(mate[2], pause=0.3)
+                d2 = fetch_img(mate[2])
                 try:
                     f2 = faces(d2)[0]
                     fs = [f2, fs[0]] if re.search(r"rev", t, re.I) and not re.search(r"obv", t, re.I) else [fs[0], f2]
