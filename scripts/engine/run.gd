@@ -650,13 +650,13 @@ func supply_targets(id: String) -> Array:
 	for it in shelf:
 		match id:
 			"cleaning_kit":
-				if Catalog.CONDITIONS.find(String(it["cond"])) < Catalog.CONDITIONS.find("CIB"):
+				if Catalog.CONDITIONS.find(String(it["cond"])) < Catalog.CONDITIONS.find("CIB") and int(it["tier"]) <= 1:
 					out.append(it)
 			"flyer":
 				if not hot.has(String(it["plat"])):
 					out.append(it)
 			"copier":
-				if int(it["tier"]) <= 1:
+				if int(it["tier"]) <= 0:
 					out.append(it)
 	return out
 
@@ -1078,7 +1078,7 @@ func buy(index: int) -> Dictionary:
 	var o: Dictionary = stock[index]
 	var price := int(o["price"])
 	if half_off:
-		price = int(ceil(price * 0.5))
+		price = maxi(int(ceil(price * 0.5)), price - Balance.GIFT_CAP)
 	if cash < price:
 		return _fail("Need $%d." % price)
 	if free_slots() <= 0:
@@ -1708,15 +1708,15 @@ func appraise() -> Dictionary:
 			notes.append("Gold Bug x2")
 		if calls.has("condition_snob"):
 			if cond == "Mint" or cond == "Sealed":
-				v *= 2.0
-				notes.append("Condition Snob x2")
+				v *= 1.5
+				notes.append("Condition Snob x1.5")
 			elif cond == "Damaged" or cond == "Loose":
 				v = 0.0
 				notes.append("Condition Snob: $0")
 		if call_plat != "":
 			var mine := String(it["plat"]) == call_plat
-			v *= 2.0 if mine else 0.5
-			notes.append("Specialist x2" if mine else "Specialist x0.5")
+			v *= 1.5 if mine else 0.5
+			notes.append("Specialist x1.5" if mine else "Specialist x0.5")
 		if boss_active("picky") and (cond == "Damaged" or cond == "Loose"):
 			v *= 0.5
 			notes.append("Picky x0.5")

@@ -337,7 +337,7 @@ func test_supply_effects() -> void:
 	var price := int(r.stock[0]["price"])
 	var cash := r.cash
 	assert_true(r.buy(0)["ok"])
-	assert_eq(r.cash, cash - int(ceil(price * 0.5)))
+	assert_eq(r.cash, cash - maxi(int(ceil(price * 0.5)), price - Balance.GIFT_CAP))
 	assert_false(r.half_off)
 	if float(r.venue["haggle"]) > 0.0 and not r.stock.is_empty():
 		assert_true(r.use_supply("lucky_penny")["ok"])
@@ -428,7 +428,7 @@ func test_landline_deals() -> void:
 	r.call_offer = ["specialist"]
 	r.call_take("specialist")
 	assert_eq(r.call_plat, String(a["plat"]))
-	assert_eq(int(r.appraise()["chips"]), base * 2)
+	assert_almost_eq(float(r.appraise()["chips"]), base * 1.5, 1.0)
 	# Collateral takes the best item and pays x1.5 this ante only.
 	r.call_offer = ["collateral"]
 	var m := float(r.appraise()["mult"])

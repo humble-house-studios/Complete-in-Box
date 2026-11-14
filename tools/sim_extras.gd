@@ -43,6 +43,8 @@ func _go(tag: String, opts: Dictionary) -> void:
 	var used := 0
 	var deaths := {}
 	var tally := {}
+	var ratios: Array = []
+	var cashes: Array = []
 	for i in n:
 		var run := Run.new()
 		run.start(1000 + i)
@@ -57,11 +59,17 @@ func _go(tag: String, opts: Dictionary) -> void:
 		used += int(run.stats.get("supplies", 0))
 		if bool(r["won"]):
 			wins += 1
+			ratios.append(float(r["appraisal"]) / float(maxi(1, run.target())))
+			cashes.append(run.cash)
 		else:
 			deaths[int(r["ante"])] = int(deaths.get(int(r["ante"]), 0)) + 1
 	var parts: Array = []
 	for a in range(1, 9):
 		parts.append(str(int(deaths.get(a, 0))))
 	print("EXTRAS %-22s wins=%3.0f%%  avg_ante=%.2f  deals/run=%.1f  supplies/run=%.1f  deaths A1-8: %s" % [tag, 100.0 * wins / n, float(ante_sum) / n, float(took) / n, float(used) / n, " ".join(parts)])
+	ratios.sort()
+	cashes.sort()
+	if not ratios.is_empty():
+		print("EXTRAS   winners' final score/target: p10=%.2f median=%.2f p90=%.2f   final cash median=$%d" % [ratios[ratios.size() / 10], ratios[ratios.size() / 2], ratios[ratios.size() * 9 / 10], cashes[cashes.size() / 2]])
 	if not tally.is_empty() and tag == "ALL":
 		print("EXTRAS   taken: ", tally)
