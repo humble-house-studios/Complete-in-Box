@@ -234,7 +234,7 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	# Test-only real pictures (tools/fetch_retro_art.py): a product photo cut out
 	# of its white backdrop for hardware, the real box scan for games.
-	var photo := _tex(String(item.get("photo", "")))
+	var photo := _tex(_pic(item, "photo"))
 	if photo != null:
 		_product = photo
 	var plat := String(item["plat"])
@@ -249,7 +249,7 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 	if variant == "Test Cart":
 		_test_label(c, item)
 		return
-	var scan := _tex(String(item.get("scan", ""))) if item["kind"] == "game" else null
+	var scan := _tex(_pic(item, "scan")) if item["kind"] == "game" else null
 	if scan != null:
 		_scan(c, scan)
 		_variant_overlay(c, item, variant)
@@ -333,6 +333,13 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 	CoverComp.publisher_mark(c, item, W, H)
 	_variant_overlay(c, item, variant)
 	_tier_frame(c, item, variant)
+
+
+## A real picture path: run copies are slim, so read it from the catalog def.
+static func _pic(item: Dictionary, key: String) -> String:
+	if item.has(key):
+		return String(item[key])
+	return String(Catalog.get_def(String(item.get("id", ""))).get(key, ""))
 
 
 static func _tex(path: String) -> Texture2D:
@@ -431,7 +438,7 @@ static func paint_back(c: Control, item: Dictionary) -> void:
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
 	# Test-only real pictures (tools/fetch_retro_art.py): a product photo cut out
 	# of its white backdrop for hardware, the real box scan for games.
-	var photo := _tex(String(item.get("photo", "")))
+	var photo := _tex(_pic(item, "photo"))
 	if photo != null:
 		_product = photo
 	var plat := String(item["plat"])
