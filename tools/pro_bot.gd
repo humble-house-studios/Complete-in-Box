@@ -15,6 +15,7 @@ var use_calls := false
 ## Balance probes: always take this deal when it's offered (and no other).
 var force_call := ""
 var only_supply := ""
+var ban_call := ""
 const SUPPLY_LIKES := ["spotlight", "cleaning_kit", "copier", "energy", "gift_card", "flyer", "lucky_penny"]
 
 ## Perks it likes, best first (mult and economy that work with any shelf).
@@ -229,6 +230,8 @@ func _answer_call() -> void:
 	var best := ""
 	var best_v := 0.0
 	for id in run.call_offer:
+		if String(id) == ban_call:
+			continue
 		var v := _call_value(String(id))
 		if v > best_v:
 			best_v = v

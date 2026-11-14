@@ -81,7 +81,7 @@ const SUPPLIES := [
 	{"id": "loupe", "name": "Jeweler's Loupe", "cost": 3, "when": "venue", "desc": "See exact values for the rest of this stop."},
 	{"id": "lucky_penny", "name": "Lucky Penny", "cost": 3, "when": "venue", "desc": "Your next haggle can't fail."},
 	{"id": "gift_card", "name": "Gift Card", "cost": 5, "when": "venue", "desc": "Your next buy off the table is half price."},
-	{"id": "cleaning_kit", "name": "Cleaning Kit", "cost": 4, "when": "any", "target": true, "desc": "One shelf item goes up a condition step (up to Mint)."},
+	{"id": "cleaning_kit", "name": "Cleaning Kit", "cost": 5, "when": "any", "target": true, "desc": "A Damaged or Loose shelf item goes up one condition step."},
 	{"id": "flyer", "name": "Hype Flyer", "cost": 4, "when": "any", "target": true, "desc": "Pick a shelf item: its whole platform runs HOT through the next appraisal."},
 	{"id": "copier", "name": "Shady Copier", "cost": 6, "when": "any", "target": true, "desc": "Copy a Common or Uncommon item on your shelf. Needs a free slot."},
 	{"id": "spotlight", "name": "Display Spotlight", "cost": 4, "when": "any", "desc": "+1 Mult at your next appraisal."},
@@ -90,8 +90,8 @@ const SUPPLIES := [
 ## Grab bags (Balatro's booster packs): one at Home each stop, pick 1 of the lot.
 const BAGS := [
 	{"id": "items", "name": "Garage Sale Box", "picks": 3, "desc": "Three finds from a stranger's garage. Keep one."},
-	{"id": "supplies", "name": "Junk Drawer", "picks": 3, "cost": 4, "desc": "Three one-use supplies. Keep one."},
-	{"id": "perks", "name": "Dusty Crate", "picks": 2, "cost": 5, "desc": "Two perks from the back of the attic. Keep one."},
+	{"id": "supplies", "name": "Junk Drawer", "picks": 3, "cost": 5, "desc": "Three one-use supplies. Keep one."},
+	{"id": "perks", "name": "Dusty Crate", "picks": 2, "cost": 8, "desc": "Two perks from the back of the attic. Keep one."},
 ]
 
 
@@ -105,11 +105,11 @@ const CALLS := [
 		"desc": "+2 shelf slots for the rest of the run. Every target is 10% higher.", "quote": "\"Shelving Depot, courtesy call. We deliver. He'll notice the extra space, though.\""},
 	{"id": "specialist", "caller": "stranger", "once": true, "name": "The Specialist", "pitch": "One platform x2. All others half.",
 		"desc": "%s items appraise for x2 for the rest of the run. Everything else appraises for half.", "quote": "\"Pick a lane, kid. Nobody respects a generalist.\""},
-	{"id": "night_owl", "caller": "stranger", "name": "Night Owl", "pitch": "+2 Time every stop. Tables hold 1 less.",
+	{"id": "night_owl", "caller": "stranger", "once": true, "name": "Night Owl", "pitch": "+2 Time every stop. Tables hold 1 less.",
 		"desc": "+2 Time at every stop for the rest of the run. Every table starts with one item fewer.", "quote": "\"The good stuff's gone by nine. The patient stuff is still there at midnight.\""},
-	{"id": "bulk_buyer", "caller": "stranger", "once": true, "name": "Bulk Buyer", "pitch": "Sets need 2 items, not 3.",
-		"desc": "Platform Sets start at 2 items instead of 3 (and the big set at 4 instead of 5).", "quote": "\"Two's a pair. A pair's a set. That's what I tell the appraiser, anyway.\""},
-	{"id": "perk_slot", "caller": "stranger", "name": "Wrong Number", "pitch": "+1 perk slot. No catch.",
+	{"id": "bulk_buyer", "caller": "stranger", "once": true, "name": "Bulk Buyer", "pitch": "Pairs count as small sets.",
+		"desc": "Two items from one platform now count as a small set: +0.25 Mult per pair. Bigger sets pay as before.", "quote": "\"Two's a pair. A pair's a set. That's what I tell the appraiser, anyway.\""},
+	{"id": "perk_slot", "caller": "stranger", "once": true, "name": "Wrong Number", "pitch": "+1 perk slot. No catch.",
 		"desc": "+1 perk slot. They hang up before you can ask who Deborah is.", "quote": "\"Deborah? I left the backpack on your porch. ...This isn't Deborah.\""},
 	{"id": "prize", "caller": "stranger", "name": "You've Won!", "pitch": "A free Garage Sale Box, opened.",
 		"desc": "A free Garage Sale Box, already open: keep one of three finds.", "quote": "\"Congratulations! You are our ONE MILLIONTH caller. Please do not ask follow-up questions.\""},

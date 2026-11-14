@@ -650,7 +650,7 @@ func supply_targets(id: String) -> Array:
 	for it in shelf:
 		match id:
 			"cleaning_kit":
-				if Catalog.CONDITIONS.find(String(it["cond"])) < Catalog.CONDITIONS.find("Mint"):
+				if Catalog.CONDITIONS.find(String(it["cond"])) < Catalog.CONDITIONS.find("CIB"):
 					out.append(it)
 			"flyer":
 				if not hot.has(String(it["plat"])):
@@ -1562,7 +1562,7 @@ func call_best_item() -> Dictionary:
 
 
 func call_cash(id: String) -> int:
-	return 25 + 10 * ante if id == "advance" else 4 + 2 * ante
+	return 10 + 5 * ante if id == "advance" else 2 + ante
 
 
 ## The deal's full terms with this run's numbers filled in.
@@ -1648,7 +1648,7 @@ func call_hangup() -> Dictionary:
 	if call_offer.is_empty():
 		return _fail("Nobody's there.")
 	call_offer.clear()
-	var tip := Balance.HANGUP_TIP + ante
+	var tip := Balance.HANGUP_TIP
 	cash += tip
 	return _ok("Click. Found $%d in the couch on the way back." % tip)
 
@@ -1750,9 +1750,8 @@ func appraise() -> Dictionary:
 		var set_scale := 2.0 if has_perk("completionist") else 1.0
 		for p in per_plat.keys():
 			var n := int(per_plat[p])
-			var bulk := 1 if calls.has("bulk_buyer") else 0
-			if n >= 3 - bulk:
-				var b := (1.0 if n >= 5 - bulk else 0.5) * set_scale
+			if n >= 3 or (n == 2 and calls.has("bulk_buyer")):
+				var b := (1.0 if n >= 5 else (0.5 if n >= 3 else 0.25)) * set_scale
 				add += b
 				bonuses.append({"label": "%s Set (%d)" % [Catalog.platform(p)["short"], n], "add": b, "times": 1.0})
 			var k: Dictionary = kinds[p]

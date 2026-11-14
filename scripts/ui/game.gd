@@ -5466,7 +5466,7 @@ func _open_call() -> void:
 		["Tap an offer to hear the terms.", MUTED],
 	], [
 		["Redial for 3 new offers  %s" % _money(run.redial_cost), _redial, Color("4a1f28")],
-		["Hang up  +%s" % _money(Balance.HANGUP_TIP + run.ante), func(): _act(run.call_hangup(), "close"), BAD, true],
+		["Hang up  +%s" % _money(Balance.HANGUP_TIP), func(): _act(run.call_hangup(), "close"), BAD, true],
 	])
 
 

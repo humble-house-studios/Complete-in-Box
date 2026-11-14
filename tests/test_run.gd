@@ -317,6 +317,8 @@ func test_supply_effects() -> void:
 	r.supplies = ["cleaning_kit", "copier"]
 	assert_true(r.use_supply("cleaning_kit", int(it["uid"]))["ok"])
 	assert_eq(String(it["cond"]), "CIB")
+	assert_false(r.use_supply("cleaning_kit", int(it["uid"]))["ok"], "only fixes up rough copies")
+	r.supplies = ["copier"]
 	assert_true(r.use_supply("copier", int(it["uid"]))["ok"])
 	assert_eq(r.shelf.size(), 2)
 	assert_ne(int(r.shelf[1]["uid"]), int(it["uid"]))
