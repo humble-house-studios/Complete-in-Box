@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cj88awj4m8omc"
-path="res://.godot/imported/grid_jim_browne_1958_scan.png-b390ffe70b1b07204cf03eb22af1a4d1.ctex"
+uid="uid://do8e2fiv7xs2t"
+path="res://.godot/imported/grid_jerry_ryce_1986_scan.jpg-2564241306639e0a61249cf7a3444de5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/temp_test/sports/grid_jim_browne_1958_scan.png"
-dest_files=["res://.godot/imported/grid_jim_browne_1958_scan.png-b390ffe70b1b07204cf03eb22af1a4d1.ctex"]
+source_file="res://assets/temp_test/sports/grid_jerry_ryce_1986_scan.jpg"
+dest_files=["res://.godot/imported/grid_jerry_ryce_1986_scan.jpg-2564241306639e0a61249cf7a3444de5.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
