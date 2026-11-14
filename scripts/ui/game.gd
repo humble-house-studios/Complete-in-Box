@@ -2036,6 +2036,7 @@ func _sticker(text: String, color: Color = STICKER, fs: int = 26) -> PanelContai
 
 const CARD_RATIO := 1.4
 const CARD_CREAM := Color("f2ead8")
+const CARD_FOIL := preload("res://assets/shaders/card_foil.gdshader")
 var _card_faces: Array = []
 
 
@@ -2059,6 +2060,20 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	var k := w / 160.0  # trim scales with the card
 	var kt := k * 1.18 / FONT_SCALE  # text too, minus the landscape boost
 
+	var shadow := Panel.new()
+	shadow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shadow.offset_left = 6 * k
+	shadow.offset_right = -6 * k
+	shadow.offset_top = 10 * k
+	shadow.offset_bottom = 8 * k
+	var shs := StyleBoxFlat.new()
+	shs.bg_color = Color(0, 0, 0, 0.35)
+	shs.set_corner_radius_all(int(12 * k))
+	shs.shadow_color = Color(0, 0, 0, 0.3)
+	shs.shadow_size = int(8 * k)
+	shadow.add_theme_stylebox_override("panel", shs)
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(shadow)
 	var face := Control.new()
 	face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2072,9 +2087,9 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	ost.set_corner_radius_all(int(10 * k + 2))
 	ost.set_border_width_all(2)
 	ost.border_color = Color("17131f")
-	ost.shadow_color = Color(0, 0, 0, 0.55)
-	ost.shadow_size = 6
-	ost.shadow_offset = Vector2(0, 7)
+	ost.shadow_color = Color(0, 0, 0, 0.35)
+	ost.shadow_size = 2
+	ost.shadow_offset = Vector2(0, 3)
 	outer.add_theme_stylebox_override("panel", ost)
 	face.add_child(outer)
 	# Platform-coloured face inside the cream border.
@@ -2089,8 +2104,22 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	var is_ := StyleBoxFlat.new()
 	is_.bg_color = pcol.darkened(0.12) if not dim else pcol.darkened(0.55)
 	is_.set_corner_radius_all(int(7 * k + 1))
+	is_.set_border_width_all(2)
+	is_.border_color = pcol.darkened(0.5)
 	inner.add_theme_stylebox_override("panel", is_)
 	face.add_child(inner)
+	# Light from the top: the face brightens upward, darkens to the bottom.
+	var shade := TextureRect.new()
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.offset_left = 2
+	shade.offset_top = 2
+	shade.offset_right = -2
+	shade.offset_bottom = -2
+	shade.texture = _card_shade_tex()
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(shade)
 	# Faint diagonal stripes on the face.
 	var stripes := Control.new()
 	stripes.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -2127,7 +2156,7 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	# Art window framed in the tier colour (glows for rare and grail).
 	var art := PanelContainer.new()
 	var as_ := StyleBoxFlat.new()
-	as_.bg_color = Color(0.05, 0.04, 0.08, 0.6)
+	as_.bg_color = Color(0.05, 0.04, 0.08, 0.72)
 	as_.set_corner_radius_all(int(6 * k))
 	as_.set_border_width_all(maxi(2, int(3 * k)))
 	as_.border_color = tcol if tier > 0 else Color(1, 1, 1, 0.35)
@@ -2139,7 +2168,14 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	art.add_theme_stylebox_override("panel", as_)
 	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ic := _icon(item, roundf(w * 0.42))
+	var spot := TextureRect.new()
+	spot.texture = _card_spot_tex()
+	spot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	spot.stretch_mode = TextureRect.STRETCH_SCALE
+	spot.modulate = Color(tcol if tier > 0 else Color(1, 1, 1), 0.5 if tier > 0 else 0.25)
+	spot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.add_child(spot)
+	var ic := _icon(item, roundf(w * 0.4))
 	if dim:
 		ic.modulate = Color(0.6, 0.6, 0.7)
 	art.add_child(ic)
@@ -2150,7 +2186,8 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 		art.add_child(g)
 	col.add_child(art)
 	# Name, kept clear of the flipped corner pip.
-	var nm := _title_label(String(item["name"]), int(19 * kt), INK if not dim else MUTED)
+	var nmt := String(item["name"])
+	var nm := _title_label(nmt, int((19 if nmt.length() < 16 else 16) * kt), INK if not dim else MUTED)
 	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -2159,8 +2196,8 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nm.custom_minimum_size = Vector2(1, 0)
 	var nmm := MarginContainer.new()
-	nmm.add_theme_constant_override("margin_left", int(20 * k))
-	nmm.add_theme_constant_override("margin_right", int(20 * k))
+	nmm.add_theme_constant_override("margin_left", int(18 * k))
+	nmm.add_theme_constant_override("margin_right", int(18 * k))
 	nmm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	nmm.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	nmm.add_child(nm)
@@ -2175,6 +2212,18 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	br.rotation = PI
 	br.resized.connect(func(): br.pivot_offset = br.size * 0.5)
 	inner.add_child(br)
+	# Foil shine on rare and grail cards.
+	if tier >= 2 and not Lite.perf and not dim:
+		var foil := ColorRect.new()
+		foil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		foil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var fm := ShaderMaterial.new()
+		fm.shader = CARD_FOIL
+		fm.set_shader_parameter("phase", randf())
+		fm.set_shader_parameter("rainbow", 1.0 if tier >= 3 else 0.0)
+		fm.set_shader_parameter("strength", 0.5 if tier >= 3 else 0.35)
+		foil.material = fm
+		inner.add_child(foil)
 	# WORTH bar.
 	var bar := PanelContainer.new()
 	var bs := StyleBoxFlat.new()
@@ -2201,22 +2250,27 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	# Sticker hanging off the bottom-right corner.
 	if String(money.get("sticker", "")) != "":
 		var sk := _sticker(String(money["sticker"]), money.get("sticker_col", STICKER), int(22 * kt))
-		sk.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE)
-		sk.offset_left -= 6 * k
-		sk.offset_right -= 6 * k
-		sk.offset_top += 10 * k
-		sk.offset_bottom += 10 * k
+		sk.anchor_left = 1.0
+		sk.anchor_right = 1.0
+		sk.anchor_top = 1.0
+		sk.anchor_bottom = 1.0
+		sk.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		sk.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		sk.offset_left = -6 * k
+		sk.offset_right = -6 * k
+		sk.offset_top = 14 * k
+		sk.offset_bottom = 14 * k
 		sk.rotation_degrees = -7.0
-		sk.z_index = 2
 		face.add_child(sk)
 	# Tag on the top edge.
 	if String(money.get("tag", "")) != "":
 		var tg := _pill(String(money["tag"]), money.get("tag_col", GOLD), int(13 * kt))
-		tg.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
-		tg.offset_top -= 10 * k
-		tg.offset_bottom -= 10 * k
+		tg.anchor_left = 0.5
+		tg.anchor_right = 0.5
+		tg.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		tg.offset_top = -10 * k
+		tg.offset_bottom = -10 * k
 		tg.rotation_degrees = -2.0
-		tg.z_index = 2
 		face.add_child(tg)
 	# Highlight + motion.
 	face.set_meta("phase", randf() * TAU)
@@ -2226,15 +2280,25 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	var up := func(on: bool):
 		if is_instance_valid(face):
 			face.set_meta("goal", 1.0 if on else 0.0)
-	b.focus_entered.connect(up.bind(true))
+	b.focus_entered.connect(func():
+		if _pad:
+			up.call(true))
 	b.focus_exited.connect(up.bind(false))
 	b.mouse_entered.connect(func():
-		if not OS.has_feature("mobile") and not OS.has_feature("web_ios") and not OS.has_feature("web_android"):
+		if not _pad and not _touchy():
 			up.call(true))
 	b.mouse_exited.connect(up.bind(false))
 	b.button_down.connect(func():
 		if is_instance_valid(face):
-			face.set_meta("lv", -6.0))
+			face.set_meta("lv", -8.0)
+			if _touchy():
+				up.call(true))
+	b.button_up.connect(func():
+		if _touchy():
+			up.call(false))
+	b.tree_exiting.connect(func(): up.call(false))
+	face.set_meta("shadow", shadow)
+	face.set_meta("btn", b)
 	_card_faces.append(face)
 	_ignore_mouse(b)
 	return b
@@ -2242,9 +2306,9 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 
 ## Corner index: platform short over the tier letter.
 func _card_pip(short: String, tier: int, k: float) -> VBoxContainer:
-	var v := _vbox(int(-6 * k))
+	var v := _vbox(int(-9 * k))
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var a := _title_label(short, int(15 * k), Color.WHITE)
+	var a := _title_label(short, int(17 * k), Color.WHITE)
 	a.add_theme_constant_override("outline_size", 4)
 	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(a)
@@ -2267,6 +2331,48 @@ func _deal_arrow(good: bool, s: float) -> Control:
 			else PackedVector2Array([Vector2(0, 0), Vector2(z.x, 0), Vector2(z.x * 0.5, z.y)])
 		c.draw_colored_polygon(pts, GOOD if good else BAD))
 	return c
+
+
+var _shade_tex: Texture2D
+var _spot_tex: Texture2D
+
+
+func _touchy() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_ios") or OS.has_feature("web_android")
+
+
+## Shared top-lit gradient for card faces.
+func _card_shade_tex() -> Texture2D:
+	if _shade_tex == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 0.22))
+		g.set_color(1, Color(0, 0, 0, 0.32))
+		g.add_point(0.45, Color(1, 1, 1, 0.0))
+		var t := GradientTexture2D.new()
+		t.gradient = g
+		t.width = 4
+		t.height = 64
+		t.fill_from = Vector2(0, 0)
+		t.fill_to = Vector2(0, 1)
+		_shade_tex = t
+	return _shade_tex
+
+
+## Soft spotlight behind the item in the art window.
+func _card_spot_tex() -> Texture2D:
+	if _spot_tex == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 0.9))
+		g.set_color(1, Color(1, 1, 1, 0.0))
+		var t := GradientTexture2D.new()
+		t.gradient = g
+		t.width = 64
+		t.height = 64
+		t.fill = GradientTexture2D.FILL_RADIAL
+		t.fill_from = Vector2(0.5, 0.45)
+		t.fill_to = Vector2(0.5, 1.0)
+		_spot_tex = t
+	return _spot_tex
 
 
 ## Idle sway (each card on its own beat) and the springy lift when a card is
@@ -2301,10 +2407,19 @@ func _card_motion(delta: float) -> void:
 		if sway:
 			r = sin(t * 1.9 + ph) * deg_to_rad(1.5) * (1.0 - clampf(l, 0.0, 1.0))
 			y = sin(t * 1.5 + ph * 1.3) * 2.0
-		face.rotation = r - deg_to_rad(2.0) * l
-		face.scale = Vector2.ONE * (1.0 + 0.07 * l)
-		face.position = Vector2(0, y - 10.0 * l)
-		face.z_index = 1 if l > 0.05 else 0
+		var tilt := 0.0
+		var btn: Control = face.get_meta("btn")
+		if goal > 0.5 and not _pad and not _touchy() and is_instance_valid(btn):
+			# Lean toward the mouse, Balatro-style.
+			var mx := (btn.get_local_mouse_position().x / maxf(1.0, btn.size.x)) - 0.5
+			tilt = clampf(mx, -0.5, 0.5) * deg_to_rad(6.0)
+		face.rotation = r - deg_to_rad(1.5) * l + tilt
+		face.scale = Vector2.ONE * (1.0 + 0.08 * l)
+		face.position = Vector2(0, y - 12.0 * l)
+		var shp: Control = face.get_meta("shadow")
+		if is_instance_valid(shp):
+			shp.modulate.a = 1.0 - 0.45 * clampf(l, 0.0, 1.0)
+			shp.scale = Vector2.ONE * (1.0 - 0.04 * l)
 	_card_faces = keep.filter(func(f): return is_instance_valid(f))
 
 
@@ -2590,6 +2705,39 @@ func _auction_card(i: int, w: float) -> Button:
 	v.add_child(bottom)
 	_ignore_mouse(b)
 	return b
+
+
+## Your shelf as a fanned hand of cards (VIEW YOUR SHELF): cards overlap
+## when there are many, tilt out from the middle and sit lower at the ends.
+func _hand_fan(items: Array, w: float) -> Control:
+	var h := roundf(w * CARD_RATIO)
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(0, h + 46)
+	box.mouse_filter = Control.MOUSE_FILTER_PASS
+	var cards: Array = []
+	for it in items:
+		var c := _shelf_tile(it, w)
+		c.size = Vector2(w, h)
+		c.pivot_offset = Vector2(w * 0.5, h * 1.6)
+		box.add_child(c)
+		cards.append(c)
+	var lay := func():
+		var n := cards.size()
+		if n == 0:
+			return
+		var avail := box.size.x - 16.0
+		var step := minf(w + 10.0, (avail - w) / maxf(1.0, n - 1.0)) if n > 1 else 0.0
+		var span := step * (n - 1) + w
+		var x0 := (box.size.x - span) * 0.5
+		var mid := (n - 1) * 0.5
+		var spread := minf(5.0, 28.0 / maxf(1.0, n))
+		for i in n:
+			var c: Control = cards[i]
+			var d := i - mid
+			c.position = Vector2(x0 + i * step, 22.0 + d * d * 2.2)
+			c.rotation_degrees = d * spread
+	box.resized.connect(lay)
+	return box
 
 
 ## Plain lines so the numbers can't be mixed up:
@@ -4256,17 +4404,7 @@ func _build_showcase() -> void:
 	_root_box.add_child(gap)
 	# Your items in a strip: highlight one for its trading card, A for full.
 	if not run.shelf.is_empty():
-		var sc := ScrollContainer.new()
-		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
-		sc.follow_focus = false
-		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		var sw := 128.0 if is_landscape() else 160.0
-		sc.custom_minimum_size = Vector2(0, roundf(sw * CARD_RATIO) + 30)
-		var row := _hbox(12)
-		sc.add_child(row)
-		for it in run.shelf:
-			row.add_child(_shelf_tile(it, sw))
-		_root_box.add_child(sc)
+		_root_box.add_child(_hand_fan(run.shelf, 128.0 if is_landscape() else 168.0))
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
 	var h := _hbox(12)
 	bar.add_child(h)
