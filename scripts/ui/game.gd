@@ -2268,7 +2268,14 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 		tg.offset_bottom = -10 * k
 		tg.rotation_degrees = -2.0
 		face.add_child(tg)
-	# Highlight + motion.
+	_card_lift(b, face, shadow)
+	_ignore_mouse(b)
+	return b
+
+
+## Hooks a card's face into _card_motion: idle sway, springy lift on pad
+## focus / mouse hover / finger down.
+func _card_lift(b: Button, face: Control, shadow: Control) -> void:
 	face.set_meta("phase", randf() * TAU)
 	face.set_meta("lift", 0.0)
 	face.set_meta("lv", 0.0)
@@ -2296,8 +2303,6 @@ func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> 
 	face.set_meta("shadow", shadow)
 	face.set_meta("btn", b)
 	_card_faces.append(face)
-	_ignore_mouse(b)
-	return b
 
 
 ## TCG-style text box: a parchment panel with the basics (genre, maker,
@@ -2887,6 +2892,7 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 	var head := _label("Appraises %s" % _money(int(ap["total"])), 20, GOLD)
 	_section(parent, "YOUR SHELF %d/%d" % [run.slots_used(), run.shelf_cap], head)
 	if screen == "home":
+		_pocket_row(parent)
 		var vb := _button("VIEW YOUR SHELF IN 3D", _set_showcase.bind(true), Color("2f5d7a"), 20, 72)
 		parent.add_child(vb)
 	var gc: Array = _grid(avail, 150 if is_landscape() else 200, 14)
@@ -4803,21 +4809,36 @@ func _want_panel(compact := false) -> Control:
 
 
 func _perks_tab(col: VBoxContainer, w: float) -> void:
+	var cw := 150.0 if is_landscape() else 200.0
 	var reroll := _button("Reroll %s" % _money(run.reroll_cost), func(): _act(run.reroll_perks(), "tick"), PANEL_HI, 18, 56)
 	_section(col, "PERK SHOP", reroll)
-	var gc: Array = _grid(w, 200, 10)
+	var gc: Array = _grid(w, cw, 14)
 	var g: GridContainer = gc[0]
+	g.add_theme_constant_override("v_separation", 24)
 	for pid in run.perk_offers:
 		g.add_child(_perk_card(String(pid), gc[1], false))
 	if not run.upgrade_offer.is_empty():
 		g.add_child(_upgrade_card(gc[1]))
 	col.add_child(g)
+	# One-use supplies and the grab bag.
+	if not run.supply_offers.is_empty() or not run.bag_offer.is_empty():
+		_section(col, "SUPPLIES", _label("one use each", 16, MUTED))
+		var sc: Array = _grid(w, cw, 14)
+		var sg: GridContainer = sc[0]
+		sg.add_theme_constant_override("v_separation", 24)
+		for sid in run.supply_offers:
+			sg.add_child(_supply_card(String(sid), sc[1], false))
+		if not run.bag_offer.is_empty():
+			sg.add_child(_bag_card(sc[1]))
+		col.add_child(sg)
+	_pocket_row(col, true)
 	_section(col, "YOUR PERKS %d/%d" % [run.perks.size(), run.perk_cap])
 	if run.perks.is_empty():
 		col.add_child(_label("None yet. Perks bend the rules in your favor.", 18, MUTED, true))
 	else:
-		var pg: Array = _grid(w, 200, 10)
+		var pg: Array = _grid(w, cw, 14)
 		var gg: GridContainer = pg[0]
+		gg.add_theme_constant_override("v_separation", 24)
 		for pid in run.perks:
 			gg.add_child(_perk_card(String(pid), pg[1], true))
 		col.add_child(gg)
@@ -4956,60 +4977,409 @@ func _perk_badge(desc: String, name: String) -> String:
 	return ""
 
 
-## Trading-card style perk: category header, striped art panel with a big
-## effect badge, name, rule text, price.
+# ---- relic cards: perks, upgrades, supplies and grab bags ----
+# Cousins of the play cards (same size, shadow, sway and lift, price sticker
+# off the corner) but their own thing: a riveted metal plaque with cut
+# corners, an arched window onto the art, a brass nameplate and engraved
+# rule text. Bronze / steel / gold rim by price; gold ones get the foil.
+# Supplies are kraft hang tags with a punched hole; grab bags are taped boxes.
+
+const RELIC_RIMS := [
+	[Color("6a4a2c"), Color("d9a05c")],  # bronze
+	[Color("4b5669"), Color("d3dcea")],  # steel
+	[Color("8a6412"), Color("ffd45a")],  # gold
+]
+const RELIC_KRAFT := [Color("b98f58"), Color("f0dcae")]
+const RELIC_BOX := [Color("8a6238"), Color("e2bd84")]
+const SUPPLY_COL := Color("3fc7b4")
+const BAG_COL := Color("ff8e5a")
+const PERK_CAT_SHORT := {"hunt": "HUNT", "appraisal": "SHELF", "money": "CASH", "time": "TIME", "market": "MARKET"}
+
+
+func _perk_rank(cost: int) -> int:
+	return 2 if cost >= 8 else (1 if cost >= 6 else 0)
+
+
+## o: id (art id), name, desc, col, label (corner badge), rank 0-2, kind
+## ("perk" / "upgrade" / "supply" / "bag"), foot, sticker, sticker_col, tag,
+## tag_col, badge.
+func _relic_card(o: Dictionary, w: float, cb: Callable) -> Button:
+	var kind := String(o.get("kind", "perk"))
+	var plaque := kind == "perk" or kind == "upgrade"
+	var col: Color = o.get("col", GOLD)
+	var rank := clampi(int(o.get("rank", 0)), 0, 2)
+	var rim: Array = RELIC_RIMS[rank] if plaque else (RELIC_KRAFT if kind == "supply" else RELIC_BOX)
+	var body: Color = rim[0]
+	var edge: Color = rim[1]
+	var h := roundf(w * CARD_RATIO)
+	var k := w / 160.0
+	var kt := k * 1.18 / FONT_SCALE
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(w, h)
+	b.mouse_filter = Control.MOUSE_FILTER_PASS
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	b.pressed.connect(_guarded.bind(cb))
+	b.button_down.connect(_click)
+	_focus_style(b)
+
+	var shadow := Panel.new()
+	shadow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shadow.offset_left = 6 * k
+	shadow.offset_right = -6 * k
+	shadow.offset_top = 10 * k
+	shadow.offset_bottom = 8 * k
+	var shs := StyleBoxFlat.new()
+	shs.bg_color = Color(0, 0, 0, 0.35)
+	shs.set_corner_radius_all(int(12 * k))
+	shs.shadow_color = Color(0, 0, 0, 0.3)
+	shs.shadow_size = int(8 * k)
+	shadow.add_theme_stylebox_override("panel", shs)
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(shadow)
+	var face := Control.new()
+	face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.resized.connect(func(): face.pivot_offset = Vector2(face.size.x * 0.5, face.size.y))
+	b.add_child(face)
+	# The plate: cut corners for relics, soft ones for tags and boxes.
+	var cut := 1 if plaque else 8
+	var outer := Panel.new()
+	outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var ost := StyleBoxFlat.new()
+	ost.bg_color = body
+	ost.set_corner_radius_all(int((15 if plaque else 9) * k))
+	ost.corner_detail = cut
+	ost.set_border_width_all(2)
+	ost.border_color = Color("17131f")
+	ost.shadow_color = Color(0, 0, 0, 0.35)
+	ost.shadow_size = 2
+	ost.shadow_offset = Vector2(0, 3)
+	outer.add_theme_stylebox_override("panel", ost)
+	face.add_child(outer)
+	var trim := maxf(6.0, 9.0 * k)
+	# Bevel: light along the top of the rim, dark along the bottom, rivets.
+	var rimfx := Control.new()
+	rimfx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rimfx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rimfx.draw.connect(func():
+		var s := rimfx.size
+		var c := 15.0 * k
+		if plaque:
+			rimfx.draw_polyline(PackedVector2Array([Vector2(3, s.y - c), Vector2(3, c), Vector2(c, 3), Vector2(s.x - c, 3), Vector2(s.x - 3, c)]), Color(edge, 0.85), maxf(1.5, 2.0 * k))
+			rimfx.draw_polyline(PackedVector2Array([Vector2(s.x - 3, c), Vector2(s.x - 3, s.y - c), Vector2(s.x - c, s.y - 3), Vector2(c, s.y - 3), Vector2(3, s.y - c)]), Color(0, 0, 0, 0.35), maxf(1.5, 2.0 * k))
+			var m := trim * 0.5 + 1.0
+			for at in [Vector2(s.x * 0.5, m), Vector2(s.x * 0.5, s.y - m), Vector2(m, s.y * 0.5), Vector2(s.x - m, s.y * 0.5)]:
+				rimfx.draw_circle(at + Vector2(0, 1), 2.6 * k, Color(0, 0, 0, 0.5))
+				rimfx.draw_circle(at, 2.2 * k, edge)
+				rimfx.draw_circle(at - Vector2(0.6, 0.6) * k, 0.9 * k, Color(1, 1, 1, 0.8))
+		elif kind == "supply":
+			# Punched hole and a loop of twine.
+			var hc := Vector2(s.x * 0.5, trim * 0.5 + 1.0)
+			rimfx.draw_arc(hc + Vector2(0, -5.0 * k), 6.0 * k, PI * 0.1, PI * 0.9, 10, Color("efe6d0"), maxf(1.5, 1.6 * k))
+			rimfx.draw_circle(hc, 3.4 * k, edge.darkened(0.25))
+			rimfx.draw_circle(hc, 2.2 * k, Color("17131f"))
+		else:
+			# Packing tape across the top.
+			rimfx.draw_rect(Rect2(s.x * 0.5 - 13.0 * k, 1, 26.0 * k, trim + 5.0 * k), Color(0.95, 0.9, 0.72, 0.75))
+			rimfx.draw_line(Vector2(s.x * 0.5, 2), Vector2(s.x * 0.5, trim + 5.0 * k), Color(0, 0, 0, 0.12), 1.0))
+	face.add_child(rimfx)
+	# Dark velvet face in the family colour.
+	var inner := Panel.new()
+	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inner.offset_left = trim
+	inner.offset_top = trim
+	inner.offset_right = -trim
+	inner.offset_bottom = -trim
+	inner.clip_contents = true
+	var fcol := col.darkened(0.66).lerp(Color("1a1326"), 0.35)
+	var is_ := StyleBoxFlat.new()
+	is_.bg_color = fcol
+	is_.set_corner_radius_all(int((9 if plaque else 6) * k))
+	is_.corner_detail = cut
+	is_.set_border_width_all(2)
+	is_.border_color = edge.darkened(0.15)
+	inner.add_theme_stylebox_override("panel", is_)
+	face.add_child(inner)
+	var shade := TextureRect.new()
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.texture = _card_shade_tex()
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(shade)
+	# Faint rays fanning out from behind the art.
+	var rays := Control.new()
+	rays.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rays.draw.connect(func():
+		var s := rays.size
+		var c := Vector2(s.x * 0.5, s.y * 0.36)
+		var r := s.length()
+		for i in 12:
+			var a0 := TAU * i / 12.0
+			rays.draw_colored_polygon(PackedVector2Array([c, c + Vector2.from_angle(a0) * r, c + Vector2.from_angle(a0 + TAU / 24.0) * r]), Color(col, 0.07)))
+	inner.add_child(rays)
+
+	var foot_h := roundf(maxf(26.0, 30.0 * k))
+	var box := _vbox(int(3 * k))
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 6 * k
+	box.offset_right = -6 * k
+	box.offset_top = (4 if plaque else 7) * k
+	box.offset_bottom = -foot_h - 2 * k
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(box)
+	# Top row: family badge, rank stars.
+	var top := _hbox(2)
+	var pip := PanelContainer.new()
+	var pst := StyleBoxFlat.new()
+	pst.bg_color = Color(col, 0.92)
+	pst.set_corner_radius_all(int(5 * k))
+	pst.corner_detail = cut
+	pst.content_margin_left = 6 * k
+	pst.content_margin_right = 6 * k
+	pst.border_width_bottom = 2
+	pst.border_color = col.darkened(0.45)
+	pip.add_theme_stylebox_override("panel", pst)
+	var pl := _title_label(String(o.get("label", "")), int(14 * kt), DARK_TXT)
+	pl.add_theme_constant_override("outline_size", 0)
+	pl.add_theme_constant_override("shadow_offset_y", 0)
+	pip.add_child(pl)
+	top.add_child(pip)
+	top.add_child(_spacer(false))
+	if plaque:
+		top.add_child(_relic_stars(rank + 1, 11.0 * k, edge))
+	box.add_child(top)
+	# Art behind an arched window.
+	var art := PanelContainer.new()
+	var as_ := StyleBoxFlat.new()
+	as_.bg_color = Color(0.05, 0.04, 0.08, 0.8)
+	for side in ["left", "right", "top", "bottom"]:
+		as_.set("content_margin_" + side, 0)
+	art.add_theme_stylebox_override("panel", as_)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.clip_contents = true
+	art.add_child(PERK_ART.make(String(o["id"]), col, String(o.get("badge", "")), roundf(w * 0.44)))
+	var arch := Control.new()
+	arch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arch.draw.connect(func():
+		var s := arch.size
+		var r := minf(s.x * (0.3 if plaque else 0.08), s.y * 0.6)
+		var lw := maxf(2.0, 3.0 * k)
+		var left := PackedVector2Array([Vector2(0, 0)])
+		var right := PackedVector2Array([Vector2(s.x, 0)])
+		var line := PackedVector2Array([Vector2(0, s.y)])
+		for i in 9:
+			var a := PI + (PI * 0.5) * i / 8.0
+			left.append(Vector2(r, r) + Vector2.from_angle(a) * r)
+		for i in 9:
+			var a := -PI * 0.5 + (PI * 0.5) * i / 8.0
+			right.append(Vector2(s.x - r, r) + Vector2.from_angle(a) * r)
+		arch.draw_colored_polygon(left, fcol)
+		arch.draw_colored_polygon(right, fcol)
+		for i in range(1, left.size()):
+			line.append(left[i])
+		for i in range(1, right.size()):
+			line.append(right[i])
+		line.append(Vector2(s.x, s.y))
+		line.append(Vector2(0, s.y))
+		arch.draw_polyline(line, Color(0, 0, 0, 0.5), lw + 2.0)
+		arch.draw_polyline(line, edge, lw)
+		if plaque:
+			# Keystone.
+			var c := Vector2(s.x * 0.5, 0)
+			var d := 5.0 * k
+			arch.draw_colored_polygon(PackedVector2Array([c + Vector2(-d, 0), c + Vector2(0, -d * 0.4), c + Vector2(d, 0), c + Vector2(0, d * 1.3)]), edge)
+			arch.draw_colored_polygon(PackedVector2Array([c + Vector2(-d * 0.5, 0), c + Vector2(0, -d * 0.2), c + Vector2(d * 0.5, 0), c + Vector2(0, d * 0.7)]), col.lightened(0.3)))
+	art.add_child(arch)
+	box.add_child(art)
+	# Brass nameplate.
+	var nmt := String(o["name"])
+	# Sized so the whole name fits the plate.
+	var fit := (w - trim * 2.0 - 24.0 * k) / (maxf(6.0, nmt.length()) * 0.41) / (FONT_SCALE * 1.12)
+	var nm := _title_label(nmt, int(clampf(fit, 13.0, minf(19.0 * kt, 26.0))), Color("241a0c"))
+	nm.add_theme_constant_override("outline_size", 0)
+	nm.add_theme_constant_override("shadow_offset_y", 1)
+	nm.add_theme_color_override("font_shadow_color", Color(1, 1, 1, 0.35))
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	nm.custom_minimum_size = Vector2(1, 0)
+	var plate := PanelContainer.new()
+	var nst := StyleBoxFlat.new()
+	nst.bg_color = edge
+	nst.set_corner_radius_all(int(6 * k))
+	nst.corner_detail = cut
+	nst.border_width_bottom = 2
+	nst.border_width_top = 1
+	nst.border_color = edge.darkened(0.45)
+	nst.content_margin_left = 5 * k
+	nst.content_margin_right = 5 * k
+	nst.content_margin_top = 0
+	nst.content_margin_bottom = 0
+	plate.add_theme_stylebox_override("panel", nst)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(nm)
+	box.add_child(plate)
+	# Engraved rule text.
+	var tp := PanelContainer.new()
+	var tst := StyleBoxFlat.new()
+	tst.bg_color = Color(0.03, 0.02, 0.06, 0.55)
+	tst.set_corner_radius_all(int(4 * k))
+	tst.set_border_width_all(1)
+	tst.border_color = Color(edge, 0.35)
+	tst.content_margin_left = 5 * k
+	tst.content_margin_right = 5 * k
+	tst.content_margin_top = 1
+	tst.content_margin_bottom = 2
+	tp.add_theme_stylebox_override("panel", tst)
+	tp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tp.clip_contents = true
+	var dl := _label(String(o["desc"]), int(maxf(12.5 * kt, 16.0 / FONT_SCALE)), Color("efe6d0"), true)
+	dl.add_theme_constant_override("line_spacing", -3)
+	dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	dl.max_lines_visible = 3
+	dl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	dl.custom_minimum_size = Vector2(1, 0)
+	dl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tp.add_child(dl)
+	box.add_child(tp)
+	if rank >= 2 and plaque and not Lite.perf:
+		var foil := ColorRect.new()
+		foil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		foil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var fm := ShaderMaterial.new()
+		fm.shader = CARD_FOIL
+		fm.set_shader_parameter("phase", randf())
+		fm.set_shader_parameter("rainbow", 0.0)
+		fm.set_shader_parameter("strength", 0.35)
+		foil.material = fm
+		inner.add_child(foil)
+	# Foot bar.
+	var bar := PanelContainer.new()
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = Color(0.05, 0.04, 0.08, 0.85)
+	bs.border_width_top = 2
+	bs.border_color = Color(edge, 0.45)
+	bs.content_margin_left = 7 * k
+	bar.add_theme_stylebox_override("panel", bs)
+	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.offset_top = -foot_h
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fl := _title_label(String(o.get("foot", "")), int(15 * kt), o.get("foot_col", edge))
+	fl.add_theme_constant_override("outline_size", 0)
+	fl.add_theme_constant_override("shadow_offset_y", 0)
+	fl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bar.add_child(fl)
+	inner.add_child(bar)
+	if String(o.get("sticker", "")) != "":
+		var sk := _sticker(String(o["sticker"]), o.get("sticker_col", STICKER), int(22 * kt))
+		sk.anchor_left = 1.0
+		sk.anchor_right = 1.0
+		sk.anchor_top = 1.0
+		sk.anchor_bottom = 1.0
+		sk.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		sk.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		sk.offset_left = -6 * k
+		sk.offset_right = -6 * k
+		sk.offset_top = 14 * k
+		sk.offset_bottom = 14 * k
+		sk.rotation_degrees = -7.0
+		face.add_child(sk)
+	if String(o.get("tag", "")) != "":
+		var tg := _pill(String(o["tag"]), o.get("tag_col", GOLD), int(13 * kt))
+		tg.anchor_left = 0.5
+		tg.anchor_right = 0.5
+		tg.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		tg.offset_top = -10 * k
+		tg.offset_bottom = -10 * k
+		tg.rotation_degrees = -2.0
+		face.add_child(tg)
+	_card_lift(b, face, shadow)
+	_ignore_mouse(b)
+	return b
+
+
+## Rank as little four-point stars in the rim's metal.
+func _relic_stars(n: int, s: float, col: Color) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(n * s * 1.1, s * 1.3)
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var y := c.size.y * 0.5
+		for i in n:
+			var x := s * 0.55 + i * s * 1.1
+			var pts := PackedVector2Array()
+			for j in 8:
+				pts.append(Vector2(x, y) + Vector2.from_angle(TAU * j / 8.0 - PI * 0.5) * (s * (0.62 if j % 2 == 0 else 0.24)))
+			var back := PackedVector2Array()
+			for q in pts:
+				back.append(Vector2(x, y + 1) + (q - Vector2(x, y)) * 1.25)
+			c.draw_colored_polygon(back, Color(0, 0, 0, 0.6))
+			c.draw_colored_polygon(pts, col))
+	return c
+
+
 func _perk_card(id: String, w: float, owned: bool) -> Button:
 	var d := Perks.label(id, run.market if run != null else "")
-	var cat: Array = PERK_CATS[PERK_CAT_OF.get(id, "appraisal")]
-	var col: Color = cat[1]
-	var b := _card_shell(w, 290, col if not owned else GOOD, func(): _open_perk(id, owned), PANEL)
-	var v := _card_inner(b)
-	var head := _hbox(6)
-	head.add_child(_pill(String(cat[0]), col, 13))
-	head.add_child(_spacer(false))
-	if owned:
-		head.add_child(_pill("OWNED", GOOD, 13))
-	v.add_child(head)
-	v.add_child(PERK_ART.make(id, col, _perk_badge(String(d["desc"]), String(d["name"])), 118))
-	var nm := _title_label(String(d["name"]), 22, INK)
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(nm)
+	var ck := String(PERK_CAT_OF.get(id, "appraisal"))
 	var dtext := String(d["desc"])
 	if owned and id == "haggle_king":
 		dtext = "Grows with every haggle you win. Now: +%s Mult." % str(snappedf(0.25 * int(run.stats.get("haggles", 0)), 0.01))
-	var desc := _label(dtext, 16, Color("ddd5ea"), true)
-	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	desc.max_lines_visible = 3
-	v.add_child(desc)
-	var bottom := _hbox()
-	bottom.add_child(_spacer(false))
+	var o := {
+		"id": id, "name": d["name"], "desc": dtext, "col": PERK_CATS[ck][1], "label": PERK_CAT_SHORT[ck],
+		"rank": _perk_rank(int(d["cost"])), "kind": "perk", "badge": _perk_badge(String(d["desc"]), String(d["name"])),
+	}
 	if owned:
-		bottom.add_child(_label("sell %s" % _money(int(d["cost"]) / 2), 17, MUTED))
+		o["foot"] = "SELL %s" % _money(int(d["cost"]) / 2)
+		o["foot_col"] = Color("e8dcc0")
+		o["tag"] = "YOURS"
+		o["tag_col"] = GOOD
 	else:
-		bottom.add_child(_sticker(_money(int(d["cost"]))))
-	v.add_child(bottom)
-	_ignore_mouse(b)
-	return b
+		o["foot"] = "PERK"
+		o["sticker"] = _money(int(d["cost"]))
+	return _relic_card(o, w, func(): _open_perk(id, owned))
 
 
 func _upgrade_card(w: float) -> Button:
 	var d := run.upgrade_offer
-	var b := _card_shell(w, 290, GOLD, func(): _open_upgrade(), Color(0.17, 0.13, 0.2, 0.93))
-	var v := _card_inner(b)
-	v.add_child(_pill("UPGRADE - LASTS ALL RUN", GOLD, 13))
-	v.add_child(PERK_ART.make("up_" + String(d.get("id", "")), GOLD, _perk_badge(String(d["desc"]), String(d["name"])), 118))
-	var nm := _title_label(String(d["name"]), 22, INK)
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(nm)
-	var desc := _label(String(d["desc"]), 16, Color("ddd5ea"), true)
-	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(desc)
-	var bottom := _hbox()
-	bottom.add_child(_spacer(false))
-	bottom.add_child(_sticker(_money(int(d["cost"])), GOLD))
-	v.add_child(bottom)
-	_ignore_mouse(b)
-	return b
+	return _relic_card({
+		"id": "up_" + String(d.get("id", "")), "name": d["name"], "desc": d["desc"], "col": GOLD, "label": "UPGRADE",
+		"rank": 2, "kind": "upgrade", "badge": _perk_badge(String(d["desc"]), String(d["name"])),
+		"foot": "LASTS ALL RUN", "sticker": _money(int(d["cost"])), "sticker_col": GOLD,
+	}, w, func(): _open_upgrade())
+
+
+func _supply_card(id: String, w: float, owned: bool, cb: Callable = Callable()) -> Button:
+	var d := Perks.supply(id)
+	var o := {
+		"id": "sup_" + id, "name": d["name"], "desc": d["desc"], "col": SUPPLY_COL, "label": "SUPPLY", "kind": "supply",
+		"badge": _perk_badge(String(d["desc"]), String(d["name"])), "foot": "ONE USE", "foot_col": Color("e8dcc0"),
+	}
+	if owned:
+		o["foot"] = "TAP TO USE"
+		o["foot_col"] = SUPPLY_COL
+	elif not cb.is_valid():
+		o["sticker"] = _money(int(d["cost"]))
+	return _relic_card(o, w, cb if cb.is_valid() else func(): _open_supply(id, owned))
+
+
+func _bag_card(w: float) -> Button:
+	var d := run.bag_offer
+	var open := bool(d["open"])
+	var o := {
+		"id": "bag_" + String(d["id"]), "name": d["name"], "desc": d["desc"], "col": BAG_COL, "label": "GRAB BAG", "kind": "bag",
+		"foot": "PICK 1 OF %d" % (d["picks"] as Array).size(), "foot_col": Color("e8dcc0"),
+	}
+	if open:
+		o["tag"] = "OPENED: PICK ONE"
+		o["tag_col"] = GOOD
+	else:
+		o["sticker"] = _money(int(d["cost"]))
+	return _relic_card(o, w, _open_bag)
 
 
 func _open_perk(id: String, owned: bool) -> void:
@@ -5029,6 +5399,173 @@ func _open_upgrade() -> void:
 	_open_sheet(String(d["name"]), [[String(d["desc"]), INK]], [
 		["Buy for %s" % _money(int(d["cost"])), func(): _act(run.buy_upgrade(), "coin"), GOLD],
 	])
+
+
+# ---- supplies (one-use) and the grab bag ----
+
+func _open_supply(id: String, owned: bool) -> void:
+	var d := Perks.supply(id)
+	var lines: Array = [[String(d["desc"]), INK]]
+	if not owned:
+		lines.append(["One use. You can carry %d. Pocket: %d/%d." % [Balance.POCKET_SLOTS, run.supplies.size(), Balance.POCKET_SLOTS], MUTED])
+		_open_sheet(String(d["name"]), lines, [
+			["Buy for %s" % _money(int(d["cost"])), func(): _act(run.buy_supply(id), "coin"), STICKER],
+		])
+		return
+	var why := run.supply_block(id)
+	var acts: Array = []
+	if why == "":
+		if bool(d.get("target", false)):
+			acts.append(["Use on...", func(): _pick_supply_target(id), SUPPLY_COL])
+		else:
+			acts.append(["Use it now", func(): _act(run.use_supply(id), "coin"), SUPPLY_COL])
+	else:
+		lines.append([why, BAD])
+	acts.append(["Sell %s" % _money(int(d["cost"]) / 2), func(): _act(run.sell_supply(id), "coin"), BAD, true])
+	_open_sheet(String(d["name"]), lines, acts)
+
+
+## Choose which shelf item a supply goes on: your cards, tap one.
+func _pick_supply_target(id: String) -> void:
+	var d := Perks.supply(id)
+	var items := run.supply_targets(id)
+	_sheet_extra = _pick_row(items.size(), func(i: int, cw: float) -> Button:
+		var it: Dictionary = items[i]
+		return _play_card(it, cw, func():
+			_close_sheet()
+			_act(run.use_supply(id, int(it["uid"])), "coin"), {"worth": "WORTH " + _money(run.market_value(it)), "worth_col": GOLD}))
+	_open_sheet(String(d["name"]), [[String(d["desc"]), INK], ["Tap the one to use it on.", MUTED]], [])
+
+
+## A scrolling row of cards for a sheet; make.call(i, card_w) builds each.
+func _pick_row(n: int, make: Callable) -> Control:
+	var avail := (616.0 if is_landscape() else _content_w() - 44.0)
+	var cw := floorf(minf(200.0, (avail - 24.0) / 3.0))
+	var sc := ScrollContainer.new()
+	sc.scroll_deadzone = TOUCH_OWN
+	sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.custom_minimum_size = Vector2(0, roundf(cw * CARD_RATIO) + 44.0)
+	var m := MarginContainer.new()
+	m.add_theme_constant_override("margin_top", 16)
+	m.add_theme_constant_override("margin_bottom", 22)
+	m.add_theme_constant_override("margin_left", 4)
+	m.add_theme_constant_override("margin_right", 8)
+	var row := _hbox(12)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for i in n:
+		row.add_child(make.call(i, cw))
+	m.add_child(row)
+	m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.add_child(m)
+	return sc
+
+
+func _open_bag() -> void:
+	var d := run.bag_offer
+	if d.is_empty():
+		return
+	var n := (d["picks"] as Array).size()
+	if not bool(d["open"]):
+		_open_sheet(String(d["name"]), [[String(d["desc"]), INK], ["You see what's inside after you pay. Pick 1 of %d, or leave them all." % n, MUTED]], [
+			["Open it for %s" % _money(int(d["cost"])), _buy_bag, STICKER],
+		])
+		return
+	var kind := String(d["id"])
+	var picks: Array = d["picks"]
+	var keep := func(i: int):
+		_close_sheet()
+		_act(run.bag_pick(i), "coin")
+	_sheet_extra = _pick_row(n, func(i: int, cw: float) -> Button:
+		match kind:
+			"items":
+				var it: Dictionary = picks[i]
+				var m := {"worth": "WORTH " + _money(run.market_value(it)), "worth_col": GOLD}
+				if run.wants(it):
+					m["tag"] = "WANTED"
+					m["tag_col"] = Color("ffcc33")
+				return _play_card(it, cw, keep.bind(i), m)
+			"supplies":
+				return _supply_card(String(picks[i]), cw, false, keep.bind(i))
+		var pid := String(picks[i])
+		var pd := Perks.label(pid, run.market)
+		var ck := String(PERK_CAT_OF.get(pid, "appraisal"))
+		return _relic_card({
+			"id": pid, "name": pd["name"], "desc": pd["desc"], "col": PERK_CATS[ck][1], "label": PERK_CAT_SHORT[ck],
+			"rank": _perk_rank(int(pd["cost"])), "kind": "perk", "badge": _perk_badge(String(pd["desc"]), String(pd["name"])), "foot": "PERK",
+		}, cw, keep.bind(i)))
+	var room := ""
+	match kind:
+		"items":
+			if run.free_slots() <= 0:
+				room = "Your shelf is full: make room, then come back. The box will wait."
+		"supplies":
+			if run.supplies.size() >= Balance.POCKET_SLOTS:
+				room = "Your pockets are full: use a supply, then come back."
+		"perks":
+			if run.perks.size() >= run.perk_cap:
+				room = "Your perk slots are full: sell one, then come back."
+	var lines: Array = [["Tap one to keep it. The rest go back in the box.", INK]]
+	if room != "":
+		lines.append([room, BAD])
+	_open_sheet(String(d["name"]), lines, [["Leave them all", func(): _act(run.bag_pick(-1), "close"), BAD, true]])
+
+
+func _buy_bag() -> void:
+	var res := run.buy_bag()
+	if not bool(res.get("ok", false)):
+		_act(res)
+		return
+	_sfx.play("coin")
+	request_refresh()
+	_open_bag.call_deferred()
+
+
+## Your pocket: carried supplies as chunky buttons, plus what's in effect.
+## `always` shows the header even when empty (the shop tab).
+func _pocket_row(parent: Control, always: bool = false) -> void:
+	var fx: Array = []
+	if run.loupe_on:
+		fx.append("LOUPE: EXACT VALUES")
+	if run.sure_haggle:
+		fx.append("LUCKY PENNY: NEXT HAGGLE WINS")
+	if run.half_off:
+		fx.append("GIFT CARD: NEXT BUY HALF OFF")
+	if run.spot_mult > 0.0:
+		fx.append("SPOTLIGHT: +%d MULT" % int(run.spot_mult))
+	if run.supplies.is_empty() and fx.is_empty() and not always:
+		return
+	if always:
+		_section(parent, "YOUR POCKET %d/%d" % [run.supplies.size(), Balance.POCKET_SLOTS])
+	if run.supplies.is_empty() and fx.is_empty():
+		parent.add_child(_label("Empty. Supplies are one-use tricks: carry them to a stop and use them when it counts.", 18, MUTED, true))
+		return
+	var p := _panel(Color(0.05, 0.09, 0.1, 0.88), Color(SUPPLY_COL, 0.45), 2)
+	var v := _vbox(6)
+	p.add_child(v)
+	if not run.supplies.is_empty():
+		var row := _hbox(8)
+		if not always:
+			var t := _title_label("POCKET", 20, SUPPLY_COL)
+			t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(t)
+		for sid in run.supplies:
+			var id := String(sid)
+			var d := Perks.supply(id)
+			var ok := run.supply_block(id) == ""
+			var b := _button(String(d["name"]), func(): _open_supply(id, true), SUPPLY_COL.darkened(0.25) if ok else Color("3a3548"), 18, 88)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.clip_text = true
+			row.add_child(b)
+		v.add_child(row)
+	if not fx.is_empty():
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 6)
+		flow.add_theme_constant_override("v_separation", 4)
+		for f in fx:
+			flow.add_child(_pill(String(f), SUPPLY_COL, 14))
+		v.add_child(flow)
+	parent.add_child(p)
 
 
 ## Screen changes rebuild the whole UI and the 3D room, which stutters on
@@ -5710,6 +6247,7 @@ func _build_venue() -> void:
 	var wpan := _want_panel(true)
 	if wpan != null and not bool(run.want.get("done", false)):
 		main.add_child(wpan)
+	_pocket_row(main)
 	var look := _button("LOOK AROUND THE %s" % ("ROOM" if not is_landscape() else "VENUE"), _set_room_view.bind(true), Color("2f5d7a"), 18, 64 if is_landscape() else 72)
 	if is_landscape() and _land_center != null and is_instance_valid(_land_center) and _land_center.is_inside_tree():
 		_land_center.add_child(look)
@@ -7169,6 +7707,10 @@ func _end_stats(parent: Container = null) -> void:
 
 # ================================================================ sheet + toast
 
+## Set before _open_sheet: one extra Control shown between the text and the buttons.
+var _sheet_extra: Control
+
+
 func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary = {}) -> void:
 	_hide_preview()
 	if _pad:
@@ -7236,6 +7778,9 @@ func _open_sheet(title: String, lines: Array, actions: Array, item: Dictionary =
 			v.add_child(q)
 		else:
 			v.add_child(_label(txt, 20, ln[1], true))
+	if _sheet_extra != null:
+		v.add_child(_sheet_extra)
+		_sheet_extra = null
 	var first := true
 	for a in actions:
 		if a.size() > 3 and a[3]:

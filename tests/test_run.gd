@@ -290,6 +290,90 @@ func test_perk_shop() -> void:
 	assert_false(r.has_perk(id))
 
 
+func test_supplies_shop_and_pocket() -> void:
+	var r := _new_run(33)
+	assert_eq(r.supply_offers.size(), Balance.SUPPLY_OFFERS)
+	r.cash = 100
+	r.supply_offers = ["energy", "loupe", "spotlight"]
+	assert_true(r.buy_supply("energy")["ok"])
+	assert_true(r.buy_supply("loupe")["ok"])
+	assert_false(r.buy_supply("spotlight")["ok"], "pocket holds %d" % Balance.POCKET_SLOTS)
+	assert_false(r.use_supply("energy")["ok"], "venue-only supply can't be used at home")
+	r.enter_venue(String(r.venue_choices[0]))
+	var t := r.time_left
+	assert_true(r.use_supply("energy")["ok"])
+	assert_eq(r.time_left, t + 2)
+	assert_false(r.supplies.has("energy"))
+	if not r.shows_exact():
+		assert_true(r.use_supply("loupe")["ok"])
+		assert_true(r.shows_exact())
+
+
+func test_supply_effects() -> void:
+	var r := _new_run(34)
+	r.shelf.clear()
+	var it := _item(r, String(Catalog.defs_of_tier(0)[0]["id"]), "Loose")
+	r.shelf.append(it)
+	r.supplies = ["cleaning_kit", "copier"]
+	assert_true(r.use_supply("cleaning_kit", int(it["uid"]))["ok"])
+	assert_eq(String(it["cond"]), "CIB")
+	assert_true(r.use_supply("copier", int(it["uid"]))["ok"])
+	assert_eq(r.shelf.size(), 2)
+	assert_ne(int(r.shelf[1]["uid"]), int(it["uid"]))
+	r.supplies = ["spotlight", "flyer"]
+	var before := float(r.appraise()["mult"])
+	assert_true(r.use_supply("spotlight")["ok"])
+	assert_almost_eq(float(r.appraise()["mult"]), before + 1.0, 0.011)
+	r.hot.clear()
+	assert_true(r.use_supply("flyer", int(it["uid"]))["ok"])
+	assert_true(r.hot.has(String(it["plat"])))
+	# Gift card + lucky penny at a stop.
+	r.supplies = ["gift_card", "lucky_penny"]
+	r.cash = 9999
+	r.enter_venue(String(r.venue_choices[0]))
+	assert_true(r.use_supply("gift_card")["ok"])
+	var price := int(r.stock[0]["price"])
+	var cash := r.cash
+	assert_true(r.buy(0)["ok"])
+	assert_eq(r.cash, cash - int(ceil(price * 0.5)))
+	assert_false(r.half_off)
+	if float(r.venue["haggle"]) > 0.0 and not r.stock.is_empty():
+		assert_true(r.use_supply("lucky_penny")["ok"])
+		assert_true(r.haggle(0)["success"])
+	r.end_stop()
+	assert_eq(r.spot_mult, 0.0, "spotlight is spent at the appraisal")
+
+
+func test_grab_bag() -> void:
+	var seen := {}
+	for sd in range(1, 40):
+		var r := _new_run(sd)
+		if r.bag_offer.is_empty():
+			continue
+		var kind := String(r.bag_offer["id"])
+		seen[kind] = true
+		r.cash = 9999
+		var cash := r.cash
+		assert_false(r.bag_pick(0)["ok"], "must pay first")
+		assert_true(r.buy_bag()["ok"])
+		assert_eq(r.cash, cash - int(r.bag_offer["cost"]))
+		var n := r.shelf.size() + r.supplies.size() + r.perks.size()
+		assert_true(r.bag_pick(0)["ok"])
+		assert_eq(r.shelf.size() + r.supplies.size() + r.perks.size(), n + 1)
+		assert_true(r.bag_offer.is_empty())
+	assert_eq(seen.size(), 3, "all three bag kinds turn up")
+
+
+func test_home_extras_leave_the_run_alone() -> void:
+	# Supplies and bags roll on a side stream: same stops with or without them.
+	var a := _new_run(35)
+	var st := a.rng.state
+	var dry := a.dry
+	a._roll_home_extras()
+	assert_eq(a.rng.state, st)
+	assert_eq(a.dry, dry)
+
+
 func test_moms_basement_adds_slots() -> void:
 	var r := _new_run(32)
 	r.cash = 100
