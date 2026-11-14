@@ -2027,37 +2027,338 @@ func _sticker(text: String, color: Color = STICKER, fs: int = 26) -> PanelContai
 	return p
 
 
-func _offer_card(i: int, w: float) -> Button:
+# ---- play cards: shop and shelf items as Balatro-size cards ----
+# Cream border, platform-coloured face, corner pips (top-left and flipped
+# bottom-right), art window framed in the tier colour, WORTH bar along the
+# bottom, a price / profit sticker hanging off the corner and a tag on the
+# top edge. The Button is only the hit area; the look lives in a child
+# "face" that idly sways and springs up when highlighted (_card_motion).
+
+const CARD_RATIO := 1.4
+const CARD_CREAM := Color("f2ead8")
+var _card_faces: Array = []
+
+
+## money: worth (text), worth_col, deal (1 under worth, -1 over, 0 none),
+## sticker, sticker_col, tag, tag_col, dim (bool).
+func _play_card(item: Dictionary, w: float, cb: Callable, money: Dictionary) -> Button:
+	var plat := Catalog.platform(String(item["plat"]))
+	var pcol: Color = plat["color"]
+	var tier := clampi(int(item.get("tier", 0)), 0, 3)
+	var tcol: Color = Catalog.TIER_COLORS[tier]
+	var h := roundf(w * CARD_RATIO)
+	var dim := bool(money.get("dim", false))
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(w, h)
+	b.mouse_filter = Control.MOUSE_FILTER_PASS
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	b.pressed.connect(_guarded.bind(cb))
+	b.button_down.connect(_click)
+	_focus_style(b)
+	var k := w / 160.0  # trim scales with the card
+	var kt := k * 1.18 / FONT_SCALE  # text too, minus the landscape boost
+
+	var face := Control.new()
+	face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.resized.connect(func(): face.pivot_offset = Vector2(face.size.x * 0.5, face.size.y))
+	b.add_child(face)
+	# Cream outer card.
+	var outer := Panel.new()
+	outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var ost := StyleBoxFlat.new()
+	ost.bg_color = CARD_CREAM if not dim else CARD_CREAM.darkened(0.35)
+	ost.set_corner_radius_all(int(10 * k + 2))
+	ost.set_border_width_all(2)
+	ost.border_color = Color("17131f")
+	ost.shadow_color = Color(0, 0, 0, 0.55)
+	ost.shadow_size = 6
+	ost.shadow_offset = Vector2(0, 7)
+	outer.add_theme_stylebox_override("panel", ost)
+	face.add_child(outer)
+	# Platform-coloured face inside the cream border.
+	var trim := maxf(5.0, 8.0 * k)
+	var inner := Panel.new()
+	inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inner.offset_left = trim
+	inner.offset_top = trim
+	inner.offset_right = -trim
+	inner.offset_bottom = -trim
+	inner.clip_contents = true
+	var is_ := StyleBoxFlat.new()
+	is_.bg_color = pcol.darkened(0.12) if not dim else pcol.darkened(0.55)
+	is_.set_corner_radius_all(int(7 * k + 1))
+	inner.add_theme_stylebox_override("panel", is_)
+	face.add_child(inner)
+	# Faint diagonal stripes on the face.
+	var stripes := Control.new()
+	stripes.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stripes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stripes.draw.connect(func():
+		var s := stripes.size
+		var step := 18.0 * k
+		var x := -s.y
+		while x < s.x:
+			stripes.draw_line(Vector2(x, s.y), Vector2(x + s.y, 0), Color(1, 1, 1, 0.07), 6.0 * k)
+			x += step)
+	inner.add_child(stripes)
+
+	var worth_h := roundf(maxf(24.0, 28.0 * k))
+	var col := _vbox(int(3 * k))
+	col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	col.offset_left = 6 * k
+	col.offset_right = -6 * k
+	col.offset_top = 4 * k
+	col.offset_bottom = -worth_h - 2 * k
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(col)
+	# Top row: pip on the left, condition on the right.
+	var top := _hbox(2)
+	top.add_child(_card_pip(String(plat["short"]), tier, kt))
+	top.add_child(_spacer(false))
+	var cond := _label(Catalog.cond_short(item).to_upper(), int(14 * kt), Color(1, 1, 1, 0.9))
+	cond.add_theme_font_override("font", FONT_DISPLAY)
+	cond.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
+	cond.add_theme_constant_override("outline_size", 4)
+	cond.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	top.add_child(cond)
+	col.add_child(top)
+	# Art window framed in the tier colour (glows for rare and grail).
+	var art := PanelContainer.new()
+	var as_ := StyleBoxFlat.new()
+	as_.bg_color = Color(0.05, 0.04, 0.08, 0.6)
+	as_.set_corner_radius_all(int(6 * k))
+	as_.set_border_width_all(maxi(2, int(3 * k)))
+	as_.border_color = tcol if tier > 0 else Color(1, 1, 1, 0.35)
+	if tier >= 2:
+		as_.shadow_color = Color(tcol, 0.55)
+		as_.shadow_size = int(8 * k)
+	for side in ["left", "right", "top", "bottom"]:
+		as_.set("content_margin_" + side, 3)
+	art.add_theme_stylebox_override("panel", as_)
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ic := _icon(item, roundf(w * 0.42))
+	if dim:
+		ic.modulate = Color(0.6, 0.6, 0.7)
+	art.add_child(ic)
+	if int(item.get("grade", 0)) > 0:
+		var g := _sticker(str(item["grade"]), GOLD, int(16 * kt))
+		g.size_flags_horizontal = Control.SIZE_SHRINK_END
+		g.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		art.add_child(g)
+	col.add_child(art)
+	# Name, kept clear of the flipped corner pip.
+	var nm := _title_label(String(item["name"]), int(19 * kt), INK if not dim else MUTED)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	nm.max_lines_visible = 2
+	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	nm.custom_minimum_size = Vector2(1, 0)
+	var nmm := MarginContainer.new()
+	nmm.add_theme_constant_override("margin_left", int(20 * k))
+	nmm.add_theme_constant_override("margin_right", int(20 * k))
+	nmm.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	nmm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	nmm.add_child(nm)
+	col.add_child(nmm)
+	# Flipped pip, bottom-right above the worth bar.
+	var br := _card_pip(String(plat["short"]), tier, kt)
+	br.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE)
+	br.offset_right -= 4 * k
+	br.offset_left -= 4 * k
+	br.offset_bottom -= worth_h + 2 * k
+	br.offset_top -= worth_h + 2 * k
+	br.rotation = PI
+	br.resized.connect(func(): br.pivot_offset = br.size * 0.5)
+	inner.add_child(br)
+	# WORTH bar.
+	var bar := PanelContainer.new()
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = Color(0.05, 0.04, 0.08, 0.85)
+	bs.border_width_top = 2
+	bs.border_color = Color(CARD_CREAM, 0.3)
+	bs.content_margin_left = 7 * k
+	bar.add_theme_stylebox_override("panel", bs)
+	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.offset_top = -worth_h
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bh := _hbox(int(4 * k))
+	var wl := _title_label(String(money.get("worth", "")), int(15 * kt), money.get("worth_col", CARD_CREAM))
+	wl.add_theme_constant_override("outline_size", 0)
+	wl.add_theme_constant_override("shadow_offset_y", 0)
+	wl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	wl.size_flags_vertical = Control.SIZE_FILL
+	bh.add_child(wl)
+	var deal := int(money.get("deal", 0))
+	if deal != 0:
+		bh.add_child(_deal_arrow(deal > 0, 12.0 * k))
+	bar.add_child(bh)
+	inner.add_child(bar)
+	# Sticker hanging off the bottom-right corner.
+	if String(money.get("sticker", "")) != "":
+		var sk := _sticker(String(money["sticker"]), money.get("sticker_col", STICKER), int(22 * kt))
+		sk.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE)
+		sk.offset_left -= 6 * k
+		sk.offset_right -= 6 * k
+		sk.offset_top += 10 * k
+		sk.offset_bottom += 10 * k
+		sk.rotation_degrees = -7.0
+		sk.z_index = 2
+		face.add_child(sk)
+	# Tag on the top edge.
+	if String(money.get("tag", "")) != "":
+		var tg := _pill(String(money["tag"]), money.get("tag_col", GOLD), int(13 * kt))
+		tg.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
+		tg.offset_top -= 10 * k
+		tg.offset_bottom -= 10 * k
+		tg.rotation_degrees = -2.0
+		tg.z_index = 2
+		face.add_child(tg)
+	# Highlight + motion.
+	face.set_meta("phase", randf() * TAU)
+	face.set_meta("lift", 0.0)
+	face.set_meta("lv", 0.0)
+	face.set_meta("goal", 0.0)
+	var up := func(on: bool):
+		if is_instance_valid(face):
+			face.set_meta("goal", 1.0 if on else 0.0)
+	b.focus_entered.connect(up.bind(true))
+	b.focus_exited.connect(up.bind(false))
+	b.mouse_entered.connect(func():
+		if not OS.has_feature("mobile") and not OS.has_feature("web_ios") and not OS.has_feature("web_android"):
+			up.call(true))
+	b.mouse_exited.connect(up.bind(false))
+	b.button_down.connect(func():
+		if is_instance_valid(face):
+			face.set_meta("lv", -6.0))
+	_card_faces.append(face)
+	_ignore_mouse(b)
+	return b
+
+
+## Corner index: platform short over the tier letter.
+func _card_pip(short: String, tier: int, k: float) -> VBoxContainer:
+	var v := _vbox(int(-6 * k))
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var a := _title_label(short, int(15 * k), Color.WHITE)
+	a.add_theme_constant_override("outline_size", 4)
+	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(a)
+	var t := _title_label(["C", "U", "R", "G"][tier], int(13 * k), Catalog.TIER_COLORS[tier] if tier > 0 else Color(1, 1, 1, 0.75))
+	t.add_theme_constant_override("outline_size", 4)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	return v
+
+
+## Little triangle: green up = priced under worth, red down = over.
+func _deal_arrow(good: bool, s: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(s, s)
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var z := c.size
+		var pts := PackedVector2Array([Vector2(0, z.y), Vector2(z.x, z.y), Vector2(z.x * 0.5, 0)]) if good \
+			else PackedVector2Array([Vector2(0, 0), Vector2(z.x, 0), Vector2(z.x * 0.5, z.y)])
+		c.draw_colored_polygon(pts, GOOD if good else BAD))
+	return c
+
+
+## Idle sway (each card on its own beat) and the springy lift when a card is
+## highlighted or pressed. Lite.perf keeps them still apart from the lift.
+func _card_motion(delta: float) -> void:
+	if _card_faces.is_empty():
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	var sway := not Lite.perf
+	var keep: Array = []
+	for f in _card_faces:
+		if not is_instance_valid(f) or not (f as Control).is_inside_tree():
+			if is_instance_valid(f):
+				keep.append(f)
+			continue
+		keep.append(f)
+		var face := f as Control
+		var ph := float(face.get_meta("phase"))
+		var l := float(face.get_meta("lift"))
+		var lv := float(face.get_meta("lv"))
+		var goal := float(face.get_meta("goal"))
+		# Under-damped spring: overshoots a touch, like Balatro's snap.
+		lv += ((goal - l) * 260.0 - lv * 16.0) * minf(delta, 0.05)
+		l += lv * minf(delta, 0.05)
+		face.set_meta("lift", l)
+		face.set_meta("lv", lv)
+		var rest := absf(goal - l) < 0.002 and absf(lv) < 0.01
+		if not sway and rest and goal == 0.0 and face.rotation == 0.0:
+			continue
+		var r := 0.0
+		var y := 0.0
+		if sway:
+			r = sin(t * 1.9 + ph) * deg_to_rad(1.5) * (1.0 - clampf(l, 0.0, 1.0))
+			y = sin(t * 1.5 + ph * 1.3) * 2.0
+		face.rotation = r - deg_to_rad(2.0) * l
+		face.scale = Vector2.ONE * (1.0 + 0.07 * l)
+		face.position = Vector2(0, y - 10.0 * l)
+		face.z_index = 1 if l > 0.05 else 0
+	_card_faces = keep.filter(func(f): return is_instance_valid(f))
+
+
+## Shop card: price sticker, WORTH (or the seller's guess range), a deal arrow.
+func _offer_play(i: int, w: float) -> Button:
 	var o: Dictionary = run.stock[i]
 	var item: Dictionary = o["item"]
-	var b := _card_shell(w, 196, Catalog.platform(String(item["plat"]))["color"], func(): _open_offer(i))
-	var v := _card_inner_icon(b, item, 112)
-	var nm := _title_label(String(item["name"]), 24, INK)
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	nm.max_lines_visible = 2
-	v.add_child(nm)
-	v.add_child(_tag_row(item))
-	var fl := _label(Flavor.cond_line(item), 16, FLAVOR_C, true)
-	fl.max_lines_visible = 1
-	fl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	fl.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(fl)
-	var bottom := _hbox(6)
-	var wv := _vbox(-4)
+	var price := int(o["price"])
+	var m := {"sticker": _money(price), "sticker_col": STICKER}
 	if run.shows_exact():
-		wv.add_child(_label("WORTH", 13, MUTED))
-		wv.add_child(_title_label(_money(run.market_value(item)), 22, GOLD))
+		var mv := run.market_value(item)
+		m["worth"] = "WORTH " + _money(mv)
+		m["worth_col"] = GOLD
+		m["deal"] = 1 if mv > price else (-1 if mv < price else 0)
 	else:
 		var est: Array = o["est"]
-		wv.add_child(_label("GUESS", 13, MUTED))
-		wv.add_child(_title_label("%s-%s?" % [_money(int(est[0])), _money(int(est[1]))], 20, Color("e8dcc0")))
-	bottom.add_child(wv)
-	bottom.add_child(_spacer(false))
-	if bool(o["bargain"]):
-		bottom.add_child(_pill("BARGAIN", GOOD, 14))
-	bottom.add_child(_sticker(_money(int(o["price"]))))
-	v.add_child(bottom)
-	_ignore_mouse(b)
+		m["worth"] = "GUESS %s-%s" % [_money(int(est[0])), _money(int(est[1]))]
+		m["worth_col"] = Color("e8dcc0")
+	if run.wants(item) and (String(run.want["id"]) != "worth" or run.shows_exact()):
+		m["tag"] = "WANTED"
+		m["tag_col"] = Color("ffcc33")
+	elif bool(o["bargain"]):
+		m["tag"] = "DEAL"
+		m["tag_col"] = GOOD
+	elif int(item.get("tier", 0)) >= 3:
+		m["tag"] = "GRAIL"
+		m["tag_col"] = Color("ff6b6b")
+	var b := _play_card(item, w, func(): _open_offer(i), m)
+	if is_landscape():
+		_preview_on(b, item, "offer", i)
+	return b
+
+
+## Shelf card: WORTH bar and a profit / loss sticker (at a stop that buys,
+## the cash profit if you sold it here; at home, worth minus what you paid).
+func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
+	var m := {"worth": "WORTH " + _money(run.market_value(item)), "worth_col": GOLD}
+	if state != "":
+		m["dim"] = true
+		m["tag"] = state
+		m["tag_col"] = COLD_C
+	else:
+		var g := run.flip_now(item) if screen == "venue" and run.sell_rate() > 0.0 else run.gain(item)
+		m["sticker"] = _signed(g)
+		m["sticker_col"] = GOOD if g > 0 else (BAD if g < 0 else Color("b9b0cc"))
+		var vr := String(item.get("variant", "Standard"))
+		if run.wants(item):
+			m["tag"] = "WANTED"
+			m["tag_col"] = Color("ffcc33")
+		elif vr != "Standard":
+			m["tag"] = Catalog.variant_label(item).to_upper()
+			m["tag_col"] = Catalog.VARIANTS.get(vr, {}).get("color", GOLD)
+	var b := _play_card(item, w, func(): _open_shelf_item(int(item["uid"]), state), m)
+	_preview_on(b, item, "shelf" if state == "" else state)
 	return b
 
 
@@ -2113,58 +2414,6 @@ func _lot_card(i: int, w: float) -> Button:
 	_ignore_mouse(b)
 	if bool(lot["bought"]):
 		b.disabled = true
-	return b
-
-
-## Small for-sale tile (landscape): everything on the table fits at once;
-## the details show in the preview card while it's highlighted.
-func _offer_tile(i: int, w: float) -> Button:
-	var o: Dictionary = run.stock[i]
-	var item: Dictionary = o["item"]
-	var plat := Catalog.platform(String(item["plat"]))
-	var pcol: Color = plat["color"]
-	var tier := int(item.get("tier", 0))
-	var b := _card_shell(w, 196, pcol, func(): _open_offer(i))
-	_preview_on(b, item, "offer", i)
-	var v := _card_inner(b)
-	v.add_theme_constant_override("separation", 3)
-	var case := PanelContainer.new()
-	var cs := _box(pcol.darkened(0.55), 6, Color(Catalog.TIER_COLORS[tier], 0.7) if tier >= 2 else Color(pcol, 0.35), 2)
-	cs.shadow_size = 0
-	case.add_theme_stylebox_override("panel", cs)
-	case.custom_minimum_size = Vector2(0, 84)
-	var ic := _icon(item, 76)
-	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	case.add_child(ic)
-	var badges := VBoxContainer.new()
-	badges.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var top := _hbox(3)
-	top.add_child(_pill(String(plat["short"]), pcol.lightened(0.2), 12))
-	top.add_child(_spacer(false))
-	top.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 12))
-	badges.add_child(top)
-	badges.add_child(_spacer())
-	if bool(o["bargain"]):
-		var deal := _pill("DEAL", GOOD, 12)
-		deal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		badges.add_child(deal)
-	case.add_child(badges)
-	v.add_child(case)
-	var nm := _title_label(String(item["name"]), 17, INK)
-	nm.max_lines_visible = 1
-	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(nm)
-	var bottom := _hbox(3)
-	if run.shows_exact():
-		bottom.add_child(_label(_money(run.market_value(item)), 15, GOLD))
-	else:
-		var est: Array = o["est"]
-		bottom.add_child(_label("%s-%s?" % [_money(int(est[0])), _money(int(est[1]))], 14, Color("e8dcc0")))
-	bottom.add_child(_spacer(false))
-	bottom.add_child(_sticker(_money(int(o["price"])), STICKER, 20))
-	v.add_child(bottom)
-	_ignore_mouse(b)
 	return b
 
 
@@ -2343,78 +2592,6 @@ func _auction_card(i: int, w: float) -> Button:
 	return b
 
 
-func _shelf_tile(item: Dictionary, w: float, state: String = "") -> Button:
-	var plat := Catalog.platform(String(item["plat"]))
-	var pcol: Color = plat["color"]
-	var tier := int(item.get("tier", 0))
-	var bg := PANEL if state == "" else PANEL.darkened(0.3)
-	var small := is_landscape()
-	var b := _card_shell(w, (300 if state == "" else 236) - (56 if small else 0), pcol, func(): _open_shelf_item(int(item["uid"]), state), bg)
-	_preview_on(b, item, "shelf" if state == "" else state)
-	var v := _card_inner(b)
-	v.add_theme_constant_override("separation", 5 if not small else 3)
-	# Display case: platform-tinted window with the item, rarity glow, variant ribbon.
-	var case := PanelContainer.new()
-	var cs := _box(pcol.darkened(0.55), 6, Color(Catalog.TIER_COLORS[tier], 0.7) if tier >= 2 else Color(pcol, 0.35), 2)
-	cs.shadow_size = 6 if tier >= 2 else 0
-	cs.shadow_color = Color(Catalog.TIER_COLORS[tier], 0.35)
-	cs.shadow_offset = Vector2.ZERO
-	cs.content_margin_top = 4
-	cs.content_margin_bottom = 2
-	case.add_theme_stylebox_override("panel", cs)
-	case.custom_minimum_size = Vector2(0, 108 if not small else 80)
-	var light := ColorRect.new()
-	light.color = Color(1, 1, 1, 0.06)
-	light.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	case.add_child(light)
-	var ic := _icon(item, 96 if not small else 74)
-	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	if state != "":
-		ic.modulate = Color(0.6, 0.6, 0.7)
-	case.add_child(ic)
-	var badges := VBoxContainer.new()
-	badges.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var top := _hbox(4)
-	top.add_child(_pill(String(plat["short"]), pcol.lightened(0.2), 13))
-	top.add_child(_spacer(false))
-	if tier >= 2:
-		top.add_child(_pill(String(Catalog.TIER_NAMES[tier]).to_upper(), Catalog.TIER_COLORS[tier], 13))
-	if int(item.get("grade", 0)) > 0:
-		top.add_child(_pill("GRADE %d" % int(item["grade"]), GOLD, 13))
-	badges.add_child(top)
-	badges.add_child(_spacer())
-	var vr := String(item.get("variant", "Standard"))
-	if vr != "Standard":
-		var rib := _pill(Catalog.variant_label(item).to_upper(), Catalog.VARIANTS.get(vr, {}).get("color", GOLD), 13)
-		rib.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		badges.add_child(rib)
-	case.add_child(badges)
-	v.add_child(case)
-	var nm := _title_label(String(item["name"]), 18, INK if state == "" else MUTED)
-	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	nm.max_lines_visible = 2
-	nm.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(nm)
-	if small:
-		nm.max_lines_visible = 1
-		nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	else:
-		var info := _hbox(4)
-		info.add_child(_pill(String(item.get("cond", "")).to_upper(), Color(1, 1, 1, 0.8), 13))
-		if int(item.get("held", 0)) > 0:
-			info.add_child(_label("held %d" % int(item["held"]), 14, MUTED))
-		v.add_child(info)
-	if state != "":
-		var sp := _pill(state, COLD_C, 14)
-		sp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		v.add_child(sp)
-		_ignore_mouse(b)
-		return b
-	v.add_child(_value_rows(item, 14 if not small else 13))
-	_ignore_mouse(b)
-	return b
-
-
 ## Plain lines so the numbers can't be mixed up:
 ## WORTH = its value (what it counts for at the appraisal),
 ## YOU PAID, then UP / DOWN = how far WORTH has moved past what you paid,
@@ -2447,7 +2624,7 @@ func _value_rows(item: Dictionary, fs: int) -> Control:
 
 func _empty_tile(w: float) -> Control:
 	var p := PanelContainer.new()
-	p.custom_minimum_size = Vector2(w, 236)
+	p.custom_minimum_size = Vector2(w, roundf(w * CARD_RATIO))
 	p.add_theme_stylebox_override("panel", _box(Color(0, 0, 0, 0.25), 6, Color(1, 1, 1, 0.1), 2))
 	var l := _label("empty slot", 15, Color(MUTED, 0.5))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2486,8 +2663,9 @@ func _shelf_grid(parent: Control, avail: float) -> void:
 	if screen == "home":
 		var vb := _button("VIEW YOUR SHELF IN 3D", _set_showcase.bind(true), Color("2f5d7a"), 20, 72)
 		parent.add_child(vb)
-	var gc: Array = _grid(avail, 150, 8)
+	var gc: Array = _grid(avail, 150, 12)
 	var g: GridContainer = gc[0]
+	g.add_theme_constant_override("v_separation", 22)
 	var w: float = gc[1]
 	for it in run.shelf:
 		g.add_child(_shelf_tile(it, w))
@@ -4082,11 +4260,12 @@ func _build_showcase() -> void:
 		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 		sc.follow_focus = false
 		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		sc.custom_minimum_size = Vector2(0, 210 if is_landscape() else 272)
-		var row := _hbox(8)
+		var sw := 128.0 if is_landscape() else 160.0
+		sc.custom_minimum_size = Vector2(0, roundf(sw * CARD_RATIO) + 30)
+		var row := _hbox(12)
 		sc.add_child(row)
 		for it in run.shelf:
-			row.add_child(_shelf_tile(it, 170))
+			row.add_child(_shelf_tile(it, sw))
 		_root_box.add_child(sc)
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
 	var h := _hbox(12)
@@ -5120,11 +5299,11 @@ func _build_room_view() -> void:
 		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
 		sc.follow_focus = true
 		sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		sc.custom_minimum_size = Vector2(0, 200)
-		var row := _hbox(8)
+		sc.custom_minimum_size = Vector2(0, roundf(136 * CARD_RATIO) + 30)
+		var row := _hbox(12)
 		sc.add_child(row)
 		for i in items:
-			var tile := _offer_tile(int(i), 160)
+			var tile := _offer_play(int(i), 136)
 			row.add_child(tile)
 		_root_box.add_child(sc)
 	var bar := _panel(Color(0.04, 0.035, 0.05, 0.85), Color(GOLD, 0.35), 2)
@@ -5283,8 +5462,9 @@ func _build_venue() -> void:
 		var done0 := _button("APPRAISE & LEAVE   %s / %s" % [_money(total), _money(tgt)], _confirm_done, STICKER if total >= tgt else Color("8a4a3a"), 26, 96)
 		_main_action(done0)
 		return
-	var gc: Array = _grid(_main_w(), 150 if is_landscape() else 300, 8)
+	var gc: Array = _grid(_main_w(), 170 if is_landscape() else 200, 12)
 	var g: GridContainer = gc[0]
+	g.add_theme_constant_override("v_separation", 24)
 	var w: float = gc[1]
 	var label := "FOR SALE"
 	if run.venue.get("bin", false):
@@ -5293,7 +5473,7 @@ func _build_venue() -> void:
 		_section(main, label)
 		var fresh := 0
 		for i in run.stock.size():
-			var card := _offer_tile(i, w) if is_landscape() else _offer_card(i, w)
+			var card := _offer_play(i, w)
 			g.add_child(card)
 			var it: Dictionary = run.stock[i]["item"]
 			var uid := int(it.get("uid", -1))
@@ -7117,6 +7297,7 @@ func _on_spin_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_lazy_update(delta)
 	_fling_update(delta)
+	_card_motion(delta)
 	_room_walk_update(delta)
 	if _pad:
 		_pad_repeat(delta)

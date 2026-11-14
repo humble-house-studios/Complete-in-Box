@@ -283,7 +283,8 @@ The web build in Safari is the test for every platform.
   subtle Xbox glyphs (`_glyph`: Y on main buttons, LB/RB on tab bars) and a
   hint strip at the bottom; touch or mouse turns it all off. Focus is restored
   by button identity after each rebuild and kept inside the top layer.
-- Landscape shows compact tiles (`_offer_tile`, small `_shelf_tile`) so a whole
+- Shop + shelf items are Balatro-size play cards (`_play_card`, via `_offer_play` / `_shelf_tile`): cream border, platform face, corner pips, tier-framed art, WORTH bar (+ deal arrow), price or profit/loss sticker, top tag; idle sway + springy lift in `_card_motion` (sway off in Lite.perf).
+- Landscape shows the same cards so a whole
   table fits; highlighting a tile (pad focus, or mouse hover on desktop) pops a
   trading-card preview (`_show_preview`) that fills the
   middle gap (`_gap` rect); A / click opens the full card.
