@@ -3260,7 +3260,7 @@ func _signature_item(world: String) -> Dictionary:
 	return it
 
 
-## A ~22 s first-visit intro for a world: the camera flies through its
+## A ~32 s first-visit intro for a world: the camera flies through its
 ## signature venue (Stage.intro_path), glances at its collector's case, the
 ## signature piece rises into a spotlight, then the world's logo slams in
 ## with its music sting. Skippable; replayable from the COLLECTION.
@@ -3301,10 +3301,10 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	Art.loading = true
 	_stage.collector_cases = _collector_cases()
 	_stage.show_scene(scene, [sig])
-	path = _stage.intro_path(scene, true)  # again, now it can centre on the piece
+	path = _stage.intro_path(scene, true)  # again, now it can centre on the piece and knows the screen shape
 	_stage.cine_on = true
-	# The table sits below the logo and its lines (they fill the top third).
-	_stage.set_focus(0.72 if is_landscape() else 0.62, 1.0)
+	_stage.set_focus(0.5, 1.0)
+	var even := _cine_even(path)
 	_cine_at(path, 0.0)
 	_sfx.music(String(wd.get("music", "")) if String(wd.get("music", "")) != "" else "hunt")
 	var hero := _stage.hero()
@@ -3332,13 +3332,14 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	_wintro.add_child(skip)
 	if _pad:
 		skip.grab_focus.call_deferred()
-	# 1. Fade up and fly (16 s, slow and calm), glancing at the collector's case on the way.
-	var fly_time := 16.0
+	# 1. Fade up and drift (26 s, slow and calm, even speed so nothing whips),
+	# past the collector's case and the walls, settling over the table.
+	var fly_time := 26.0
 	var fly := create_tween().set_parallel(true)
-	fly.tween_property(black, "color:a", 0.0, 2.4).set_trans(Tween.TRANS_SINE)
+	fly.tween_property(black, "color:a", 0.0, 3.0).set_trans(Tween.TRANS_SINE)
 	fly.tween_method(func(t: float) -> void:
 		if _wintro_on():
-			_cine_at(path, t), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			_cine_at(path, _cine_even_t(even, t)), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await get_tree().create_timer(fly_time * 0.6).timeout
 	if _wintro_skip or not _wintro_on():
 		return
@@ -3421,6 +3422,48 @@ func _finish_world_intro() -> void:
 		d.call()
 	else:
 		request_refresh()
+
+
+## Even pacing for a camera path: samples the spline and returns the path
+## time at each step of equal "travel" (metres moved + turning, so a big
+## turn gets as much time as a long move). Feed it to _cine_even_t.
+func _cine_even(path: Array) -> PackedFloat32Array:
+	var n := 240
+	var cost := PackedFloat32Array([0.0])
+	var prev_p: Vector3
+	var prev_d: Vector3
+	for k in n + 1:
+		var u := float(k) / n
+		var seg := clampf(u, 0.0, 1.0) * (path.size() - 1)
+		var i := mini(int(floor(seg)), path.size() - 2)
+		var f := seg - i
+		var p0: Array = path[maxi(i - 1, 0)]
+		var p1: Array = path[i]
+		var p2: Array = path[i + 1]
+		var p3: Array = path[mini(i + 2, path.size() - 1)]
+		var pos := (p1[0] as Vector3).cubic_interpolate(p2[0], p0[0], p3[0], f)
+		var look := (p1[1] as Vector3).cubic_interpolate(p2[1], p0[1], p3[1], f)
+		var dir := (look - pos).normalized()
+		if k > 0:
+			cost.append(cost[k - 1] + pos.distance_to(prev_p) + 1.6 * prev_d.angle_to(dir))
+		prev_p = pos
+		prev_d = dir
+	return cost
+
+
+func _cine_even_t(cost: PackedFloat32Array, t: float) -> float:
+	var n := cost.size() - 1
+	if n < 1 or cost[n] <= 0.0:
+		return t
+	var want := clampf(t, 0.0, 1.0) * cost[n]
+	var i := cost.bsearch(want)
+	if i <= 0:
+		return 0.0
+	if i > n:
+		return 1.0
+	var span := cost[i] - cost[i - 1]
+	var f := (want - cost[i - 1]) / span if span > 0.0 else 0.0
+	return (i - 1 + f) / n
 
 
 func _cine_at(path: Array, t: float) -> void:

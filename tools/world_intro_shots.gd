@@ -5,11 +5,12 @@ extends SceneTree
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var out: String = args[0] if args.size() > 0 else "user://world_intro"
-	DisplayServer.window_set_size(Vector2i(1280, 720) if args.has("landscape") else Vector2i(720, 1280))
+	var tall := Vector2i(720, 1560) if args.has("phone") else Vector2i(720, 1280)
+	DisplayServer.window_set_size(Vector2i(tall.y, tall.x) if args.has("landscape") else tall)
 	DirAccess.make_dir_recursive_absolute(out)
 	var game: Node = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
-	var world: String = args[1] if args.size() > 1 and args[1] != "landscape" else "sports"
+	var world: String = args[1] if args.size() > 1 and not args[1] in ["landscape", "phone"] else "sports"
 	_go.call_deferred(out, game, world)
 
 
@@ -22,7 +23,7 @@ func _go(out: String, game: Node, world: String) -> void:
 	game.screen = "home"
 	game._world_intro(world, func(): pass)
 	var t := 0.0
-	for at in [1.5, 5.0, 9.0, 13.0, 16.5, 17.5, 20.0]:
+	for at in [2.0, 6.0, 10.0, 14.0, 18.0, 22.0, 26.5, 29.0]:
 		await create_timer(at - t).timeout
 		t = at
 		await RenderingServer.frame_post_draw
