@@ -614,15 +614,22 @@ var _t_acc := Vector2.ZERO
 var _t_vel := Vector2.ZERO
 var _t_us := 0
 var _t_drag := false
+var _t_index := -1
 var _flings: Array = []  # [scroll, velocity, position]
 
 
 func _touch_scroll(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
-		if st.index != 0:
+		# Follow one finger. iPhone Safari numbers fingers with big random
+		# ids (not 0, 1...), so remember whichever touched first.
+		# (A lost release can't lock it: a new finger takes over after 0.5 s.)
+		if st.pressed and _t_index != -1 and st.index != _t_index and Time.get_ticks_usec() - _t_us < 500000:
+			return
+		if not st.pressed and st.index != _t_index:
 			return
 		if st.pressed:
+			_t_index = st.index
 			_tsc = _scroll_at(st.position)
 			_t_drag = false
 			_t_vel = Vector2.ZERO
@@ -639,9 +646,10 @@ func _touch_scroll(event: InputEvent) -> void:
 					_flings.append([_tsc, _t_vel, _t_acc])
 			_tsc = null
 			_t_drag = false
+			_t_index = -1
 	elif event is InputEventScreenDrag and _tsc != null:
 		var sd := event as InputEventScreenDrag
-		if sd.index != 0:
+		if sd.index != _t_index:
 			return
 		if not is_instance_valid(_tsc) or not _tsc.is_inside_tree():
 			_tsc = null
