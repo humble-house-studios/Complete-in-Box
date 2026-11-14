@@ -766,6 +766,7 @@ const SIGNS := {
 	"comiccon": {"COLLECTOR CON": "COMIC CON"},
 	"booksale": {"COLLECTOR CON": "LIBRARY BOOK SALE"},
 	"bookauction": {"HERITAGE": "SOTHEBIDS"},
+	"recordfair": {"COLLECTOR CON": "RECORD FAIR"},
 }
 
 
@@ -943,6 +944,10 @@ func _build(id: String, items: Array) -> void:
 		"booksale": _convention(items)
 		"estatelib": _estate(items)
 		"bookauction": _heritage(items)
+		"recordshop": _recordshop(items)
+		"recordfair": _convention(items)
+		"basementcrates": _estate(items)
+		"diskogz": _online(items)
 		"cursed": _cursed(items)
 		_: _garage(items)
 
@@ -1386,6 +1391,157 @@ func _bookshop(items: Array) -> void:
 	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
 
 
+## Bins of LP sleeves standing front to back, cheaply: one MultiMesh per
+## sleeve colour. cols = [[front centre, depth], ...]; each column of
+## sleeves leans back a little, the way they settle in a record bin.
+func _sleeves(cols: Array, seed_value: int, size := 0.31) -> void:
+	var colours := [Color(0.85, 0.2, 0.2), Color(0.15, 0.25, 0.6), Color(0.92, 0.88, 0.8), Color(0.1, 0.1, 0.11), Color(0.9, 0.6, 0.15),
+		Color(0.55, 0.25, 0.6), Color(0.2, 0.5, 0.35), Color(0.95, 0.45, 0.6)]
+	var per: Array = []
+	for k in colours.size():
+		per.append([])
+	var r := RandomNumberGenerator.new()
+	r.seed = seed_value
+	for col in cols:
+		var c: Vector3 = col[0]
+		var depth: float = col[1]
+		var z := c.z
+		while z > c.z - depth:
+			var t := r.randf_range(0.004, 0.009)
+			var lean := r.randf_range(0.12, 0.3)
+			var b := Basis(Vector3.RIGHT, -lean).scaled(Vector3(size, size, t))
+			per[r.randi() % colours.size()].append(Transform3D(b, Vector3(c.x + r.randf_range(-0.006, 0.006), c.y + size * 0.48, z)))
+			z -= t + 0.01
+	var mesh := BoxMesh.new()
+	for k in colours.size():
+		var list: Array = per[k]
+		if list.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i])
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = mm
+		mi.material_override = Psx.mat(colours[k])
+		world.add_child(mi)
+
+
+## Needle Drop Records, the record shop: a wall of sleeves face-out, bins of
+## LPs on trestle tables, a listening deck with a record spinning, the
+## counter, crates on the floor, and Midnight Marv's case in the corner,
+## filed under M.
+func _recordshop(items: Array) -> void:
+	_setup(Color(0.08, 0.06, 0.1), Color(0.82, 0.7, 0.78), 1.15, 7.0, 22.0)
+	_room(9, 7.5, 3.3, "woodfloor043", Color(0.62, 0.48, 0.4), "bricks105", Color(0.58, 0.42, 0.46), 1.3, Rect2(), Color(0.3, 0.26, 0.3))
+	var pool := Catalog.items_of("vinyl")
+	var recs := pool.filter(func(d): return String(d["kind"]) == "record" and String(d.get("fmt", "LP")) == "LP")
+	var crates := pool.filter(func(d): return String(d["kind"]) == "crate")
+	# The wall of sleeves: sealed LPs face-out on a slat wall, grails up top.
+	var wall := Psx.mat(Color(0.22, 0.2, 0.22), Psx.tex("planks012"), Vector2(6, 2))
+	Psx.box(Vector3(8.6, 2.0, 0.05), wall, Vector3(0, 2.1, -3.68), world)
+	var r := RandomNumberGenerator.new()
+	r.seed = 3300
+	for row in 3:
+		var y := 1.3 + row * 0.62
+		for k in 9:
+			var it: Dictionary = recs[(row * 9 + k * 7 + r.randi() % 3) % recs.size()].duplicate()
+			it["cond"] = "Sealed"
+			var m := ItemModels.build(it)
+			m.scale = Vector3.ONE * ITEM_SCALE * 0.95
+			m.position = Vector3(-3.6 + k * 0.9, y, -3.6)
+			world.add_child(m)
+	_neon("NEEDLE DROP", Vector3(-1.6, 3.12, -3.6), Color(1.0, 0.35, 0.6), 56)
+	_neon("NEW  ARRIVALS", Vector3(2.2, 3.12, -3.6), Color(0.4, 0.9, 1.0), 34)
+	# Trestle tables of record bins, divided A to Z.
+	var cols: Array = []
+	for i in 2:
+		var tp := Vector3(-2.0 + i * 4.0, 0, -1.9)
+		var t := _prop("table", tp, 0, 0.0, Color(0.45, 0.35, 0.28), 1.8)
+		var ty := _top(t)
+		var trough := Psx.mat(Color(0.32, 0.22, 0.15), Psx.tex("wood066"))
+		Psx.box(Vector3(1.7, 0.03, 0.62), trough, tp + Vector3(0, ty + 0.015, 0), world)
+		for sx in [-0.85, 0.85]:
+			Psx.box(Vector3(0.03, 0.2, 0.62), trough, tp + Vector3(sx, ty + 0.1, 0), world)
+		Psx.box(Vector3(1.7, 0.16, 0.03), trough, tp + Vector3(0, ty + 0.08, 0.31), world)
+		for k in 4:
+			cols.append([tp + Vector3(-0.62 + k * 0.415, ty + 0.03, 0.27), 0.52])
+			# A tab divider poking up between the bins.
+			if k > 0:
+				Psx.box(Vector3(0.008, 0.36, 0.5), Psx.mat(Color(0.95, 0.92, 0.85)), tp + Vector3(-0.83 + k * 0.415, ty + 0.2, 0.02), world)
+		_person(tp + Vector3(0.3, 0, -0.65), 0, Color.WHITE, 1.45, String(PEOPLE[(i * 5 + 2) % PEOPLE.size()]))
+	_sleeves(cols, 45)
+	# The listening deck on the left: a turntable spinning, two speakers.
+	var dp := Vector3(-3.3, 0, -1.6)
+	Psx.box(Vector3(0.8, 0.95, 1.4), Psx.mat(Color(0.25, 0.18, 0.14), Psx.tex("wood066")), dp + Vector3(0, 0.475, 0), world)
+	Psx.box(Vector3(0.5, 0.1, 0.42), Psx.mat(Color(0.12, 0.1, 0.09)), dp + Vector3(0, 1.0, 0.1), world)
+	var plat := Node3D.new()
+	plat.position = dp + Vector3(0, 1.07, 0.1)
+	world.add_child(plat)
+	Psx.cyl(0.17, 0.02, Psx.mat(Color(0.7, 0.72, 0.75), null, Vector2.ONE, 0.1), Vector3.ZERO, plat, 20)
+	Psx.cyl(0.155, 0.012, Psx.mat(Color(0.04, 0.04, 0.05), null, Vector2.ONE, 0.05), Vector3(0, 0.014, 0), plat, 24)
+	Psx.cyl(0.05, 0.014, Psx.mat(Color(0.9, 0.3, 0.25)), Vector3(0, 0.016, 0), plat, 12)
+	Psx.box(Vector3(0.02, 0.012, 0.012), Psx.mat(Color(0.95, 0.95, 0.9)), Vector3(0.03, 0.025, 0), plat)
+	_spin.append(plat)
+	var arm := Psx.box(Vector3(0.02, 0.02, 0.26), Psx.mat(Color(0.75, 0.75, 0.78)), dp + Vector3(0.2, 1.1, 0.12), world)
+	arm.rotation_degrees.y = 22.0
+	for sz in [-0.5, 0.6]:
+		var sp := dp + Vector3(0.05, 0.95, sz)
+		Psx.box(Vector3(0.36, 0.55, 0.3), Psx.mat(Color(0.14, 0.1, 0.08), Psx.tex("wood066")), sp + Vector3(0, 0.275, 0), world)
+		for wy in [0.16, 0.4]:
+			var cone := Psx.cyl(0.1 if wy < 0.3 else 0.05, 0.02, Psx.mat(Color(0.08, 0.08, 0.09)), sp + Vector3(0.18, wy, 0), world, 12)
+			cone.rotation_degrees.z = 90.0
+	_neon("LISTENING  DECK", dp + Vector3(0.38, 2.15, 0.1), Color(1.0, 0.75, 0.3), 30, 90)
+	_light(dp + Vector3(0.4, 1.8, 0.1), Color(1.0, 0.75, 0.45), 1.4, 2.6, 0.1)
+	_person(dp + Vector3(0.75, 0, 0.1), 90, Color.WHITE, 1.45, "female_adult_05")
+	# Crates of fresh stock on the floor by the door.
+	for k in 3:
+		var cr: Dictionary = crates[k % crates.size()].duplicate()
+		cr["cond"] = "CIB"
+		var cm := ItemModels.build(cr)
+		cm.scale = Vector3.ONE * ITEM_SCALE * 1.0
+		cm.position = Vector3(2.9 + (k % 2) * 0.55, 0.0 + (0.62 if k == 2 else 0.0), 0.5 + (0.0 if k < 2 else 0.0))
+		cm.rotation_degrees.y = -20.0 + k * 12.0
+		world.add_child(cm)
+	# Posters of big records on the side walls.
+	var ids := _poster_ids(77, 4)
+	for k in ids.size():
+		var side := -1.0 if k < 2 else 1.0
+		_poster(Vector3(side * 4.42, 2.2, -2.2 + (k % 2) * 1.6), -90.0 * side, Vector2(0.8, 0.8), String(ids[k]))
+	# The counter with your table's items, a till and a stack of slipmats.
+	Psx.box(Vector3(2.6, 0.9, 0.7), Psx.mat(Color(0.18, 0.14, 0.16), Psx.tex("wood066")), Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.75, 0.25, 0.45), null, Vector2.ONE, 0.2), Vector3(0, 0.92, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
+	_person(Vector3(1.3, 0, -0.85), -15, Color(1.0, 0.95, 0.9), 1.45, "male_adult_17")
+	# Midnight Marv's case in the corner, filed under M.
+	var marv: Dictionary = {}
+	for c in collector_cases:
+		if String(c.get("name", "")) == "Midnight Marv Okafor":
+			marv = c
+	var holder := world
+	var croot := Node3D.new()
+	croot.position = Vector3(-3.4, 0, 0.35)
+	croot.rotation_degrees.y = 55.0
+	croot.scale = Vector3.ONE * 0.8
+	holder.add_child(croot)
+	world = croot
+	if bool(marv.get("freed", false)):
+		_open_case(Vector3.ZERO, "Midnight Marv")
+	else:
+		_grade_case(Vector3.ZERO, "male_adult_05", {"grade": "VG+", "cond": "SHRINK", "lot": "M-0006", "name": "MIDNIGHT MARV",
+			"ante": "FILED UNDER M", "label": "WMRV LIBRARY", "case": "record"}, false)
+	world = holder
+	_spot(Vector3(-2.6, 3.1, 1.2), Vector3(-3.4, 1.0, 0.35), Color(1.0, 0.75, 0.9), 2.6, 26, 6.0)
+	_walker([Vector3(-1.2, 0, -1.0), Vector3(0.6, 0, -1.05), Vector3(2.6, 0, -1.0)], [["browse", 180], ["reach", 180], ["browse", 180]], "female_adult_01", 0.4)
+	for x in [-2.5, 0.0, 2.5]:
+		_light(Vector3(x, 3.0, -1.2), Color(1.0, 0.82, 0.75), 1.2, 4.5)
+	_light(Vector3(0, 2.6, -3.0), Color(1.0, 0.75, 0.85), 1.6, 5.0)
+	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
+
+
 ## The camera flight for a world's first-visit intro: [[pos, look], ...].
 ## Ends on the venue's usual view so the reveal lands on the signature item.
 func intro_path(id: String) -> Array:
@@ -1410,6 +1566,15 @@ func intro_path(id: String) -> Array:
 				[Vector3(0.6, 1.6, -0.4), Vector3(-3.2, 1.2, -2.0)],  # the Twins' cases
 				[Vector3(1.0, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
 				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature card on the counter
+			]
+		"recordshop":
+			return [
+				[Vector3(-3.0, 2.8, -2.2), Vector3(-1.8, 2.6, -3.6)],  # along the wall of sleeves
+				[Vector3(-0.6, 2.0, -0.6), Vector3(-0.4, 1.0, -1.9)],  # over the bins
+				[Vector3(-1.9, 1.6, -0.6), Vector3(-3.3, 1.1, -1.5)],  # the record spinning on the deck
+				[Vector3(0.8, 1.6, 0.6), Vector3(-3.4, 1.1, 0.35)],  # Marv, filed under M
+				[Vector3(0.9, 1.5, 1.9), Vector3(0.0, 0.95, 0.0)],
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],  # the signature record on the counter
 			]
 		"bookshop":
 			return [
@@ -2191,7 +2356,7 @@ func _online(items: Array) -> void:
 	var top := _top(desk)
 	_crt(Vector3(0.1, top, -0.5), 0.6, Color(0.45, 0.65, 1.0))
 	var l := Label3D.new()
-	l.text = {"ebay": "eBuy", "tcgmarket": "TCGrabber", "breaks": "BREAKZ LIVE", "comicauction": "PanelLink"}.get(scene_id, "LOT 0451")
+	l.text = {"ebay": "eBuy", "tcgmarket": "TCGrabber", "breaks": "BREAKZ LIVE", "comicauction": "PanelLink", "diskogz": "Diskogz"}.get(scene_id, "LOT 0451")
 	l.font = FONT
 	l.font_size = 48
 	l.pixel_size = 0.004
@@ -2436,6 +2601,18 @@ func _grade_case(pos: Vector3, who: String, info: Dictionary, hero: bool) -> voi
 		for dy in [-0.13, 0.13]:
 			Psx.box(Vector3(CASE_W + 0.2, 0.02, 0.104), Psx.mat(Color(0.93, 0.78, 0.38)), Vector3(0, btop + dy, CASE_D * 0.5), root)
 		_case_text(root, "%s  IN JACKET" % String(info.get("grade", "?")), Vector3(0, btop, CASE_D * 0.5 + 0.055), 44, Color(0.95, 0.8, 0.4))
+	if String(info.get("case", "")) == "record":
+		# Records: the case is a giant record sleeve, black card on both sides,
+		# and the disc rides on top, half slotted in, label and grade showing.
+		var card := Psx.mat(Color(0.08, 0.07, 0.09))
+		for x in [-CASE_W * 0.5 - 0.04, CASE_W * 0.5 + 0.04]:
+			Psx.box(Vector3(0.06, CASE_H + 0.1, CASE_D + 0.06), card, Vector3(x, PLINTH_H + CASE_H * 0.5, 0), root)
+		var dtop := PLINTH_H + CASE_H + CASE_W * 0.32
+		var disc := Psx.cyl(CASE_W * 0.52, 0.04, Psx.mat(Color(0.05, 0.05, 0.06), null, Vector2.ONE, 0.05), Vector3(0, dtop, 0), root, 28)
+		disc.rotation_degrees.x = 90.0
+		var dl := Psx.cyl(CASE_W * 0.18, 0.045, Psx.mat(Color(0.85, 0.2, 0.3)), Vector3(0, dtop, 0), root, 16)
+		dl.rotation_degrees.x = 90.0
+		_case_text(root, "%s\nIN SHRINK" % String(info.get("grade", "?")), Vector3(0, dtop, 0.03), 36, Color(1.0, 0.92, 0.85))
 	if String(info.get("case", "")) == "slab" or String(info.get("case", "")) == "comic":
 		# Sports: the case is a giant grading slab: thick clear acrylic edges
 		# and a red-and-white flip label riding on top.

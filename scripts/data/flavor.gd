@@ -148,6 +148,7 @@ const WANT_NOTES := {
 	"worth": ["One serious piece. Show me you're not just shuffling junk.", "Quality over quantity. One piece. Make it count."],
 	"rookie": ["Everyone is worth the most at the start. Bring me a rookie.", "First year, first card, first mistake. Rose loved a rookie. So do I."],
 	"debut": ["Everyone writes a first book. Most of them should have stopped there. Bring me one that didn't.", "First books. First novels. First mistakes. Iris called it a debut. I call it an acquisition."],
+	"single": ["Three minutes. A-side, B-side. Everything that matters fits on seven inches. Bring me a single.", "Marv played a single for me every night at three. Bring me one he'd have played."],
 	"key": ["Firsts. I collect firsts. First issues, first appearances, first heirs.", "Bring me the issue where it all began. Everything begins somewhere."],
 	"vintage": ["Something older than you. Older than your parents, ideally.", "Bring me a card printed before anyone thought to keep them clean."],
 }
@@ -223,6 +224,7 @@ const LORE_FILES := {
 	"sports": preload("res://scripts/data/lore/sports.gd"),
 	"comics": preload("res://scripts/data/lore/comics.gd"),
 	"books": preload("res://scripts/data/lore/books.gd"),
+	"vinyl": preload("res://scripts/data/lore/vinyl.gd"),
 }
 const Worlds := preload("res://scripts/data/worlds.gd")
 static var _lore_cache: Dictionary = {}
@@ -976,6 +978,14 @@ static func _cc_history(def: Dictionary, item: Dictionary) -> Array:
 			"A hoard turned up in a bank vault decades later and changed the market overnight.", "Collectors ignored it for a century, then all wanted one at once.",
 			"Famous enough to have its own book. Several, actually."])])
 		out.append(["COLLECTOR TIP", _one(r, ["Never clean a coin. Ever. Toning is value.", "Check the date for doubling with a loupe.", "Look at the rim: tooling marks mean trouble.", "Buy the slab, then the coin. Then the coin."])])
+	elif kind == "record" or kind == "crate":
+		out.append(["PRESSED", "%s, by %s on %s." % [yt, String(def.get("artist", "")), String(def.get("imprint", ""))]])
+		if def.has("tell"):
+			out.append(["APPRAISER'S TELL", String(def["tell"])])
+		out.append(["SURVIVORS", "About %s pressed. Near Mint ones are rare: maybe %s." % [_num(int(def.get("run", 1000))), _num(maxi(1, int(def.get("run", 1000)) / r.randi_range(60, 700)))]])
+		out.append(["THE HYPE", _one(r, ["A DJ dropped it at a festival and the price doubled by morning.", "It was banned from the radio, which only made it more famous.",
+			"Every older sibling had one. Most lent it to someone and never got it back.", "It hit the news when a sealed copy sold for the price of a car.",
+			"Sampled so often the drum break has its own fan club."])])
 	else:
 		out.append(["PRINTED", "%s, %s. From %s, published by %s." % [yt, String(def.get("set", "")), String(def.get("set", "")), String(def.get("pub", ""))]])
 		if kind == "scard":

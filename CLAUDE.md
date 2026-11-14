@@ -79,7 +79,7 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   camera spline from `Stage.intro_path(scene)`, signature grail rises, logo slam, `sting_<world>`.
   Shots: `tools/world_intro_shots.gd -- OUT world`.
 - Balance: opening a run in a non-retro world scales the whole run's targets (worlds.gd `target`:
-  cards 1.45, coins 1.4, sports 1.5, comics 1.25, books 1.15) so every opening plays like retro; estates are tuned to
+  cards 1.45, coins 1.4, sports 1.5, comics 1.25, books 1.15, vinyl 1.45) so every opening plays like retro; estates are tuned to
   within a few wins of Arlo. Tune with `godot --headless -s res://tools/tune_worlds.gd -- world|estate ID values...`.
 - Title vault: one small case per collector (`Stage.collector_cases`), open and empty once freed.
 - Binder: stamps cap at $15 (`STAMP_CAP`), ladder to 1,800 owned, WORLD SEAL (own a whole world) +$3.
@@ -93,6 +93,13 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   `ItemModels._book/_booklot`, venues estatelib / booksale / bookshop (`Stage._bookshop`, spines batched by
   `_spines`) / bookauction, perks debut_novel, antiquarian, tag `debut` (want list), lore `lore/books.gd`
   (case "book" = giant clamshell). Target 1.15, Iris -$6 with 4 starters.
+- Vinyl records (Midnight Marv): kinds `record` / `crate` (milk crate, flips into records), pages ROCK JAZZ SOUL
+  PUNK HIPH, def `fmt` (LP / 7in / 12in / 78), `artist`, `imprint` (the label), tags `single` (want list + perk
+  forty_five) / `twelve` / `78`, painter `scripts/gfx/vinyl_art.gd` (real sleeves, else page-styled sleeves, 45
+  company sleeves, kraft 78s), sleeve + disc pulled out / shrink / slab and milk crate models in
+  `ItemModels._record/_crate`, venues basementcrates / recordfair / recordshop (`Stage._recordshop`, bins batched
+  by `_sleeves`, spinning deck) / diskogz, perks forty_five, golden_oldies, lore `lore/vinyl.gd` (case "record" =
+  giant sleeve with the disc on top). Target 1.45, Marv -$2 with 5 VG+ records (25 wins = Arlo).
 - Sports cards (Grandma Rose): kinds `scard` / `wax`, pages BASE HOOP GRID PUCK FUTB, painter
   `scripts/gfx/sports_art.gd` (3 eras, real photo/scan), venues ballroom / shoebox / dugout /
   breaks, room `Stage._ballroom`, perk renames in `Perks.THEMES`, new perks rookie_fever, hall_of_fame.

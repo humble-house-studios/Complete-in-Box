@@ -32,7 +32,7 @@ const LIST := [
 	{"id": "eagle_eye", "name": "Eagle Eye", "cost": 6, "desc": "Hunt items have a 25% chance to be a condition better."},
 	{"id": "whale", "name": "Whale Watcher", "cost": 8, "desc": "+2 Mult per GRAIL on your shelf."},
 	{"id": "lunchbox", "market": "games", "name": "Lunchbox Display", "cost": 5, "desc": "Accessories appraise for x3."},
-	{"id": "pack_rat", "market": ["cards", "sports", "comics", "books"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
+	{"id": "pack_rat", "market": ["cards", "sports", "comics", "books", "vinyl"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
 	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
 	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
 	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
@@ -57,6 +57,9 @@ const LIST := [
 	# Rare books
 	{"id": "debut_novel", "market": "books", "name": "First Novels", "cost": 6, "desc": "+0.3 Mult per author's debut on your shelf."},
 	{"id": "antiquarian", "market": "books", "name": "Antiquarian", "cost": 7, "desc": "Books from before 1900 appraise for x2."},
+	# Vinyl records
+	{"id": "forty_five", "market": "vinyl", "name": "45 Collector", "cost": 6, "desc": "+0.3 Mult per single (a 45, a 78 or a 12-inch) on your shelf."},
+	{"id": "golden_oldies", "market": "vinyl", "name": "Golden Oldies", "cost": 7, "desc": "Records from before 1970 appraise for x2."},
 	{"id": "hall_of_fame", "market": "sports", "name": "Hall of Famer", "cost": 7, "desc": "Cards from before 1980 appraise for x2."},
 ]
 
@@ -72,6 +75,23 @@ const UPGRADES := [
 ## Per-world names and text for the same perk (the effect never changes):
 ## THEMES[market][perk id] = [name, desc].
 const THEMES := {
+	"vinyl": {
+		"box_and_manual": ["Inner Sleeves", "Very Good Plus records appraise for x1.5."],
+		"shrink_wrap": ["Audiophile", "+0.5 Mult for each Near Mint or sealed record."],
+		"completionist": ["Complete Discography", "Crate Set bonuses count double."],
+		"curator": ["Every Crate", "x2 Mult if your shelf spans all 5 crates."],
+		"cursed_cart": ["Cursed Acetate", "x2 Mult, but -2 shelf slots. It skips at the same bar every time."],
+		"plastic_wrap": ["Still in Shrink", "Sealed records and dead-stock crates appraise for x2."],
+		"dust_sheet": ["Party Copies", "Poor records appraise for x2.5."],
+		"nostalgia": ["Dollar Bin Digger", "Common records appraise for x2."],
+		"pack_rat": ["Crate Hoarder", "Crates appraise for x2."],
+		"holo_hunter": ["Splatter Fan", "+0.6 Mult per shiny copy: coloured vinyl and picture discs."],
+		"oddity_hunter": ["Pressing Nerd", "+0.4 Mult per variant copy (promos, mono, test pressings...)."],
+		"full_page": ["Full Crate", "+1 Mult for each crate with 4+ records on your shelf."],
+		"hot_streak": ["Heavy Rotation", "+0.5 Mult per record from a HOT crate."],
+		"lucky_lots": ["Lucky Crates", "Mystery lots hold +1 item and roll a tier higher."],
+		"slab_fan": ["Slabbed Sleeves", "+0.75 Mult per graded record on your shelf."],
+	},
 	"books": {
 		"box_and_manual": ["Dust Jackets", "Very Good books appraise for x1.5."],
 		"shrink_wrap": ["Fine Copies Only", "+0.5 Mult for each Near Fine or Fine book."],

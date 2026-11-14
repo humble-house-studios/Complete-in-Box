@@ -1,0 +1,121 @@
+THE 250 MOST COLLECTIBLE VINYL RECORDS
+Compiled Nov 2026 from general collector knowledge (auction records, record-fair dealer lore,
+Goldmine price-guide lore), not live price data. Five binder pages of up to 50, by crate: Rock &
+Pop, Jazz & Blues, Soul & Funk, Punk, Indie & Metal, and Hip-Hop & Dance.
+First release ships 20 per page (100); each page grows to 50 later without code changes (append
+lines, rerun tools/gen_worlds.py vinyl). Order is roughly most to least desirable as an original
+pressing. Promos, test pressings, mono mixes, coloured vinyl and reissues are left to the variant
+roll in game.
+Format: rank. Title | Why it matters | Year | Page | kind (record / crate) | tags | Artist | Label | Wikipedia titles (; = fallbacks)
+Tags: debut = the artist's first release, single = a single (45, 78 or 12-inch), twelve = a
+12-inch single, 78 = a ten-inch shellac 78, banned = pulled or withdrawn. No single tag = an LP.
+
+== ROCK & POP ==
+1. Yesterday and Today | The withdrawn "butcher" cover, pasted over and recalled in a week | 1966 | ROCK | record | banned | The Beatles | Capitol | Yesterday and Today
+2. The Freewheelin' Bob Dylan | The first pressing with four songs pulled before release | 1963 | ROCK | record | banned | Bob Dylan | Columbia | The Freewheelin' Bob Dylan
+3. The Velvet Underground & Nico | The peelable banana sleeve; sold almost nothing at the time | 1967 | ROCK | record | debut | The Velvet Underground | Verve | The Velvet Underground & Nico
+4. Please Please Me | Gold-and-black label stereo, pressed in tiny numbers | 1963 | ROCK | record | debut | The Beatles | Parlophone | Please Please Me
+5. That's All Right | A Memphis truck driver's first single, on the little yellow label | 1954 | ROCK | record | debut,single | Elvis Presley | Sun | That's All Right
+6. Sgt. Pepper's Lonely Hearts Club Band | Gatefold, cut-out insert and a crowd of famous faces | 1967 | ROCK | record |  | The Beatles | Parlophone | Sgt. Pepper's Lonely Hearts Club Band
+7. Led Zeppelin | The turquoise-lettering first press, swapped within weeks | 1969 | ROCK | record | debut | Led Zeppelin | Atlantic | Led Zeppelin (album)
+8. The Beatles | The plain white sleeve, numbered by hand; low numbers fetch fortunes | 1968 | ROCK | record |  | The Beatles | Apple | The Beatles (album)
+9. Elvis Presley | The first rock and roll album to top the charts | 1956 | ROCK | record | debut | Elvis Presley | RCA Victor | Elvis Presley (album)
+10. Pet Sounds | A pocket symphony made in the studio, mono mix | 1966 | ROCK | record |  | The Beach Boys | Capitol | Pet Sounds
+11. Abbey Road | The zebra crossing, the last one they recorded | 1969 | ROCK | record |  | The Beatles | Apple | Abbey Road
+12. Are You Experienced | A guitar from another planet, mono first press | 1967 | ROCK | record | debut | The Jimi Hendrix Experience | Track | Are You Experienced
+13. The Dark Side of the Moon | The prism, the posters, the stickers, all present | 1973 | ROCK | record |  | Pink Floyd | Harvest | The Dark Side of the Moon
+14. Their Satanic Majesties Request | A lenticular 3D picture glued to the front | 1967 | ROCK | record |  | The Rolling Stones | Decca | Their Satanic Majesties Request
+15. Born to Run | The script-title advance cover, swapped before release | 1975 | ROCK | record |  | Bruce Springsteen | Columbia | Born to Run
+16. Thriller | The best-selling album ever; the first press is still worth finding | 1982 | ROCK | record |  | Michael Jackson | Epic | Thriller (album)
+17. Rumours | Recorded while every couple in the band split up | 1977 | ROCK | record |  | Fleetwood Mac | Warner Bros. | Rumours (album)
+18. Purple Rain | A purple poster folded inside, if you're lucky | 1984 | ROCK | record |  | Prince | Warner Bros. | Purple Rain (album)
+19. Hotel California | The gatefold with the ghostly figure on the balcony | 1976 | ROCK | record |  | Eagles | Asylum | Hotel California (album)
+20. Basement Rock Crate | A milk crate of classic rock from a damp basement, sleeves stuck together | 1975 | ROCK | crate |  | Various | Various | -
+
+== JAZZ & BLUES ==
+1. Terraplane Blues | A Delta bluesman's first 78; barely anyone bought it | 1937 | JAZZ | record | debut,single,78 | Robert Johnson | Vocalion | Terraplane Blues
+2. Kind of Blue | The six-eye mono first press with the label error | 1959 | JAZZ | record |  | Miles Davis | Columbia | Kind of Blue
+3. Blue Train | Deep-groove mono, the ear on the label, the Lexington address | 1958 | JAZZ | record |  | John Coltrane | Blue Note | Blue Train (album)
+4. A Love Supreme | A four-part prayer in orange and black | 1965 | JAZZ | record |  | John Coltrane | Impulse! | A Love Supreme
+5. Strange Fruit | A 78 so dark the big label wouldn't touch it | 1939 | JAZZ | record | single,78 | Billie Holiday | Commodore | Strange Fruit
+6. Moanin' | The cover photo every jazz shop has on the wall | 1958 | JAZZ | record |  | Art Blakey and the Jazz Messengers | Blue Note | Moanin'
+7. Somethin' Else | A trumpet star moonlighting as a sideman | 1958 | JAZZ | record |  | Cannonball Adderley | Blue Note | Somethin' Else (Cannonball Adderley album)
+8. Time Out | Jazz in strange time signatures, and a hit single | 1959 | JAZZ | record |  | The Dave Brubeck Quartet | Columbia | Time Out (album)
+9. Mingus Ah Um | Fury and gospel, six-eye label | 1959 | JAZZ | record |  | Charles Mingus | Columbia | Mingus Ah Um
+10. The Shape of Jazz to Come | No piano, no chords, no apologies | 1959 | JAZZ | record |  | Ornette Coleman | Atlantic | The Shape of Jazz to Come
+11. Saxophone Colossus | The one with St. Thomas on it | 1956 | JAZZ | record |  | Sonny Rollins | Prestige | Saxophone Colossus
+12. Hoochie Coochie Man | Chicago electric blues on a heavy 78 | 1954 | JAZZ | record | single,78 | Muddy Waters | Chess | Hoochie Coochie Man
+13. Ella and Louis | Two voices, one microphone, a summer afternoon | 1956 | JAZZ | record |  | Ella Fitzgerald and Louis Armstrong | Verve | Ella and Louis
+14. Lady in Satin | Strings, and a voice at the very end of the road | 1958 | JAZZ | record |  | Billie Holiday | Columbia | Lady in Satin
+15. Sunday at the Village Vanguard | Recorded ten days before the bassist died | 1961 | JAZZ | record |  | Bill Evans Trio | Riverside | Sunday at the Village Vanguard
+16. Getz/Gilberto | Bossa nova goes everywhere at once | 1964 | JAZZ | record |  | Stan Getz and Joao Gilberto | Verve | Getz/Gilberto
+17. Live at the Regal | The blues live, as good as it gets | 1965 | JAZZ | record |  | B.B. King | ABC-Paramount | Live at the Regal
+18. Bitches Brew | Jazz plugs in and doesn't look back | 1970 | JAZZ | record |  | Miles Davis | Columbia | Bitches Brew
+19. Head Hunters | Jazz-funk that sold like a pop record | 1973 | JAZZ | record |  | Herbie Hancock | Columbia | Head Hunters
+20. Jazz Club Estate Crate | A late club owner's crate: Blue Notes on top, polka at the bottom | 1962 | JAZZ | crate |  | Various | Various | -
+
+== SOUL & FUNK ==
+1. Do I Love You (Indeed I Do) | The rarest soul 45: almost every copy was destroyed | 1965 | SOUL | record | single | Frank Wilson | Soul | Do I Love You (Indeed I Do)
+2. What's Going On | A protest album from the label that never wanted one | 1971 | SOUL | record |  | Marvin Gaye | Tamla | What's Going On (album)
+3. Live at the Apollo | Recorded on the singer's own money; the label didn't believe in it | 1963 | SOUL | record |  | James Brown | King | Live at the Apollo (1963 album)
+4. Songs in the Key of Life | Two LPs, a bonus seven-inch and a lyric booklet | 1976 | SOUL | record |  | Stevie Wonder | Tamla | Songs in the Key of Life
+5. Otis Blue | Southern soul at full power, mono on the Volt label | 1965 | SOUL | record |  | Otis Redding | Volt | Otis Blue/Otis Redding Sings Soul
+6. I Never Loved a Man the Way I Love You | Where the Queen of Soul found her crown | 1967 | SOUL | record |  | Aretha Franklin | Atlantic | I Never Loved a Man the Way I Love You
+7. Maggot Brain | A ten-minute guitar solo recorded in one take | 1971 | SOUL | record |  | Funkadelic | Westbound | Maggot Brain
+8. There's a Riot Goin' On | Dark, murky and recorded in a bedroom | 1971 | SOUL | record |  | Sly and the Family Stone | Epic | There's a Riot Goin' On
+9. Superfly | A soundtrack better than its film | 1972 | SOUL | record |  | Curtis Mayfield | Curtom | Super Fly (soundtrack)
+10. Catch a Fire | The sleeve shaped like a lighter that flips open | 1973 | SOUL | record |  | Bob Marley and the Wailers | Island | Catch a Fire
+11. Hot Buttered Soul | Four songs, forty-five minutes | 1969 | SOUL | record |  | Isaac Hayes | Enterprise | Hot Buttered Soul
+12. Mothership Connection | Funk from outer space, on the casino label | 1975 | SOUL | record |  | Parliament | Casablanca | Mothership Connection
+13. Where Did Our Love Go | The first chart-topping album for the girl group | 1964 | SOUL | record |  | The Supremes | Motown | Where Did Our Love Go (album)
+14. My Girl | Sunshine on a cloudy day, on a seven-inch | 1964 | SOUL | record | single | The Temptations | Gordy | My Girl (The Temptations song)
+15. I Want You Back | A family band's first big single | 1969 | SOUL | record | debut,single | The Jackson 5 | Motown | I Want You Back
+16. Let's Stay Together | Velvet soul from Memphis | 1972 | SOUL | record |  | Al Green | Hi | Let's Stay Together (album)
+17. Stand by Me | A bass line everybody knows | 1961 | SOUL | record | single | Ben E. King | Atco | Stand by Me (Ben E. King song)
+18. Love to Love You Baby | Seventeen minutes of disco filling one whole side | 1975 | SOUL | record |  | Donna Summer | Oasis | Love to Love You Baby (album)
+19. Saturday Night Fever | The double album in every house in the world | 1977 | SOUL | record |  | Bee Gees | RSO | Saturday Night Fever (soundtrack)
+20. Soul Club 45s Crate | A DJ's carry case of seven-inches, scuffed from all-nighters | 1972 | SOUL | crate |  | Various | Various | -
+
+== PUNK, INDIE & METAL ==
+1. God Save the Queen | The first pressing, withdrawn and destroyed when the band was fired | 1977 | PUNK | record | single,banned | Sex Pistols | A&M | God Save the Queen (Sex Pistols song)
+2. Bleach | A grunge debut on a tiny label, white vinyl first press | 1989 | PUNK | record | debut | Nirvana | Sub Pop | Bleach (album)
+3. Never Mind the Bollocks | The cover that got record shops prosecuted | 1977 | PUNK | record | banned | Sex Pistols | Virgin | Never Mind the Bollocks, Here's the Sex Pistols
+4. Ramones | Fourteen songs in under thirty minutes | 1976 | PUNK | record | debut | Ramones | Sire | Ramones (album)
+5. Unknown Pleasures | The waveform cover printed on a textured sleeve | 1979 | PUNK | record | debut | Joy Division | Factory | Unknown Pleasures
+6. Black Sabbath | The swirl label, the creepy cover, the first metal record | 1970 | PUNK | record | debut | Black Sabbath | Vertigo | Black Sabbath (album)
+7. Nevermind | The baby in the pool; the vinyl press was tiny | 1991 | PUNK | record |  | Nirvana | DGC | Nevermind
+8. London Calling | Pink and green letters on a smashed bass | 1979 | PUNK | record |  | The Clash | CBS | London Calling
+9. In the Aeroplane Over the Sea | An indie cult record that never stops selling | 1998 | PUNK | record |  | Neutral Milk Hotel | Merge | In the Aeroplane Over the Sea
+10. Kill 'Em All | Thrash metal starts here | 1983 | PUNK | record | debut | Metallica | Megaforce | Kill 'Em All
+11. Horses | A poet with a rock band | 1975 | PUNK | record | debut | Patti Smith | Arista | Horses (album)
+12. The Queen Is Dead | Jangle and gloom from Manchester | 1986 | PUNK | record |  | The Smiths | Rough Trade | The Queen Is Dead
+13. Marquee Moon | Two guitars weaving like lace | 1977 | PUNK | record | debut | Television | Elektra | Marquee Moon
+14. Loveless | Two years and a fortune in studio time | 1991 | PUNK | record |  | My Bloody Valentine | Creation | Loveless (album)
+15. OK Computer | The double LP that came out when vinyl was "dead" | 1997 | PUNK | record |  | Radiohead | Parlophone | OK Computer
+16. Damaged | Hardcore so raw the distributor refused it | 1981 | PUNK | record | debut,banned | Black Flag | SST | Damaged (Black Flag album)
+17. Doolittle | Loud, quiet, loud | 1989 | PUNK | record |  | Pixies | 4AD | Doolittle (album)
+18. Fresh Fruit for Rotting Vegetables | West-coast punk with a sense of humour | 1980 | PUNK | record | debut | Dead Kennedys | Cherry Red | Fresh Fruit for Rotting Vegetables
+19. Iron Maiden | The mascot's first appearance on a sleeve | 1980 | PUNK | record | debut | Iron Maiden | EMI | Iron Maiden (album)
+20. Punk Flea Market Crate | Studs, safety pins and somebody's whole teenage years in a crate | 1982 | PUNK | crate |  | Various | Various | -
+
+== HIP-HOP & DANCE ==
+1. Rapper's Delight | Fifteen minutes that put rap on record | 1979 | HIPH | record | debut,single,twelve | The Sugarhill Gang | Sugar Hill | Rapper's Delight
+2. Illmatic | Ten tracks and not one wasted | 1994 | HIPH | record | debut | Nas | Columbia | Illmatic
+3. Enter the Wu-Tang (36 Chambers) | Kung fu samples and nine voices from Staten Island | 1993 | HIPH | record | debut | Wu-Tang Clan | Loud | Enter the Wu-Tang (36 Chambers)
+4. Paid in Full | The rapper who changed how everyone rhymed | 1987 | HIPH | record | debut | Eric B. & Rakim | 4th & B'way | Paid in Full (album)
+5. Straight Outta Compton | The parental advisory sticker's best customer | 1988 | HIPH | record | banned | N.W.A | Ruthless | Straight Outta Compton
+6. It Takes a Nation of Millions to Hold Us Back | Sirens, samples and a noise like a riot | 1988 | HIPH | record |  | Public Enemy | Def Jam | It Takes a Nation of Millions to Hold Us Back
+7. The Message | Rap tells the truth about the street for the first time | 1982 | HIPH | record | single,twelve | Grandmaster Flash and the Furious Five | Sugar Hill | The Message (Grandmaster Flash and the Furious Five song)
+8. Ready to Die | A Brooklyn storyteller's debut | 1994 | HIPH | record | debut | The Notorious B.I.G. | Bad Boy | Ready to Die
+9. Blue Monday | The die-cut sleeve that lost money on every copy sold | 1983 | HIPH | record | single,twelve | New Order | Factory | Blue Monday (New Order song)
+10. Planet Rock | Electro is born from a drum machine and a German melody | 1982 | HIPH | record | single,twelve | Afrika Bambaataa | Tommy Boy | Planet Rock (song)
+11. Madvillainy | A masked rapper and a beat-maker in a tiny studio | 2004 | HIPH | record |  | Madvillain | Stones Throw | Madvillainy
+12. The Chronic | West-coast funk under a cigarette-paper sleeve | 1992 | HIPH | record |  | Dr. Dre | Death Row | The Chronic
+13. 3 Feet High and Rising | Daisies, skits and a hundred samples | 1989 | HIPH | record | debut | De La Soul | Tommy Boy | 3 Feet High and Rising
+14. Strings of Life | A Detroit techno anthem made on a borrowed sampler | 1987 | HIPH | record | single,twelve | Rhythim Is Rhythim | Transmat | Strings of Life
+15. Endtroducing..... | An album built entirely from other records | 1996 | HIPH | record | debut | DJ Shadow | Mo' Wax | Endtroducing.....
+16. Donuts | Thirty-one beats made in a hospital bed | 2006 | HIPH | record |  | J Dilla | Stones Throw | Donuts (album)
+17. Trans-Europe Express | Robots, railways and the blueprint for dance music | 1977 | HIPH | record |  | Kraftwerk | Kling Klang | Trans-Europe Express (album)
+18. Homework | French house from a bedroom | 1997 | HIPH | record | debut | Daft Punk | Virgin | Homework (Daft Punk album)
+19. Selected Ambient Works 85-92 | Teenage bedroom techno that changed electronic music | 1992 | HIPH | record | debut | Aphex Twin | Apollo | Selected Ambient Works 85–92
+20. DJ Battle Crate | A battle DJ's crate: breaks, scratched doubles and a slipmat | 1988 | HIPH | crate |  | Various | Various | -

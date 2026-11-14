@@ -886,7 +886,7 @@ static func _platform_pad(model: Node3D, item: Dictionary, plat: String, col: Co
 # ---------------------------------------------------------------- cards + coins
 
 ## Real sizes (metres, longest side) of card and coin holders.
-const REAL_CC := {"book": 0.235, "book_folio": 0.36, "book_pocket": 0.18, "book_case": 0.28, "booklot": 0.42, "comic": 0.26, "comic_bag": 0.275, "comic_slab": 0.33, "longbox": 0.72, "card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
+const REAL_CC := {"lp": 0.315, "single": 0.18, "shellac": 0.254, "record_slab": 0.36, "crate": 0.36, "book": 0.235, "book_folio": 0.36, "book_pocket": 0.18, "book_case": 0.28, "booklot": 0.42, "comic": 0.26, "comic_bag": 0.275, "comic_slab": 0.33, "longbox": 0.72, "card": 0.088, "toploader": 0.101, "onetouch": 0.105, "card_slab": 0.137, "pack": 0.134, "box": 0.15,
 	"deck": 0.1, "flip": 0.051, "coin_slab": 0.085, "proof_case": 0.09}
 
 
@@ -917,6 +917,8 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 	var red := Color(0.8, 0.12, 0.12) if not coin else Color(0.12, 0.28, 0.6)
 	if String(item.get("kind", "")) == "book":
 		red = Color(0.45, 0.1, 0.12)
+	if String(item.get("kind", "")) == "record":
+		red = Color(0.12, 0.12, 0.14)
 	if String(item.get("kind", "")) == "comic":
 		# CGX comics: blue label (Universal), yellow for signed, purple for restored.
 		red = {"Signature Series": Color(0.95, 0.78, 0.15), "Restored": Color(0.55, 0.3, 0.7)}.get(String(item.get("variant", "")), Color(0.15, 0.35, 0.75))
@@ -931,6 +933,8 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 	l.text = ("%s\nMS %d" % [nm, 60 + (g - 5) * 2]) if coin else ("%s\n%s %d" % [nm, String(words.get(g, "")), g])
 	if String(item.get("kind", "")) == "book":
 		l.text = "%s\n%s" % [nm, String({10: "FINE", 9: "NEAR FINE", 8: "VERY GOOD+", 7: "VERY GOOD", 6: "GOOD"}.get(g, "GOOD"))]
+	if String(item.get("kind", "")) == "record":
+		l.text = "%s\nVINYL %.1f" % [nm, {10: 10.0, 9: 9.8, 8: 9.6, 7: 9.4, 6: 9.0}.get(g, float(g))]
 	if String(item.get("kind", "")) == "comic":
 		l.text = "%s\nCGX %.1f" % [nm, {10: 9.8, 9: 9.4, 8: 8.5, 7: 7.0, 6: 6.0}.get(g, float(g))]
 	l.font_size = 22
@@ -1095,6 +1099,143 @@ static func _booklot(model: Node3D, item: Dictionary, label: Texture2D) -> float
 	return REAL_CC["booklot"]
 
 
+## The vinyl itself: a black disc (or coloured / picture), grooves and a label.
+static func _vinyl_disc(parent: Node3D, item: Dictionary, label: Texture2D, r: float, at: Vector3, fmt: String) -> Node3D:
+	var v := String(item.get("variant", "Standard"))
+	var d := Node3D.new()
+	d.position = at
+	parent.add_child(d)
+	var col := Color(0.05, 0.05, 0.06)
+	if v == "Colored Vinyl":
+		col = Color.from_hsv(float(absi(hash(String(item.get("id", "")))) % 100) / 100.0, 0.75, 0.85)
+	elif fmt == "78":
+		col = Color(0.1, 0.07, 0.06)
+	var disc := Psx.cyl(r, 0.012, Psx.mat(col, null, Vector2.ONE, 0.04), Vector3.ZERO, d, 28)
+	disc.rotation_degrees.x = 90.0
+	if v == "Picture Disc" and label != null:
+		var pm := Psx.mat(Color.WHITE, label)
+		pm.set_shader_parameter("circle", true)
+		pm.set_shader_parameter("tex_fit", Psx.fit(float(label.get_width()) / maxf(1.0, label.get_height()), 1.0, true))
+		Psx.quad(Vector2(r * 1.96, r * 1.96), pm, Vector3(0, 0, 0.0075), d)
+	else:
+		# Grooves: faint rings, then the paper label in the middle.
+		if not icon_build:
+			for k in 3:
+				var gr := Psx.cyl(r * (0.92 - k * 0.18), 0.0125, Psx.mat(col.lightened(0.08)), Vector3.ZERO, d, 24)
+				gr.rotation_degrees.x = 90.0
+				gr.scale = Vector3(1, 1.02, 1)
+				var gr2 := Psx.cyl(r * (0.86 - k * 0.18), 0.013, Psx.mat(col), Vector3.ZERO, d, 24)
+				gr2.rotation_degrees.x = 90.0
+		var g := RandomNumberGenerator.new()
+		g.seed = hash(String(Catalog.get_def(String(item.get("id", ""))).get("imprint", "")) + "lab")
+		var lc := Color.from_hsv(g.randf(), g.randf_range(0.4, 0.85), g.randf_range(0.55, 0.95))
+		if v == "White Label Promo" or v == "Test Pressing":
+			lc = Color(0.95, 0.95, 0.92)
+		var lab := Psx.cyl(r * (0.34 if fmt == "LP" else 0.4), 0.015, Psx.mat(lc), Vector3.ZERO, d, 18)
+		lab.rotation_degrees.x = 90.0
+		var hole := Psx.cyl(r * (0.04 if fmt != "7in" else 0.2), 0.017, Psx.mat(Color(0.9, 0.88, 0.85) if fmt == "7in" else Color(0.02, 0.02, 0.02)), Vector3.ZERO, d, 10)
+		hole.rotation_degrees.x = 90.0
+	return d
+
+
+## A record: the sleeve standing up with the disc half pulled out of the top.
+## Near Mint ones wear a clear outer sleeve, sealed ones shrink-wrap (disc
+## inside), graded ones sit in a clear slab with a label; Poor ones have a
+## split seam and a warped disc.
+static func _record(model: Node3D, item: Dictionary, label: Texture2D, cond: String, graded: bool) -> float:
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var fmt := String(def.get("fmt", "LP"))
+	var real: float = REAL_CC["lp"]
+	if fmt == "7in":
+		real = REAL_CC["single"]
+	elif fmt == "78":
+		real = REAL_CC["shellac"]
+	var sw := 1.0
+	var st := 0.03
+	var paper := Psx.mat(Color(0.92, 0.9, 0.86))
+	if graded:
+		var sz := Vector3(sw + 0.14, sw + 0.4, 0.1)
+		Psx.box(Vector3(sz.x - 0.04, sz.y - 0.04, 0.02), _clear_mat(), Vector3(0, sz.y * 0.5, -0.04), model)
+		_clear_frame(model, sz, Vector3(0, sz.y * 0.5, 0), 0.05)
+		Psx.box(Vector3(sw, sw, st), paper, Vector3(0, 0.57, 0), model)
+		_card_face(model, item, label, Vector3(0, 0.57, 0.012), sw, sw)
+		_slab_label(model, Vector3(0, 1.22, 0.02), sz.x - 0.1, item, false)
+		return real * 1.15
+	var root := Node3D.new()
+	model.add_child(root)
+	Psx.box(Vector3(sw, sw, st), paper, Vector3(0, 0.5, 0), root)
+	Psx.quad(Vector2(sw, sw), _pic_mat(label, 1.0), Vector3(0, 0.5, st * 0.5 + 0.002), root)
+	if not icon_build:
+		var bq := Psx.quad(Vector2(sw, sw), _pic_mat(Art.back(item), 1.0), Vector3(0, 0.5, -st * 0.5 - 0.002), root)
+		bq.rotation_degrees.y = 180.0
+	var pulled := 0.0 if cond == "Sealed" else (0.26 if cond != "Damaged" else 0.2)
+	var dr := sw * 0.48
+	if pulled > 0.0:
+		var disc := _vinyl_disc(root, item, label, dr, Vector3(0, 0.5 + pulled, -0.002), fmt)
+		if fmt == "LP" and not icon_build:
+			# The paper inner sleeve between the disc and the jacket.
+			Psx.box(Vector3(sw * 0.94, sw * 0.5, 0.004), Psx.mat(Color(0.97, 0.96, 0.93)), Vector3(0, 0.5 + pulled * 0.6, -0.008), root)
+		if cond == "Damaged":
+			disc.rotation_degrees = Vector3(8, 0, 6)  # warped
+	if cond == "Mint" or cond == "Sealed":
+		if not icon_build:
+			var bm := StandardMaterial3D.new()
+			bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			bm.albedo_color = Color(0.9, 0.95, 1.0, 0.1 if cond == "Mint" else 0.22)
+			bm.roughness = 0.06
+			bm.metallic_specular = 1.0
+			bm.rim_enabled = true
+			bm.rim = 0.5
+			var wrap_h := sw + 0.02 + (pulled + dr * 0.98 - 0.5 if cond == "Mint" else 0.0)
+			var wrap := Psx.box(Vector3(sw + 0.03, maxf(sw + 0.02, wrap_h), st + 0.03), bm, Vector3(0, maxf(sw + 0.02, wrap_h) * 0.5 - 0.01, 0), root)
+			wrap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if cond == "Sealed":
+			# The hype sticker on the shrink.
+			var hs := Psx.cyl(0.08, 0.004, Psx.mat(Color(1.0, 0.85, 0.2), null, Vector2.ONE, 0.2), Vector3(sw * 0.32, 0.82, st * 0.5 + 0.018), root, 12)
+			hs.rotation_degrees.x = 90.0
+	elif cond == "Damaged":
+		# A split seam down one side and a bent corner.
+		Psx.box(Vector3(0.012, sw * 0.6, st + 0.004), Psx.mat(Color(0.05, 0.04, 0.04)), Vector3(sw * 0.5 - 0.006, 0.45, 0), root)
+		root.rotation_degrees.z = 3.0
+	model.rotation_degrees.x = -6.0
+	return real
+
+
+## A crate: a plastic milk crate packed with sleeves, tops sticking out.
+static func _crate(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var g := RandomNumberGenerator.new()
+	g.seed = hash(String(item.get("id", "")))
+	var b := Vector3(1.0, 0.72, 0.9)
+	var plastic: Color = [Color(0.72, 0.12, 0.12), Color(0.15, 0.3, 0.7), Color(0.12, 0.12, 0.13), Color(0.82, 0.62, 0.14)][g.randi() % 4]
+	var pm := Psx.mat(plastic, null, Vector2.ONE, 0.03)
+	# Base and the open grid walls: rails and posts.
+	Psx.box(Vector3(b.x, 0.04, b.z), pm, Vector3(0, 0.02, 0), model)
+	for y in [0.04, 0.36, b.y - 0.03]:
+		Psx.box(Vector3(b.x, 0.06, 0.04), pm, Vector3(0, y, b.z * 0.5), model)
+		Psx.box(Vector3(b.x, 0.06, 0.04), pm, Vector3(0, y, -b.z * 0.5), model)
+		Psx.box(Vector3(0.04, 0.06, b.z), pm, Vector3(b.x * 0.5, y, 0), model)
+		Psx.box(Vector3(0.04, 0.06, b.z), pm, Vector3(-b.x * 0.5, y, 0), model)
+	for k in 6:
+		var x := -b.x * 0.5 + b.x * k / 5.0
+		for z in [b.z * 0.5, -b.z * 0.5]:
+			Psx.box(Vector3(0.04, b.y, 0.04), pm, Vector3(x, b.y * 0.5, z), model)
+	for k in 5:
+		var z2 := -b.z * 0.5 + b.z * k / 4.0
+		for x2 in [b.x * 0.5, -b.x * 0.5]:
+			Psx.box(Vector3(0.04, b.y, 0.04), pm, Vector3(x2, b.y * 0.5, z2), model)
+	# Sleeves standing front to back, the tops fanned above the rim.
+	var z := b.z * 0.5 - 0.06
+	while z > -b.z * 0.5 + 0.05:
+		var t := g.randf_range(0.012, 0.03)
+		var sl := Psx.box(Vector3(b.x * 0.9, b.x * 0.9, t), Psx.mat(Color.from_hsv(g.randf(), g.randf_range(0.3, 0.8), g.randf_range(0.3, 0.95))), Vector3(0, b.x * 0.45 + 0.04, z), model)
+		sl.rotation_degrees.x = g.randf_range(-7, 7)
+		z -= t + 0.012
+	# The marker tag taped to the front.
+	Psx.quad(Vector2(b.x * 0.56, b.x * 0.56 / 0.9 * 0.55), _pic_mat(label, 0.9 / 0.55), Vector3(0, b.y * 0.42, b.z * 0.5 + 0.024), model)
+	model.rotation_degrees.y = 14.0
+	return REAL_CC["crate"] * 1.25
+
+
 static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 	# Sports singles and wax use the card and pack holders (same real sizes).
 	var kind: String = {"scard": "card", "wax": "pack"}.get(String(item.get("kind", "")), String(item.get("kind", "")))
@@ -1109,6 +1250,10 @@ static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> f
 		return _book(model, item, label, cond, graded)
 	if kind == "booklot":
 		return _booklot(model, item, label)
+	if kind == "record":
+		return _record(model, item, label, cond, graded)
+	if kind == "crate":
+		return _crate(model, item, label)
 	if kind == "card":
 		var cw := 0.716
 		if graded:

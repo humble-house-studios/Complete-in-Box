@@ -233,6 +233,40 @@ const LIST := [
 		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.13,
 		"color": Color("3a7a9a"),
 	},
+	# ------------------------------------------------ vinyl records (market "vinyl")
+	{
+		"id": "basementcrates", "name": "Basement Clear-Out", "slot": "hunt", "unlock": 1, "market": "vinyl",
+		"blurb": "A late DJ's basement, crates to the rafters and a nephew who wants them gone by Sunday. Flip every crate.",
+		"time": 4, "stock": 6, "price": [0.2, 0.85], "exact": false, "tier_boost": 0,
+		"cond": [18, 40, 28, 11, 3], "haggle": 0.65, "cut": 0.7, "dig": 2, "dig_label": "Flip another crate",
+		"sell": 0.0, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("9a5a3a"),
+	},
+	{
+		"id": "recordfair", "name": "Record Fair", "slot": "hunt", "unlock": 1, "market": "vinyl",
+		"blurb": "Trestle tables in a leisure centre, a hundred dealers and their dollar bins. The early birds have torches.",
+		"time": 4, "stock": 6, "price": [0.25, 0.9], "exact": false, "tier_boost": 0,
+		"cond": [22, 42, 25, 9, 2], "haggle": 0.5, "cut": 0.75, "dig": 2, "dig_label": "Dig the dollar bins",
+		"sell": 0.65, "lots": 1, "lot_size": 4, "lot_peek": 1,
+		"color": Color("e08a2a"),
+	},
+	{
+		"id": "recordshop", "name": "Needle Drop Records", "slot": "shop", "unlock": 1, "market": "vinyl",
+		"blurb": "A record shop: a wall of sleeves, a listening deck and an owner who sends the good stuff out to be graded.",
+		"time": 3, "stock": 6, "price": [1.0, 1.2], "exact": true, "tier_boost": 1,
+		"cond": [0, 20, 45, 25, 10], "haggle": 0.35, "cut": 0.85, "dig": 1, "dig_label": "Ask what's behind the counter",
+		"sell": 0.6, "lots": 0, "lot_size": 0, "lot_peek": 0, "grading": true, "bargain": 2,
+		"color": Color("d94f8a"),
+	},
+	{
+		"id": "diskogz", "name": "Diskogz", "slot": "online", "unlock": 1, "market": "vinyl",
+		"blurb": "The record collectors' marketplace: matrix numbers, grading arguments and auctions that end at 3 a.m.",
+		"time": 4, "stock": 5, "price": [0.95, 1.25], "exact": true, "tier_boost": 1,
+		"cond": [5, 28, 40, 19, 8], "haggle": 0.0, "cut": 1.0, "dig": 5, "dig_label": "Load more listings",
+		"sell": 0.0, "lots": 0, "lot_size": 0, "lot_peek": 0,
+		"auctions": 3, "bin": true, "list": [0.7, 1.6], "fee": 0.13,
+		"color": Color("3a6ad9"),
+	},
 	# ------------------------------------------------ rare coins (market "coins")
 	{
 		"id": "coinshow", "name": "Coin Show", "slot": "hunt", "unlock": 1, "market": "coins",

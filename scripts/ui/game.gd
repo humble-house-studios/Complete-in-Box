@@ -4500,6 +4500,7 @@ const PERK_CAT_OF := {
 	"glass_case": "time", "dollar_bin": "hunt", "haggle_king": "hunt", "hot_streak": "market",
 	"archivist": "time", "long_box": "time", "rookie_fever": "appraisal", "hall_of_fame": "appraisal",
 	"key_issue": "appraisal", "golden_age": "appraisal", "debut_novel": "appraisal", "antiquarian": "appraisal",
+	"forty_five": "appraisal", "golden_oldies": "appraisal",
 }
 
 
@@ -7199,6 +7200,15 @@ func _stat_block(item: Dictionary) -> Control:
 		"wax":
 			_stat_row(g, "SEALED", _label("%s  |  %d packs inside" % [def.get("set", "?"), int(def.get("count", 12))], 18, INK, true))
 			_stat_row(g, "RIP IT?", _label("Opening gives %d cards of this sport" % run.pack_size(item), 18, Color("ffcc66"), true))
+		"record":
+			var fmt_name: String = {"LP": "12-inch LP, 33 RPM", "7in": "7-inch single, 45 RPM", "12in": "12-inch single", "78": "10-inch shellac, 78 RPM"}.get(String(def.get("fmt", "LP")), "LP")
+			_stat_row(g, "ARTIST", _label(String(def.get("artist", "?")), 18, INK, true))
+			_stat_row(g, "PRESSING", _label("%s  |  %s" % [def.get("imprint", "?"), fmt_name], 18, INK, true))
+			if def.has("tell"):
+				_stat_row(g, "WATCH FOR", _label(String(def["tell"]), 17, Color("ffcc66"), true))
+		"crate":
+			_stat_row(g, "CRATE", _label("about %d records  |  %s" % [int(def.get("count", 60)), Catalog.platform(String(item["plat"]))["name"]], 18, INK, true))
+			_stat_row(g, "FLIP IT?", _label("Flipping gives %d records from this crate" % run.pack_size(item), 18, Color("ffcc66"), true))
 		"coin":
 			_stat_row(g, "COIN", _label("%s  |  %s  |  %d mm" % [def.get("denom", "?"), String(def.get("metal", "?")).capitalize(), int(def.get("dia", 0))], 18, INK, true))
 			_stat_row(g, "STRUCK", _label("%s, %s" % [def.get("mint", "?"), def.get("country", "")], 18, INK, true))
