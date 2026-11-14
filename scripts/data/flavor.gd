@@ -125,14 +125,14 @@ const FAIL := [
 ## at the start of each ante. [subject, body]. The last one is the twist.
 const SENDER := "c0mplete_set"
 const LETTERS := [
-	["re: the Vance estate", "Sorry for your loss. Your great-uncle Arlo and I had an arrangement. He collected for me for forty-one years. Now you will.\n\nMy appraiser will visit after every stop. Keep the shelf worth his time. You do not want to come up short."],
-	["a note on condition", "You'll notice my appraiser grades everything. Carts. Boxes. Manuals.\n\nPeople too, eventually. Arlo was Mint when he started. Keep the plastic on."],
-	["unit 66", "Arlo's storage unit is paid through the year. Don't open it until you're ready.\n\nThat's where he kept the ones who came up short. Sealed. Graded. They hold their value better than you'd think."],
-	["why I collect", "Every game is a little piece of somebody's childhood.\n\nEvery collector is the rest of it. Played, loved, put on a shelf. I'm so close to the complete set now."],
-	["the wall", "You've started feeling watched in the living room. That's normal.\n\nThe Wall remembers everyone who ever hung something on it. Say hello. They can't say it back."],
-	["feedback", "GREAT BUYER! FAST PAYMENT! A+++ WOULD COLLECT AGAIN!\n\nThat's what I'll write about you when you finish. I wrote different things about the others."],
-	["one empty slot", "There's a case in my vault with one empty slot. Velvet. A little gold plaque. It's been empty since Arlo stopped answering my messages.\n\nDo you know what goes in it?"],
-	["the final appraisal", "Clear this ante and the debt is paid. I promise. Arlo promised too, back when he had my job.\n\nYou see, I never died. I just got graded. 9.8, still in the plastic. And every set needs someone to keep it complete.\n\n- your uncle"],
+	["re: the Vance estate", "Sorry for your loss. Arlo collected for me for forty-one years. Now you will.\n\nMy appraiser calls after every stop. Keep the shelf worth his time."],
+	["a note on condition", "My appraiser grades everything. Carts. Boxes. Manuals.\n\nPeople too, eventually. Arlo was Mint when he started. Keep the plastic on."],
+	["unit 66", "Arlo's storage unit is paid through the year. Don't open it yet.\n\nThat's where he kept the ones who came up short. They hold their value."],
+	["4:51", "My appraiser keeps one appointment a day. 4:51 a.m. Always.\n\nIf a car idles outside at 4:51, don't open the curtains. He isn't here for you. Yet."],
+	["the wall", "Feeling watched in the living room? That's normal.\n\nThe Wall remembers everyone who ever hung something on it. Say hello. They can't say it back."],
+	["lot numbers", "Everyone in my vault has a lot number. Arlo's Uncle Mort is LOT 8.\n\nLOT 9 is spoken for. You'll be LOT 10. A nice round number to finish a set."],
+	["one empty slot", "There's a case in my vault with one empty slot. Velvet. A gold plaque, still blank.\n\nI polish it every day. Do you know what goes in it?"],
+	["the final appraisal", "Clear this ante and the debt is paid. Arlo promised that too, back when he had my job.\n\nI never died, kid. I got graded. 9.8, still in the plastic. Every set needs a keeper.\n\n- your uncle"],
 ]
 ## The Buyer's want list: a note for each kind of request (P.S. in the letter).
 const WANT_NOTES := {
@@ -169,7 +169,7 @@ const DIARY := [
 ]
 
 ## After the last ante: the debt is "paid".
-const EPILOGUE := ["welcome to the hobby", "Debt cleared. Congratulations.\n\nI've forwarded you the mailing list. Somebody out there just inherited a shelf. Write to them soon. Be kind. At first."]
+const EPILOGUE := ["welcome to the hobby", "Debt cleared. Congratulations.\n\nSomebody out there just inherited a shelf. I'll write to them at 4:51. Be kind, I'll say. At first."]
 
 const LOT := ["Taped shut. Heavy. Smells like a basement.", "Air holes punched in the lid. Why?", "Something rattles inside.", "Marked GAMES?? in marker.", "The tape says FRAGILE. Twice."]
 
@@ -225,6 +225,7 @@ const LORE_FILES := {
 	"comics": preload("res://scripts/data/lore/comics.gd"),
 	"books": preload("res://scripts/data/lore/books.gd"),
 	"vinyl": preload("res://scripts/data/lore/vinyl.gd"),
+	"coins": preload("res://scripts/data/lore/coins.gd"),
 }
 const Worlds := preload("res://scripts/data/worlds.gd")
 static var _lore_cache: Dictionary = {}

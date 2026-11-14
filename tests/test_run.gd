@@ -815,3 +815,11 @@ func test_vinyl_world_and_marv() -> void:
 	# Every format gets a believable real size model setting.
 	for d in Catalog.items_of("vinyl"):
 		assert_true(["LP", "7in", "12in", "78", "crate"].has(String(d.get("fmt", ""))), "fmt on " + String(d["id"]))
+
+
+func test_every_estate_letter_is_short() -> void:
+	for e in ["arlo", "twins", "rose", "marv", "hector", "june", "iris"]:
+		var ls := Flavor.letters(e)
+		assert_eq(ls.size(), Balance.ANTES_TO_WIN, e)
+		for l in ls:
+			assert_lt(String(l[1]).length(), 320, "%s: %s" % [e, l[0]])
