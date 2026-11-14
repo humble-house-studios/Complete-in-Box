@@ -22,7 +22,7 @@ func _go(out: String, game: Node, world: String) -> void:
 	game.screen = "home"
 	game._world_intro(world, func(): pass)
 	var t := 0.0
-	for at in [0.8, 2.5, 4.5, 6.5, 8.6, 9.6, 11.0]:
+	for at in [1.5, 5.0, 9.0, 13.0, 16.5, 17.5, 20.0]:
 		await create_timer(at - t).timeout
 		t = at
 		await RenderingServer.frame_post_draw

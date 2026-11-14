@@ -1543,8 +1543,30 @@ func _recordshop(items: Array) -> void:
 
 
 ## The camera flight for a world's first-visit intro: [[pos, look], ...].
-## Ends on the venue's usual view so the reveal lands on the signature item.
-func intro_path(id: String) -> Array:
+## Ends on the venue's usual view; with over_table (world intros) it ends high
+## over the table, looking down on it, so the reveal shows the whole mat with
+## the signature item on it (the logo sits over the back wall).
+func intro_path(id: String, over_table: bool = false) -> Array:
+	var path := _intro_path(id)
+	if over_table and path.size() >= 2:
+		var top: float = (path[-1][1] as Vector3).y - 0.05
+		# Phones (tall view) lean in over the edge; wide screens stand further back.
+		var up := INTRO_END_UP if size.x < size.y else 1.0
+		var back := INTRO_END_BACK if size.x < size.y else 1.9
+		# Centre on the signature item when the room is already built.
+		var at := Vector3(0.0, top, -0.15)
+		var h := hero()
+		if h != null and is_instance_valid(h):
+			at = Vector3(h.global_position.x, top, h.global_position.z - 0.1)
+		path[-1] = [Vector3(at.x, top + up, at.z + back + 0.15), at]
+	return path
+
+
+const INTRO_END_UP := 1.3
+const INTRO_END_BACK := 1.15
+
+
+func _intro_path(id: String) -> Array:
 	match id:
 		"title":
 			# The title vault: along the shelves, swing round, onto the pedestal.
