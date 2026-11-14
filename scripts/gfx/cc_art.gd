@@ -214,11 +214,20 @@ static func _card(c: Control, d: Dictionary) -> void:
 	if v == "Playtest Card":
 		_playtest(c, d)
 		return
-	match String(d["plat"]):
-		"CRIT": _crit(c, d)
-		"MAGI": _magi(c, d)
-		"YUGI": _yugi(c, d)
-		_: _alt(c, d)
+	# Test-only real card scan (tools/fetch_retro_art.py), else the painted frame.
+	var scan: Texture2D = load(String(d["scan"])) if d.has("scan") and ResourceLoader.exists(String(d["scan"])) else null
+	if scan != null:
+		var tr := TextureRect.new()
+		tr.texture = scan
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tr.size = Vector2(W, H)
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		c.add_child(tr)
+		if v.contains("Holo") or v.contains("Foil"):
+			_foil(c, Rect2(0, 0, W, H), 0.14, String(d["id"]))
+	else:
+		_card_frame(c, d)
 	match v:
 		"1st Edition":
 			BoxArt.circle(c, Vector2(12, 84), 5, Color(0.05, 0.05, 0.05), 12)
@@ -241,6 +250,14 @@ static func _card(c: Control, d: Dictionary) -> void:
 		"Japan Import":
 			BoxArt.rect(c, Rect2(W - 18, H - 13, 14, 9), Color.WHITE)
 			BoxArt.circle(c, Vector2(W - 11, H - 8.5), 2.6, Color(0.85, 0.1, 0.15), 10)
+
+
+static func _card_frame(c: Control, d: Dictionary) -> void:
+	match String(d["plat"]):
+		"CRIT": _crit(c, d)
+		"MAGI": _magi(c, d)
+		"YUGI": _yugi(c, d)
+		_: _alt(c, d)
 
 
 static func _energy(c: Control, ctr: Vector2, r: float, type: String) -> void:

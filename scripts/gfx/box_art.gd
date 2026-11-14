@@ -232,6 +232,11 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 		return
 	CoverComp.current_title = String(item.get("name", ""))
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
+	# Test-only real pictures (tools/fetch_retro_art.py): a product photo cut out
+	# of its white backdrop for hardware, the real box scan for games.
+	var photo := _tex(String(item.get("photo", "")))
+	if photo != null:
+		_product = photo
 	var plat := String(item["plat"])
 	var pd: Dictionary = Catalog.platform(plat)
 	var pc: Color = pd["color"]
@@ -243,6 +248,12 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 	var key := String(item["id"])
 	if variant == "Test Cart":
 		_test_label(c, item)
+		return
+	var scan := _tex(String(item.get("scan", ""))) if item["kind"] == "game" else null
+	if scan != null:
+		_scan(c, scan)
+		_variant_overlay(c, item, variant)
+		_tier_frame(c, item, variant)
 		return
 	var art := Rect2(0, 18, W, H - 18)
 	var title_at := "bottom"
@@ -321,7 +332,31 @@ static func paint_front(c: Control, item: Dictionary) -> void:
 		CoverComp.title(c, title, Vector2(art.position.x + 3, ty), Vector2(art.size.x - 6, 44), 20, Color(1, 0.97, 0.88), item)
 	CoverComp.publisher_mark(c, item, W, H)
 	_variant_overlay(c, item, variant)
-	# Tier frame.
+	_tier_frame(c, item, variant)
+
+
+static func _tex(path: String) -> Texture2D:
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path)
+
+
+## The real box scan, cropped to fill the front (it was saved at this shape).
+static func _scan(c: Control, t: Texture2D) -> void:
+	var holder := Control.new()
+	holder.size = Vector2(W, H)
+	holder.clip_contents = true
+	c.add_child(holder)
+	var tr := TextureRect.new()
+	tr.texture = t
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.size = Vector2(W, H)
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	holder.add_child(tr)
+
+
+static func _tier_frame(c: Control, item: Dictionary, variant: String) -> void:
 	var tier := int(item.get("tier", 0))
 	if tier >= 2 or variant == "Collector's Edition":
 		var fc: Color = Catalog.TIER_COLORS[tier] if variant != "Collector's Edition" else Color(0.85, 0.7, 0.25)
@@ -394,6 +429,11 @@ static func paint_back(c: Control, item: Dictionary) -> void:
 		return
 	CoverComp.current_title = String(item.get("name", ""))
 	_product = Art.icon(item, false) if String(item.get("kind", "game")) != "game" else null
+	# Test-only real pictures (tools/fetch_retro_art.py): a product photo cut out
+	# of its white backdrop for hardware, the real box scan for games.
+	var photo := _tex(String(item.get("photo", "")))
+	if photo != null:
+		_product = photo
 	var plat := String(item["plat"])
 	var pd: Dictionary = Catalog.platform(plat)
 	var pc: Color = pd["color"]

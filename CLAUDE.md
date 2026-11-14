@@ -63,6 +63,15 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   (parody names, values, blurbs, appraisal tells) -> `python3 tools/gen_worlds.py <world>` ->
   `scripts/data/catalog_<world>.gd` (preloaded in Catalog). Real pictures: `python3 tools/fetch_world_art.py <world>`
   (Wikipedia lead images + Commons card scans, batched, rate-limited) then gen again.
+- Retro games + TCG cards real pictures (test-only): `python3 tools/fetch_retro_art.py games|cards`.
+  Games = real box fronts from github.com/libretro-thumbnails (No-Intro names matched in `lr_pick`,
+  cropped to the platform's box shape) -> `assets/temp_test/games/<id>_scan.jpg`; consoles/accessories =
+  Wikipedia lead photo (`HW_ARTICLES` name map, white backdrop cut out) -> `<id>_photo.png` (colour
+  editions keep their tinted 3D render). Cards = Scryfall (Magic), pokemon-tcg-data on GitHub (Pokemon),
+  YGOPRODeck (Yu-Gi-Oh!) -> `assets/temp_test/cards/<id>_scan.jpg`; other TCGs and sealed product stay painted.
+  `gen_catalog.py` / `gen_collectibles.py` add `scan` / `photo`; `BoxArt._scan` and `CCArt._card` draw them
+  under the variant stickers. Wikipedia's API allows ~1 request / 30 s from cloud sessions: batch titles.
+  These imports use lossy WebP (`compress/mode=1`) to keep the web build light.
 - Test-only sourced files live in `assets/temp_test/` (`MANIFEST.txt` = path | source). Poly Haven
   models: `python3 tools/grab_polyhaven.py <asset>` -> `Psx.prop("temp:<asset>", h)`; sounds
   `"temp:<name>"` in sfx.gd.
