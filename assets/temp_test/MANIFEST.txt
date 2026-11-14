@@ -1231,3 +1231,5 @@ assets/temp_test/cards/back_vtes.jpg | https://upload.wikimedia.org/wikipedia/en
 assets/temp_test/cards/back_l5r.jpg | https://upload.wikimedia.org/wikipedia/en/a/a4/Legend_of_the_Five_Rings_cardback.png
 assets/temp_test/cards/back_lotr.jpg | https://upload.wikimedia.org/wikipedia/en/c/c4/The_Lord_of_the_Rings_Trading_Card_Game_cardback.jpg
 assets/temp_test/cards/back_onepiece.jpg | https://upload.wikimedia.org/wikipedia/en/3/32/One_Piece_Card_Game_back.webp
+assets/temp_test/games/fes_fes_deluxe_set_with_r_o_b_b_photo.png | https://upload.wikimedia.org/wikipedia/commons/6/6c/NES-ROB.jpg
+assets/temp_test/games/fes_fes_action_set_photo.png | https://upload.wikimedia.org/wikipedia/commons/8/82/NES-Console-Set.jpg
