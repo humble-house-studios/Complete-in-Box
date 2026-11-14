@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvkynqbmd3g0s"
-path="res://.godot/imported/hoop_wilt_chamberlin_1961_scan.png-682db6292152378b2ba09fc229083aa7.ctex"
+uid="uid://cdd460hdhyevs"
+path="res://.godot/imported/base_derek_jetter_1993_scan.jpg-959246e3bfc2eac95817cab6628f2097.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/temp_test/sports/hoop_wilt_chamberlin_1961_scan.png"
-dest_files=["res://.godot/imported/hoop_wilt_chamberlin_1961_scan.png-682db6292152378b2ba09fc229083aa7.ctex"]
+source_file="res://assets/temp_test/sports/base_derek_jetter_1993_scan.jpg"
+dest_files=["res://.godot/imported/base_derek_jetter_1993_scan.jpg-959246e3bfc2eac95817cab6628f2097.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0

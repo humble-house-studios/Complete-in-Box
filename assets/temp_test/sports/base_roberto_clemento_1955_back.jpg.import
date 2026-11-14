@@ -2,22 +2,22 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cosklgax8cup2"
-path="res://.godot/imported/base_jackie_robison_1948_scan.png-98abb9792ad39f82d42c08146dbf1931.ctex"
+uid="uid://b3g6nxuxvxldb"
+path="res://.godot/imported/base_roberto_clemento_1955_back.jpg-5d09f5096cb6411798c2dedc8c6e23f9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/temp_test/sports/base_jackie_robison_1948_scan.png"
-dest_files=["res://.godot/imported/base_jackie_robison_1948_scan.png-98abb9792ad39f82d42c08146dbf1931.ctex"]
+source_file="res://assets/temp_test/sports/base_roberto_clemento_1955_back.jpg"
+dest_files=["res://.godot/imported/base_roberto_clemento_1955_back.jpg-5d09f5096cb6411798c2dedc8c6e23f9.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.8
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
