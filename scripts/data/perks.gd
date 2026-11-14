@@ -80,19 +80,62 @@ const SUPPLIES := [
 	{"id": "energy", "name": "Energy Drink", "cost": 3, "when": "venue", "desc": "+2 Time at this stop."},
 	{"id": "loupe", "name": "Jeweler's Loupe", "cost": 3, "when": "venue", "desc": "See exact values for the rest of this stop."},
 	{"id": "lucky_penny", "name": "Lucky Penny", "cost": 3, "when": "venue", "desc": "Your next haggle can't fail."},
-	{"id": "gift_card", "name": "Gift Card", "cost": 5, "when": "venue", "desc": "Your next buy off the table is half price."},
-	{"id": "cleaning_kit", "name": "Cleaning Kit", "cost": 4, "when": "any", "target": true, "desc": "One shelf item goes up a condition step (up to Mint)."},
+	{"id": "gift_card", "name": "Gift Card", "cost": 5, "when": "venue", "desc": "Your next buy off the table is half price (up to $20 off)."},
+	{"id": "cleaning_kit", "name": "Cleaning Kit", "cost": 5, "when": "any", "target": true, "desc": "A Damaged or Loose Common or Uncommon item goes up one condition step."},
 	{"id": "flyer", "name": "Hype Flyer", "cost": 4, "when": "any", "target": true, "desc": "Pick a shelf item: its whole platform runs HOT through the next appraisal."},
-	{"id": "copier", "name": "Shady Copier", "cost": 6, "when": "any", "target": true, "desc": "Copy a Common or Uncommon item on your shelf. Needs a free slot."},
+	{"id": "copier", "name": "Shady Copier", "cost": 6, "when": "any", "target": true, "desc": "Copy a Common item on your shelf. Needs a free slot."},
 	{"id": "spotlight", "name": "Display Spotlight", "cost": 4, "when": "any", "desc": "+1 Mult at your next appraisal."},
 ]
 
 ## Grab bags (Balatro's booster packs): one at Home each stop, pick 1 of the lot.
 const BAGS := [
 	{"id": "items", "name": "Garage Sale Box", "picks": 3, "desc": "Three finds from a stranger's garage. Keep one."},
-	{"id": "supplies", "name": "Junk Drawer", "picks": 3, "cost": 4, "desc": "Three one-use supplies. Keep one."},
-	{"id": "perks", "name": "Dusty Crate", "picks": 2, "cost": 5, "desc": "Two perks from the back of the attic. Keep one."},
+	{"id": "supplies", "name": "Junk Drawer", "picks": 3, "cost": 5, "desc": "Three one-use supplies. Keep one."},
+	{"id": "perks", "name": "Dusty Crate", "picks": 2, "cost": 8, "desc": "Two perks from the back of the attic. Keep one."},
 ]
+
+
+## THE LANDLINE: the phone rings when a new ante starts. Three deals, take one
+## (or hang up for a tip). They last the whole run and bend the rules; about
+## half come with a catch. `caller`: buyer / stranger / arlo. `once` = never
+## offered again once taken. `pitch` = card text, `desc` = the full terms,
+## `quote` = what the voice says. Effects: search the id in run.gd.
+const CALLS := [
+	{"id": "wide_shelf", "caller": "stranger", "name": "Bigger Shelves", "pitch": "+2 shelf slots. Targets +10%.",
+		"desc": "+2 shelf slots for the rest of the run. Every target is 10% higher.", "quote": "\"Shelving Depot, courtesy call. We deliver. He'll notice the extra space, though.\""},
+	{"id": "specialist", "caller": "stranger", "once": true, "name": "The Specialist", "pitch": "One platform x1.5. All others half.",
+		"desc": "%s items appraise for x1.5 for the rest of the run. Everything else appraises for half.", "quote": "\"Pick a lane, kid. Nobody respects a generalist.\""},
+	{"id": "night_owl", "caller": "stranger", "once": true, "name": "Night Owl", "pitch": "+2 Time every stop. Tables hold 1 less.",
+		"desc": "+2 Time at every stop for the rest of the run. Every table starts with one item fewer.", "quote": "\"The good stuff's gone by nine. The patient stuff is still there at midnight.\""},
+	{"id": "bulk_buyer", "caller": "stranger", "once": true, "name": "Bulk Buyer", "pitch": "Pairs count as small sets.",
+		"desc": "Two items from one platform now count as a small set: +0.25 Mult per pair. Bigger sets pay as before.", "quote": "\"Two's a pair. A pair's a set. That's what I tell the appraiser, anyway.\""},
+	{"id": "perk_slot", "caller": "stranger", "once": true, "name": "Wrong Number", "pitch": "+1 perk slot. No catch.",
+		"desc": "+1 perk slot. They hang up before you can ask who Deborah is.", "quote": "\"Deborah? I left the backpack on your porch. ...This isn't Deborah.\""},
+	{"id": "prize", "caller": "stranger", "once": true, "name": "You've Won!", "pitch": "A free Garage Sale Box, opened.",
+		"desc": "A free Garage Sale Box, already open: keep one of three finds.", "quote": "\"Congratulations! You are our ONE MILLIONTH caller. Please do not ask follow-up questions.\""},
+	{"id": "condition_snob", "caller": "buyer", "once": true, "name": "Condition Snob", "pitch": "Mint + Sealed x1.5. Damaged + Loose $0.",
+		"desc": "Your two best conditions appraise for x1.5 for the rest of the run. Your two worst appraise for nothing.", "quote": "\"I don't want it if it's been touched. You understand.\""},
+	{"id": "advance", "caller": "buyer", "name": "An Advance", "pitch": "Cash now. This ante's targets +25%.",
+		"desc": "+$%d right now. Every target this ante is 25%% higher.", "quote": "\"Consider it an investment. I always collect.\""},
+	{"id": "collateral", "caller": "buyer", "name": "Collateral", "pitch": "He takes your best item. x1.5 Mult this ante.",
+		"desc": "He takes %s off your shelf for good. In return: x1.5 Mult at every appraisal this ante.", "quote": "\"Leave it on the porch. My appraiser will be... generous.\""},
+	{"id": "double_nothing", "caller": "buyer", "name": "Double or Nothing", "pitch": "Next stop: beat it by 50% for triple pay.",
+		"desc": "At the next appraisal: beat the target by 50% and your payday is tripled. Pass by less and you're paid nothing.", "quote": "\"Let's make it interesting.\""},
+	{"id": "sealed_fate", "caller": "buyer", "once": true, "name": "Sealed Fate", "pitch": "-1 perk slot. Perk Mult counts double.",
+		"desc": "One perk slot is sealed shut for the rest of the run. Every +Mult your perks add counts double.", "quote": "\"Fewer things. Better things. That's all collecting is.\""},
+	{"id": "static", "caller": "arlo", "name": "Static", "pitch": "Cash, and the want list pays double.",
+		"desc": "+$%d, and this ante's want list reward is doubled.", "quote": "\"...kid? ...don't sell... what he asks for... he pays more than he... kssshh...\""},
+]
+const CALLERS := {
+	"buyer": ["THE BUYER", Color("ff5a5a")], "stranger": ["UNKNOWN", Color("ffb84d")], "arlo": ["ARLO?", Color("7fe0ff")],
+}
+
+
+static func call_def(id: String) -> Dictionary:
+	for c in CALLS:
+		if c["id"] == id:
+			return c
+	return {}
 
 
 static func supply(id: String) -> Dictionary:

@@ -1723,3 +1723,4 @@ assets/temp_test/coins/anct_1600_elizabeth_i_sixpence_obv.jpg | http://numismati
 assets/temp_test/coins/anct_1600_elizabeth_i_sixpence_rev.jpg | http://numismatics.org/collection/1961.8.205 | 2026-11-14
 assets/temp_test/coins/anct_1400_venice_soldino_obv.jpg | http://numismatics.org/collection/1983.119.10 | 2026-11-14
 assets/temp_test/coins/anct_1400_venice_soldino_rev.jpg | http://numismatics.org/collection/1983.119.10 | 2026-11-14
+assets/audio/sfx (phone_ring, phone_pickup) | synthesized in-house (numpy, tools/gen_phone_sfx.py) | 2026-11-14

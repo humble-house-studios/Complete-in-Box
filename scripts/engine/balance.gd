@@ -4,7 +4,7 @@ extends RefCounted
 
 const ANTES_TO_WIN := 8
 ## Appraisal target for stop 1 of each ante; later stops multiply it.
-const ANTE_TARGET := [30, 70, 150, 330, 680, 1400, 2800, 5400]
+const ANTE_TARGET := [30, 70, 180, 480, 1350, 3500, 8500, 19000]
 const ENDLESS_GROWTH := 2.2
 const STOP_TARGET_MULT := [1.0, 1.4, 1.8]
 
@@ -23,11 +23,18 @@ const TIME_LEFT_REWARD := 1
 const INTEREST_PER := 5
 
 const PERK_OFFERS := 3
+## The landline: first ante it rings, redial price (+REDIAL_STEP each), hang-up tip.
+const CALL_FROM_ANTE := 2
+const REDIAL_START := 3
+const REDIAL_STEP := 2
+const HANGUP_TIP := 2
 ## One-use supplies: how many you can carry, how many Home offers each stop.
 const POCKET_SLOTS := 2
 const SUPPLY_OFFERS := 2
 ## Garage Sale Box price: this share of its middle find's value.
-const BAG_RATE := 0.5
+const BAG_RATE := 1.0
+## Gift Card: the most a half-price buy can save.
+const GIFT_CAP := 20
 const BAG_CONDS := [10, 35, 35, 15, 5]
 const REROLL_START := 2
 const DUMP_VALUE := 1

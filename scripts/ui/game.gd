@@ -274,6 +274,7 @@ func _sync_stage() -> void:
 			# Between stops you're home: your living room and your shelf (the
 			# route card already shows where you're headed).
 			_stage.wall_items = _coll_wall.slice(0, 12)
+			_stage.phone_ringing = not run.call_offer.is_empty()
 			_stage.show_scene("home", run.shelf)
 			_stage.showcase(_showcase)
 			_sfx.music("home")
@@ -4614,6 +4615,7 @@ func _route_tab(col: VBoxContainer) -> void:
 	else:
 		tv.add_child(_label("The Buyer's terms this round: %s" % boss["name"], 16, MUTED, true))
 	col.add_child(top)
+	_call_panel(col)
 	_event_panel(col)
 	var wp := _want_panel()
 	if wp != null:
@@ -5005,10 +5007,12 @@ func _perk_rank(cost: int) -> int:
 ## tag_col, badge.
 func _relic_card(o: Dictionary, w: float, cb: Callable) -> Button:
 	var kind := String(o.get("kind", "perk"))
-	var plaque := kind == "perk" or kind == "upgrade"
+	var plaque := kind == "perk" or kind == "upgrade" or kind == "call"
 	var col: Color = o.get("col", GOLD)
 	var rank := clampi(int(o.get("rank", 0)), 0, 2)
 	var rim: Array = RELIC_RIMS[rank] if plaque else (RELIC_KRAFT if kind == "supply" else RELIC_BOX)
+	if kind == "call":
+		rim = RELIC_CALL
 	var body: Color = rim[0]
 	var edge: Color = rim[1]
 	var h := roundf(w * CARD_RATIO)
@@ -5148,7 +5152,7 @@ func _relic_card(o: Dictionary, w: float, cb: Callable) -> Button:
 	pip.add_child(pl)
 	top.add_child(pip)
 	top.add_child(_spacer(false))
-	if plaque:
+	if plaque and kind != "call":
 		top.add_child(_relic_stars(rank + 1, 11.0 * k, edge))
 	box.add_child(top)
 	# Art behind an arched window.
@@ -5399,6 +5403,105 @@ func _open_upgrade() -> void:
 	_open_sheet(String(d["name"]), [[String(d["desc"]), INK]], [
 		["Buy for %s" % _money(int(d["cost"])), func(): _act(run.buy_upgrade(), "coin"), GOLD],
 	])
+
+
+# ---- the landline: one call per ante, three deals, take one ----
+
+const RELIC_CALL := [Color("3a1218"), Color("e8a25a")]
+
+
+## On the route tab: the ringing phone (while a call waits) and the deals you've taken.
+func _call_panel(col: VBoxContainer) -> void:
+	if not run.call_offer.is_empty():
+		var red := Color("ff5a5a")
+		var p := _panel(Color(0.16, 0.03, 0.05, 0.94), red, 3)
+		var v := _vbox(6)
+		p.add_child(v)
+		var h := _hbox(8)
+		h.add_child(_pill("RING RING", red, 16))
+		h.add_child(_spacer(false))
+		h.add_child(_label("once per ante", 15, MUTED))
+		v.add_child(h)
+		v.add_child(_title_label("The landline is ringing", 26, INK))
+		v.add_child(_label("Three offers that change the rules for the rest of the run. Take one, or hang up. It stops ringing when you leave.", 17, FLAVOR_C, true))
+		var b := _button("PICK UP THE PHONE", _pick_up, red.darkened(0.2), 24, 88)
+		b.set_meta("pad_first", true)
+		v.add_child(b)
+		col.add_child(p)
+		if not fast and not Lite.perf:
+			var tw := p.create_tween().set_loops()
+			tw.tween_property(p, "modulate", Color(1.25, 1.1, 1.1), 0.35)
+			tw.tween_property(p, "modulate", Color.WHITE, 0.55)
+	if not run.calls.is_empty():
+		var db := _button("DEALS ON THE LINE (%d)" % run.calls.size(), _open_deals, Color("4a1f28"), 18, 72)
+		col.add_child(db)
+
+
+func _pick_up() -> void:
+	_sfx.play("pickup")
+	_open_call()
+
+
+func _call_card(id: String, w: float, cb: Callable) -> Button:
+	var d := Perks.call_def(id)
+	var who: Array = Perks.CALLERS[String(d["caller"])]
+	return _relic_card({
+		"id": "call_" + id, "name": d["name"], "desc": d["pitch"], "col": who[1], "label": who[0], "kind": "call",
+		"foot": _call_lasts(id), "foot_col": Color("e8dcc0"),
+	}, w, cb)
+
+
+func _call_lasts(id: String) -> String:
+	return String({"advance": "THIS ANTE", "collateral": "THIS ANTE", "double_nothing": "NEXT STOP", "prize": "RIGHT NOW", "static": "THIS ANTE"}.get(id, "LASTS ALL RUN"))
+
+
+func _open_call() -> void:
+	if run.call_offer.is_empty():
+		return
+	var offers: Array = run.call_offer.duplicate()
+	_sheet_extra = _pick_row(offers.size(), func(i: int, cw: float) -> Button:
+		return _call_card(String(offers[i]), cw, func(): _open_call_deal(String(offers[i]))))
+	_open_sheet("THE LANDLINE", [
+		["\"Don't hang up. I have three offers. You may take one.\"", INK],
+		["Tap an offer to hear the terms.", MUTED],
+	], [
+		["Redial for 3 new offers  %s" % _money(run.redial_cost), _redial, Color("4a1f28")],
+		["Hang up  +%s" % _money(Balance.HANGUP_TIP), func(): _act(run.call_hangup(), "close"), BAD, true],
+	])
+
+
+func _redial() -> void:
+	var res := run.call_redial()
+	if not bool(res.get("ok", false)):
+		_act(res)
+	else:
+		_sfx.play("ring", 1.15)
+		request_refresh()
+	_open_call.call_deferred()
+
+
+func _open_call_deal(id: String) -> void:
+	var d := Perks.call_def(id)
+	var who: Array = Perks.CALLERS[String(d["caller"])]
+	_close_sheet()
+	_open_sheet(String(d["name"]), [
+		[String(d["quote"]), INK],
+		[run.call_text(id), INK],
+		["%s  •  %s" % [who[0], _call_lasts(id)], who[1]],
+	], [
+		["Take the deal", func(): _act(run.call_take(id), "stamp"), STICKER],
+		["Other offers", func(): _open_call.call_deferred(), Color("3a3548"), true],
+	])
+
+
+## Every deal you've taken this run, in order.
+func _open_deals() -> void:
+	var lines: Array = []
+	for cid in run.calls:
+		var d := Perks.call_def(String(cid))
+		lines.append([String(d["name"]).to_upper(), Perks.CALLERS[String(d["caller"])][1]])
+		lines.append([run.call_text(String(cid)), INK])
+	_open_sheet("DEALS ON THE LINE", lines, [])
 
 
 # ---- supplies (one-use) and the grab bag ----
@@ -6810,6 +6913,8 @@ func _payday(r: Dictionary) -> Control:
 	var parts: Array = ["stop pay %s" % _money(int(r["base"])), "interest %s" % _money(int(r["interest"])), "leftover Time %s" % _money(int(r["time"]))]
 	if r.has("want"):
 		parts.append("Buyer's request %s" % _money(int(r["want"])))
+	if r.has("don"):
+		parts.append("Double or Nothing %s" % (("+" + _money(int(r["don"]))) if int(r["don"]) > 0 else ("-" + _money(-int(r["don"])))))
 	v.add_child(_label("Real cash: " + " + ".join(parts), 15, INK, true))
 	var w := _hbox(8)
 	w.add_child(_label("WALLET", 18, GOLD))
@@ -6991,6 +7096,8 @@ func _after_appraisal_now() -> void:
 			if not run.event.is_empty() and _sfx != null:
 				var eid := String(run.event["id"])
 				_sfx.play("dig" if eid == "diary" else ("knock" if eid == "leak" else "doorbell"))
+			if not run.call_offer.is_empty() and _sfx != null:
+				_sfx.play("ring")
 		Run.Phase.WON:
 			screen = "won"
 		_:

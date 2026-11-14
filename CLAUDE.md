@@ -53,6 +53,15 @@ All 8 in one run (`Run.wants_done`) = true ending (`Flavor.TRUE_EPILOGUE`); save
 - Both roll in `Run._roll_home_extras` on a side rng stream, so they never change what the stops
   deal (bots ignore them; sim numbers stay put). Shots: `tools/shop_shots.gd -- OUT [landscape]`.
 
+- THE LANDLINE (`Perks.CALLS`, CloverPit's phone): when a new ante starts (from ante 2) the phone
+  rings (`Run._roll_call`, side rng stream): 3 deals, take 1 (`call_take`), redial for cash
+  (`call_redial`), or hang up for a tip. Deals last the run and bend the rules (`Run.calls`; flags
+  `call_plat`, `call_debt_ante`, `call_mult_ante`, `call_don`; search the deal id in run.gd). Callers:
+  buyer (catch) / stranger / arlo. UI: `_call_panel` on the route tab, `_open_call`, `_open_call_deal`,
+  `_open_deals`; cards are `_relic_card` kind "call". Unanswered calls end when you leave home.
+  Sounds `ring` / `pickup` from `tools/gen_phone_sfx.py`. 3D phone on top of the home shelves
+  (`Stage._landline`, rattles + red glow while `Stage.phone_ringing`).
+
 ## Doorbell events + Arlo's diary
 Coming home before stops 2 and 3 can bring an event (`Run.event`, `_roll_event`,
 `event_accept` / `event_decline`): neighbour's mystery box, a kid's trade, a collector
@@ -421,7 +430,11 @@ The web build in Safari is the test for every platform.
   build; a failing test or script error blocks the deploy).
 - Balance: `godot --headless -s res://tools/sim.gd` — a greedy bot plays 300
   runs and prints where they die, then `tools/pro_bot.gd` (true values, swaps,
-  lists, grades, picks perks) plays 100 ("SIM pro", aim ~50-60% wins at tier 0).
+  lists, grades, picks perks, and uses supplies, grab bags and the landline) plays 100 ("SIM pro",
+  aim ~70-75% wins at tier 0: it knows true values, a human doesn't). Targets assume you use the
+  Home extras: the same bot without them wins ~25%. `tools/sim_extras.gd -- N [quick|all|ban]`
+  probes each system, every landline deal and every supply (win %, deaths per ante, winners'
+  score / target). Keep effects that scale with item value capped (Gift Card, Copier, Cleaning Kit).
   CI shows it as a notice. A good human should beat the greedy bot comfortably.
 - Play it yourself from the shell: `tools/play_driver.gd` (xvfb, real 3D) reads
   commands from DIR/cmd.txt (tap TEXT, list, shot NAME, state, eval EXPR, bot N to

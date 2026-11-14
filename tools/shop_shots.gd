@@ -68,6 +68,16 @@ func _go() -> void:
 	await _snap("supply_target")
 	game._close_sheet()
 	game._set_home_tab("route")
+	r.call_offer = ["collateral", "night_owl", "static"]
+	r.calls = ["wide_shelf"]
+	game.request_refresh()
+	await _snap("call_route")
+	game._open_call()
+	await _snap("call")
+	game._open_call_deal("collateral")
+	await _snap("call_deal")
+	game._close_sheet()
+	r.call_offer = []
 	game.go_to_venue(String(r.venue_choices[0]))
 	await _snap("venue_pocket")
 	quit()

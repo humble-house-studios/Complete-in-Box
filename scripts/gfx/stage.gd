@@ -25,6 +25,11 @@ var _focus := 0.3
 var _zoom := 1.0
 ## Your Wall finds, shown on the living room's second shelf.
 var wall_items: Array = []
+## The landline at home rattles and glows while this is on (a call is waiting).
+var phone_ringing := false
+var _phone: Node3D
+var _phone_set: Node3D
+var _phone_glow: OmniLight3D
 ## The lose ending (scene "cursed"): grade, condition and labels for your case.
 var case_info: Dictionary = {}
 ## The title vault's covered case: empty = still under its dust sheet (the
@@ -249,6 +254,7 @@ func _process(delta: float) -> void:
 			_shake = maxf(0.0, _shake - delta * 3.0)
 			_apply_cam()
 			return
+	_phone_update()
 	for f in _flicker:
 		var node: Object = f[0]
 		if not is_instance_valid(node):
@@ -2034,6 +2040,8 @@ func _home(items: Array) -> void:
 	_prop("cardboardBoxOpen", Vector3(-2.2, 0, -2.3), 15, 0.4)
 	_prop("plantSmall1", Vector3(0.9, 1.5, -0.9), 0, 0.3)
 	_prop("bear", Vector3(-1.5, 1.5, -0.9), 20, 0.25)
+	# Arlo's phone, up on top of the shelves where you can't miss it.
+	_landline(Vector3(0.0, 1.5, -0.86), -8)
 	var ids := _poster_ids(5, 3)
 	_poster(Vector3(-2.2, 1.75, -2.98), 0, Vector2(0.6, 0.7), ids[0])
 	_poster(Vector3(-2.99, 1.6, -0.5), 90, Vector2(0.6, 0.7), ids[1])
@@ -2070,6 +2078,55 @@ func _home(items: Array) -> void:
 	# Framed a little right of centre so the shelves sit left of the pop-up card.
 	_shelf_view = [Vector3(-0.55, 1.2, 1.3), Vector3(-0.75, 0.95, -0.9), 58.0]
 	_view(_home_view[0], _home_view[1], _home_view[2])
+
+
+## Arlo's rotary phone: red body, cradle, handset, dial. The handset rattles
+## in two-burst rings and a red light pulses while `phone_ringing`.
+func _landline(pos: Vector3, rot_y: float) -> void:
+	var red := Psx.mat(Color(0.78, 0.1, 0.12))
+	var dark := Psx.mat(Color(0.12, 0.1, 0.12))
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation_degrees.y = rot_y
+	root.scale = Vector3.ONE * 1.25
+	world.add_child(root)
+	Psx.box(Vector3(0.3, 0.07, 0.24), red, Vector3(0, 0.035, 0), root)
+	var slope := Psx.box(Vector3(0.26, 0.07, 0.2), red, Vector3(0, 0.09, -0.01), root)
+	slope.rotation_degrees.x = 14
+	for sx in [-1.0, 1.0]:
+		Psx.box(Vector3(0.04, 0.06, 0.07), dark, Vector3(0.1 * sx, 0.15, -0.07), root)
+	var dial := Psx.cyl(0.075, 0.015, Psx.mat(Color(0.92, 0.9, 0.82)), Vector3(0, 0.125, 0.035), root, 10)
+	dial.rotation_degrees.x = 14
+	var hub := Psx.cyl(0.028, 0.02, dark, Vector3(0, 0.132, 0.037), root, 8)
+	hub.rotation_degrees.x = 14
+	var hs := Node3D.new()
+	hs.position = Vector3(0, 0.19, -0.07)
+	root.add_child(hs)
+	Psx.box(Vector3(0.34, 0.04, 0.05), red, Vector3.ZERO, hs)
+	for sx in [-1.0, 1.0]:
+		Psx.cyl(0.045, 0.06, red, Vector3(0.16 * sx, -0.02, 0), hs, 8)
+	# Curly cord down the side.
+	for k in 5:
+		Psx.box(Vector3(0.015, 0.03, 0.015), dark, Vector3(-0.17 - 0.012 * (k % 2), 0.13 - 0.028 * k, -0.05 + 0.02 * k), root)
+	if not Lite.perf:
+		Psx.outline(root)
+	_phone = root
+	_phone_set = hs
+	_phone_glow = _light(pos + Vector3(0, 0.35, 0.15), Color(1.0, 0.2, 0.15), 0.0, 1.6)
+
+
+func _phone_update() -> void:
+	if _phone_set == null or not is_instance_valid(_phone_set):
+		return
+	# Ring-ring ... pause, like the sound.
+	var beat := fmod(_t, 2.6)
+	var on := phone_ringing and (beat < 0.75 or (beat > 1.0 and beat < 1.75))
+	_phone_set.rotation_degrees.z = sin(_t * 70.0) * 7.0 if on else 0.0
+	_phone_set.position.y = 0.19 + (absf(sin(_t * 55.0)) * 0.012 if on else 0.0)
+	if is_instance_valid(_phone):
+		_phone.rotation_degrees.x = sin(_t * 90.0) * 1.2 if on else 0.0
+	if is_instance_valid(_phone_glow):
+		_phone_glow.light_energy = (1.6 + sin(_t * 30.0) * 0.6) if on else (0.35 if phone_ringing else 0.0)
 
 
 func _garage(items: Array) -> void:

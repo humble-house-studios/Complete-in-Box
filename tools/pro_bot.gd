@@ -8,6 +8,15 @@ extends RefCounted
 var run: Run
 var rng := RandomNumberGenerator.new()
 var pivots := true
+## The Home extras (off by default so "SIM pro" stays the same yardstick).
+var use_supplies := false
+var use_bags := false
+var use_calls := false
+## Balance probes: always take this deal when it's offered (and no other).
+var force_call := ""
+var only_supply := ""
+var ban_call := ""
+const SUPPLY_LIKES := ["spotlight", "cleaning_kit", "copier", "energy", "gift_card", "flyer", "lucky_penny"]
 
 ## Perks it likes, best first (mult and economy that work with any shelf).
 const LIKES := ["price_guide", "curator", "completionist", "hoarder", "sticker_gun", "box_and_manual",
@@ -36,10 +45,203 @@ func play_stop() -> Dictionary:
 		# Only flip markets when the shelf is weak for what's coming.
 		if run.pivot_value() > 0 and score() < run.target() * 1.2:
 			run.pivot(run.pivot_offer())
+	if use_calls or force_call != "":
+		_answer_call()
 	_shop_home()
+	if use_bags:
+		_grab_bag()
+	if use_supplies:
+		_buy_supplies()
+		_use_supplies_home()
 	run.enter_venue(_pick_venue())
+	if use_supplies:
+		_use_supplies_venue()
 	_play_venue()
+	if use_supplies and run.supplies.has("spotlight") and score() < run.target() * 1.5:
+		run.use_supply("spotlight")
 	return run.end_stop()
+
+
+# ---------------------------------------------------------------- home extras
+
+func _reserve() -> int:
+	return 8 + run.ante * 3
+
+
+func _buy_supplies() -> void:
+	for sid in SUPPLY_LIKES:
+		if only_supply != "" and sid != only_supply:
+			continue
+		if run.supply_offers.has(sid) and run.supplies.size() < Balance.POCKET_SLOTS and run.cash - int(Perks.supply(sid)["cost"]) >= _reserve():
+			run.buy_supply(sid)
+
+
+## Best shelf target for a supply by score gained (tries it on a copy of the state).
+func _best_target(id: String) -> Dictionary:
+	var best := {}
+	var best_gain := 0
+	var now := score()
+	for it in run.supply_targets(id):
+		var gain := 0
+		match id:
+			"cleaning_kit":
+				var c := String(it["cond"])
+				it["cond"] = Catalog.CONDITIONS[Catalog.CONDITIONS.find(c) + 1]
+				gain = score() - now
+				it["cond"] = c
+			"copier":
+				gain = _score_with(it.duplicate(true)) - now
+			"flyer":
+				var p := String(it["plat"])
+				var was_cold := run.cold.has(p)
+				run.hot.append(p)
+				run.cold.erase(p)
+				gain = score() - now
+				run.hot.erase(p)
+				if was_cold:
+					run.cold.append(p)
+		if gain > best_gain:
+			best_gain = gain
+			best = it
+	return best
+
+
+func _use_supplies_home() -> void:
+	for sid in ["cleaning_kit", "copier", "flyer"]:
+		while run.supplies.has(sid) and run.supply_block(sid) == "":
+			var t := _best_target(sid)
+			if t.is_empty() or not bool(run.use_supply(sid, int(t["uid"]))["ok"]):
+				break
+
+
+func _use_supplies_venue() -> void:
+	if run.supplies.has("energy"):
+		run.use_supply("energy")
+	if run.supplies.has("lucky_penny") and run.supply_block("lucky_penny") == "":
+		run.use_supply("lucky_penny")
+	if run.supplies.has("gift_card"):
+		for o in run.stock:
+			if int(o["price"]) >= 12 and int(o["price"]) / 2 <= run.cash:
+				run.use_supply("gift_card")
+				break
+
+
+func _grab_bag() -> void:
+	var b := run.bag_offer
+	if b.is_empty():
+		return
+	if not bool(b["open"]):
+		if run.cash - int(b["cost"]) < _reserve():
+			return
+		match String(b["id"]):
+			"items":
+				if run.free_slots() <= 0 and run.shelf.size() <= 3:
+					return
+			"supplies":
+				if not use_supplies or run.supplies.size() >= Balance.POCKET_SLOTS:
+					return
+			"perks":
+				if run.perks.size() >= run.perk_cap:
+					return
+		if not bool(run.buy_bag()["ok"]):
+			return
+	var picks: Array = run.bag_offer["picks"]
+	var pick := 0
+	match String(run.bag_offer["id"]):
+		"items":
+			var now := score()
+			var best_gain := -999999999
+			for i in picks.size():
+				var g := (_score_with(picks[i]) if run.free_slots() > 0 else _score_with(picks[i], _worst())) - now
+				if g > best_gain:
+					best_gain = g
+					pick = i
+			if best_gain <= 0:
+				run.bag_pick(-1)
+				return
+			if run.free_slots() <= 0:
+				run.dump(int(_worst()["uid"]))
+		"supplies":
+			var br := 99
+			for i in picks.size():
+				var r := SUPPLY_LIKES.find(String(picks[i]))
+				if r >= 0 and r < br:
+					br = r
+					pick = i
+		"perks":
+			var bp := 999
+			for i in picks.size():
+				var r2 := LIKES.find(String(picks[i]))
+				if r2 < 0:
+					r2 = 50
+				if r2 < bp:
+					bp = r2
+					pick = i
+	if not bool(run.bag_pick(pick)["ok"]):
+		run.bag_pick(-1)
+
+
+## How good a deal looks: > 0 = take it. Tries the shelf-changing ones for real.
+func _call_value(id: String) -> float:
+	var now := float(maxi(1, score()))
+	var lead := now / float(maxi(1, run.target()))
+	match id:
+		"perk_slot": return 3.0
+		"static": return 2.5
+		"bulk_buyer": return 2.0
+		"prize": return 1.8 if run.bag_offer.is_empty() or not bool(run.bag_offer.get("open", false)) else 0.0
+		"night_owl": return 1.5
+		"wide_shelf": return 1.2 if run.free_slots() <= 1 else 0.4
+		"sealed_fate":
+			var perk_add := 0.0
+			for b in run.appraise()["bonuses"]:
+				if b.get("perk", false):
+					perk_add += float(b["add"])
+			return perk_add - 0.6 if run.perks.size() < run.perk_cap else perk_add - 1.2
+		"specialist":
+			run.call_plat = run.call_plat_pick()
+			var s := float(score())
+			run.call_plat = ""
+			return (s / now - 1.2) * 5.0
+		"condition_snob":
+			run.calls.append(id)
+			var s2 := float(score())
+			run.calls.erase(id)
+			return (s2 / now - 1.2) * 5.0
+		"collateral":
+			var best := run.call_best_item()
+			if best.is_empty():
+				return -1.0
+			return (float(_score_without(best)) * 1.5 / now - 1.1) * 5.0
+		"advance": return 1.0 if lead > 1.8 else -1.0
+		"double_nothing": return 0.8 if lead > 2.0 else -1.0
+	return -1.0
+
+
+func _answer_call() -> void:
+	if run.call_offer.is_empty():
+		return
+	if force_call != "":
+		if run.call_offer.has(force_call):
+			run.call_take(force_call)
+		else:
+			run.call_hangup()
+		return
+	var best := ""
+	var best_v := 0.0
+	for id in run.call_offer:
+		if String(id) == ban_call:
+			continue
+		var v := _call_value(String(id))
+		if v > best_v:
+			best_v = v
+			best = String(id)
+	if best != "":
+		run.call_take(best)
+		if best == "prize":
+			_grab_bag()
+	else:
+		run.call_hangup()
 
 
 func score() -> int:

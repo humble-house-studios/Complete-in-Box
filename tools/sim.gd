@@ -46,14 +46,25 @@ func _pro() -> void:
 	var wins := 0
 	var ante_sum := 0
 	var n := 100
+	var deaths := {}
 	for i in n:
 		var run := Run.new()
 		run.start(1000 + i)
-		var r: Dictionary = Pro.new(run, 5 + i).play_run()
+		var bot = Pro.new(run, 5 + i)
+		# The whole toolbox: supplies, grab bags and the landline.
+		bot.use_supplies = true
+		bot.use_bags = true
+		bot.use_calls = true
+		var r: Dictionary = bot.play_run()
 		ante_sum += int(r["ante"])
 		if bool(r["won"]):
 			wins += 1
-	print("SIM pro runs=%d wins=%d (%.0f%%) avg_ante=%.2f" % [n, wins, 100.0 * wins / n, float(ante_sum) / n])
+		else:
+			deaths[int(r["ante"])] = int(deaths.get(int(r["ante"]), 0)) + 1
+	var parts: Array = []
+	for a in range(1, 9):
+		parts.append("A%d:%d" % [a, int(deaths.get(a, 0))])
+	print("SIM pro runs=%d wins=%d (%.0f%%) avg_ante=%.2f deaths %s" % [n, wins, 100.0 * wins / n, float(ante_sum) / n, " ".join(parts)])
 
 
 func _sim(flip: bool, tag: String) -> void:
