@@ -23,6 +23,12 @@ const TIME_LEFT_REWARD := 1
 const INTEREST_PER := 5
 
 const PERK_OFFERS := 3
+## One-use supplies: how many you can carry, how many Home offers each stop.
+const POCKET_SLOTS := 2
+const SUPPLY_OFFERS := 2
+## Garage Sale Box price: this share of its middle find's value.
+const BAG_RATE := 0.5
+const BAG_CONDS := [10, 35, 35, 15, 5]
 const REROLL_START := 2
 const DUMP_VALUE := 1
 

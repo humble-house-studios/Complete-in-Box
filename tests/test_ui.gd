@@ -158,6 +158,30 @@ func test_home_then_venue_then_appraisal() -> void:
 	assert_eq(game.screen, "home")
 	assert_true(_has_text(game, "PERK SHOP"))
 	assert_true(_has_text(game, "Garage Sale"))
+	game._set_home_tab("perks")
+	await wait_frames(2)
+	assert_true(_has_text(game, "SUPPLIES"))
+	assert_true(_has_text(game, "YOUR POCKET"))
+	game.run.supplies = ["cleaning_kit"]
+	game._open_supply("cleaning_kit", true)
+	await wait_frames(2)
+	game._close_sheet()
+	game._pick_supply_target("cleaning_kit")
+	await wait_frames(2)
+	game._close_sheet()
+	for kind in 3:
+		var bag: Dictionary = Perks.BAGS[kind].duplicate()
+		bag["open"] = true
+		bag["cost"] = 1
+		bag["picks"] = [game.run.make_item(Catalog.ITEMS[0], "Loose"), game.run.make_item(Catalog.ITEMS[1], "Loose")] if kind == 0 else (["energy", "loupe"] if kind == 1 else ["hoarder", "whale"])
+		game.run.bag_offer = bag
+		game._open_bag()
+		await wait_frames(2)
+		game._close_sheet()
+	game.run.bag_offer = {}
+	game.run.supplies.clear()
+	game._set_home_tab("route")
+	await wait_frames(2)
 	game.go_to_venue("garage")
 	await wait_frames(2)
 	assert_eq(game.screen, "venue")

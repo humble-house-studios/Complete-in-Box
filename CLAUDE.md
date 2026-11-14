@@ -37,6 +37,22 @@ at any passed appraisal that ante = `rewards["want"]` cash (PAYDAY row + gold to
 All 8 in one run (`Run.wants_done`) = true ending (`Flavor.TRUE_EPILOGUE`); save keys
 `best_wants`, `true_ends` (title vault case then stands open and empty: `vault_case.freed`). The first ante's Buyer's terms skip picky / skeptic.
 
+## The Home shop: relic cards, supplies, grab bags
+- Perk / upgrade cards are RELICS (`_relic_card` in game.gd): same size, sway, lift and price sticker
+  as the play cards (`_card_lift` is shared) but a riveted metal plaque with cut corners
+  (`corner_detail = 1`), arched art window, brass nameplate, engraved rule text. Rim = bronze / steel /
+  gold by cost (`_perk_rank`, gold gets the foil). Kinds: perk, upgrade, supply (kraft hang tag),
+  bag (taped box).
+- SUPPLIES (`Perks.SUPPLIES`, Balatro's consumables): one-use, 2 on offer at Home each stop
+  (`Run.supply_offers`), carried in the pocket (`Run.supplies`, `Balance.POCKET_SLOTS`), used from
+  `_pocket_row` (shop tab, shelf tab, top of every venue). Rules in `Run.use_supply / supply_block /
+  supply_targets`; flags `loupe_on`, `sure_haggle`, `half_off`, `spot_mult`. Targeted ones open a
+  row of your shelf cards (`_pick_supply_target`, `_pick_row`, `_sheet_extra`).
+- GRAB BAG (`Perks.BAGS`, `Run.bag_offer`, `buy_bag`, `bag_pick`): one per Home visit, pay, then
+  keep 1 of 3 items / 3 supplies / 2 perks (`_open_bag`). An opened bag waits if you close it.
+- Both roll in `Run._roll_home_extras` on a side rng stream, so they never change what the stops
+  deal (bots ignore them; sim numbers stay put). Shots: `tools/shop_shots.gd -- OUT [landscape]`.
+
 ## Doorbell events + Arlo's diary
 Coming home before stops 2 and 3 can bring an event (`Run.event`, `_roll_event`,
 `event_accept` / `event_decline`): neighbour's mystery box, a kid's trade, a collector

@@ -72,6 +72,36 @@ const UPGRADES := [
 	{"id": "reroll", "name": "Coupon Book", "cost": 6, "desc": "Perk rerolls cost $1 less (min $0)."},
 ]
 
+## One-use supplies (Balatro's consumables): bought at Home, carried in your
+## pocket (Balance.POCKET_SLOTS), used whenever they fit. `when`: "venue" = only
+## at a stop, "any" = Home too. `target` = pick a shelf item. Effects live in
+## Run.use_supply.
+const SUPPLIES := [
+	{"id": "energy", "name": "Energy Drink", "cost": 3, "when": "venue", "desc": "+2 Time at this stop."},
+	{"id": "loupe", "name": "Jeweler's Loupe", "cost": 3, "when": "venue", "desc": "See exact values for the rest of this stop."},
+	{"id": "lucky_penny", "name": "Lucky Penny", "cost": 3, "when": "venue", "desc": "Your next haggle can't fail."},
+	{"id": "gift_card", "name": "Gift Card", "cost": 5, "when": "venue", "desc": "Your next buy off the table is half price."},
+	{"id": "cleaning_kit", "name": "Cleaning Kit", "cost": 4, "when": "any", "target": true, "desc": "One shelf item goes up a condition step (up to Mint)."},
+	{"id": "flyer", "name": "Hype Flyer", "cost": 4, "when": "any", "target": true, "desc": "Pick a shelf item: its whole platform runs HOT through the next appraisal."},
+	{"id": "copier", "name": "Shady Copier", "cost": 6, "when": "any", "target": true, "desc": "Copy a Common or Uncommon item on your shelf. Needs a free slot."},
+	{"id": "spotlight", "name": "Display Spotlight", "cost": 4, "when": "any", "desc": "+1 Mult at your next appraisal."},
+]
+
+## Grab bags (Balatro's booster packs): one at Home each stop, pick 1 of the lot.
+const BAGS := [
+	{"id": "items", "name": "Garage Sale Box", "picks": 3, "desc": "Three finds from a stranger's garage. Keep one."},
+	{"id": "supplies", "name": "Junk Drawer", "picks": 3, "cost": 4, "desc": "Three one-use supplies. Keep one."},
+	{"id": "perks", "name": "Dusty Crate", "picks": 2, "cost": 5, "desc": "Two perks from the back of the attic. Keep one."},
+]
+
+
+static func supply(id: String) -> Dictionary:
+	for s in SUPPLIES:
+		if s["id"] == id:
+			return s
+	return {}
+
+
 ## Per-world names and text for the same perk (the effect never changes):
 ## THEMES[market][perk id] = [name, desc].
 const THEMES := {

@@ -54,6 +54,15 @@ var venue_choices: Array = []
 var perk_offers: Array = []
 var upgrade_offer: Dictionary = {}
 var reroll_cost: int = Balance.REROLL_START
+# One-use supplies: what you carry, what Home sells this stop, what's in effect.
+var supplies: Array = []  # supply ids (doubles allowed)
+var supply_offers: Array = []
+var loupe_on: bool = false
+var sure_haggle: bool = false
+var half_off: bool = false
+var spot_mult: float = 0.0
+# The grab bag at Home: {id, name, desc, cost, picks: [...], open (bool)} or {} once done.
+var bag_offer: Dictionary = {}
 
 ## Current venue
 var venue: Dictionary = {}
@@ -455,7 +464,7 @@ func _make_offer(boost_extra: int = 0) -> Dictionary:
 
 
 func shows_exact() -> bool:
-	return venue.is_empty() or bool(venue["exact"]) or has_perk("price_guide")
+	return venue.is_empty() or bool(venue["exact"]) or has_perk("price_guide") or loupe_on
 
 
 func _make_lot() -> Dictionary:
@@ -513,7 +522,235 @@ func _prepare_home() -> void:
 	_roll_perk_offers()
 	var up: Dictionary = Perks.UPGRADES[rng.randi_range(0, Perks.UPGRADES.size() - 1)]
 	upgrade_offer = up.duplicate()
+	loupe_on = false
+	_roll_home_extras()
 	changed.emit()
+
+
+## Supplies and the grab bag for this Home visit. Rolled on a side stream (the
+## main rng and the pull-luck counters are put back after), so they never shift
+## what the stops deal.
+func _roll_home_extras() -> void:
+	var st := rng.state
+	var d := dry
+	var gc := grail_cool
+	rng.seed = hash([seed_value, ante, stop, stops_played, "extras"])
+	supply_offers.clear()
+	var pool: Array = []
+	for sp in Perks.SUPPLIES:
+		pool.append(String(sp["id"]))
+	while supply_offers.size() < Balance.SUPPLY_OFFERS and not pool.is_empty():
+		var i := rng.randi_range(0, pool.size() - 1)
+		supply_offers.append(pool[i])
+		pool.remove_at(i)
+	var bd: Dictionary = Perks.BAGS[_weighted([55, 30, 15])]
+	var bag := bd.duplicate()
+	bag["open"] = false
+	var picks: Array = []
+	match String(bd["id"]):
+		"items":
+			var vals: Array = []
+			for i in int(bd["picks"]):
+				var it := roll_item(1, Balance.BAG_CONDS)
+				picks.append(it)
+				vals.append(market_value(it))
+			# Priced off the middle find, so a rare in the box is a real score.
+			vals.sort()
+			bag["cost"] = maxi(3, int(round(float(vals[vals.size() / 2]) * Balance.BAG_RATE)))
+		"supplies":
+			for i in int(bd["picks"]):
+				picks.append(String(Perks.SUPPLIES[rng.randi_range(0, Perks.SUPPLIES.size() - 1)]["id"]))
+		"perks":
+			var pp: Array = []
+			for p in Perks.LIST:
+				var pid := String(p["id"])
+				if not perks.has(pid) and not perk_offers.has(pid) and perk_fits(pid) and (not p.has("lock") or unlocked_perks.has(pid)):
+					pp.append(pid)
+			while picks.size() < int(bd["picks"]) and not pp.is_empty():
+				var i := rng.randi_range(0, pp.size() - 1)
+				picks.append(pp[i])
+				pp.remove_at(i)
+	bag["picks"] = picks
+	bag_offer = bag if picks.size() >= 2 else {}
+	rng.state = st
+	dry = d
+	grail_cool = gc
+
+
+# ================================================================ supplies + grab bag
+
+func buy_supply(id: String) -> Dictionary:
+	if phase != Phase.HOME or not supply_offers.has(id):
+		return _fail("Not on offer.")
+	if supplies.size() >= Balance.POCKET_SLOTS:
+		return _fail("Pockets full. Use one first.")
+	var d := Perks.supply(id)
+	var cost := int(d["cost"])
+	if cash < cost:
+		return _fail("Need $%d." % cost)
+	cash -= cost
+	supplies.append(id)
+	supply_offers.erase(id)
+	return _ok("Pocketed %s." % d["name"])
+
+
+func sell_supply(id: String) -> Dictionary:
+	if not supplies.has(id):
+		return _fail("You don't have that.")
+	var back := int(Perks.supply(id)["cost"]) / 2
+	supplies.erase(id)
+	cash += back
+	return _ok("Sold %s for $%d." % [Perks.supply(id)["name"], back])
+
+
+## "" if the supply can be used right now, else why not.
+func supply_block(id: String) -> String:
+	var d := Perks.supply(id)
+	if d.is_empty():
+		return "No such thing."
+	if phase != Phase.HOME and phase != Phase.VENUE:
+		return "Not now."
+	if String(d["when"]) == "venue" and phase != Phase.VENUE:
+		return "Use it at a stop."
+	match id:
+		"loupe":
+			if shows_exact():
+				return "You already see exact values here."
+		"lucky_penny":
+			if float(venue["haggle"]) <= 0.0:
+				return "No haggling here."
+			if sure_haggle:
+				return "One's already in play."
+		"gift_card":
+			if half_off:
+				return "One's already in play."
+		"copier":
+			if free_slots() <= 0:
+				return "Shelf's full."
+	if bool(d.get("target", false)) and supply_targets(id).is_empty():
+		return "Nothing on your shelf it works on."
+	return ""
+
+
+## Shelf items a targeted supply can be used on.
+func supply_targets(id: String) -> Array:
+	var out: Array = []
+	for it in shelf:
+		match id:
+			"cleaning_kit":
+				if Catalog.CONDITIONS.find(String(it["cond"])) < Catalog.CONDITIONS.find("Mint"):
+					out.append(it)
+			"flyer":
+				if not hot.has(String(it["plat"])):
+					out.append(it)
+			"copier":
+				if int(it["tier"]) <= 1:
+					out.append(it)
+	return out
+
+
+func use_supply(id: String, uid: int = -1) -> Dictionary:
+	if not supplies.has(id):
+		return _fail("You don't have that.")
+	var why := supply_block(id)
+	if why != "":
+		return _fail(why)
+	var d := Perks.supply(id)
+	var item: Dictionary = {}
+	if bool(d.get("target", false)):
+		for it in supply_targets(id):
+			if int(it["uid"]) == uid:
+				item = it
+		if item.is_empty():
+			return _fail("Pick something it works on.")
+	var msg := ""
+	match id:
+		"energy":
+			time_left += 2
+			msg = "Wide awake. +2 Time."
+		"loupe":
+			loupe_on = true
+			msg = "Every flaw, every price. Exact values this stop."
+		"lucky_penny":
+			sure_haggle = true
+			msg = "Heads up. Your next haggle can't fail."
+		"gift_card":
+			half_off = true
+			msg = "Your next buy off the table is half price."
+		"cleaning_kit":
+			var ci := Catalog.CONDITIONS.find(String(item["cond"])) + 1
+			item["cond"] = Catalog.CONDITIONS[ci]
+			msg = "%s scrubs up to %s." % [item["name"], Catalog.cond_name(item)]
+		"flyer":
+			var p := String(item["plat"])
+			hot.append(p)
+			cold.erase(p)
+			msg = "%s is HOT. Everybody wants one." % Catalog.platform(p)["name"]
+		"copier":
+			var c := item.duplicate(true)
+			_uid += 1
+			c["uid"] = _uid
+			c["serial"] = 100000 + (_uid * 7919) % 900000
+			c["paid"] = 0
+			c["held"] = 0
+			shelf.append(c)
+			msg = "Looks just like the real %s. Mostly." % item["name"]
+		"spotlight":
+			spot_mult += 1.0
+			msg = "+1 Mult at the next appraisal."
+	supplies.erase(id)
+	stats["supplies"] = int(stats.get("supplies", 0)) + 1
+	changed.emit()
+	return _ok(msg)
+
+
+func buy_bag() -> Dictionary:
+	if phase != Phase.HOME or bag_offer.is_empty():
+		return _fail("Nothing there.")
+	if bool(bag_offer["open"]):
+		return _ok("")
+	var cost := int(bag_offer["cost"])
+	if cash < cost:
+		return _fail("Need $%d." % cost)
+	cash -= cost
+	bag_offer["open"] = true
+	return _ok("")
+
+
+## Keep pick `i` from the opened grab bag (-1 = walk away with nothing).
+func bag_pick(i: int) -> Dictionary:
+	if bag_offer.is_empty() or not bool(bag_offer["open"]):
+		return _fail("Nothing's open.")
+	var picks: Array = bag_offer["picks"]
+	if i < 0:
+		bag_offer = {}
+		return _ok("Left it all in the box.")
+	if i >= picks.size():
+		return _fail("Nothing there.")
+	var msg := ""
+	match String(bag_offer["id"]):
+		"items":
+			if free_slots() <= 0:
+				return _fail("Shelf's full. Make room first.")
+			var it: Dictionary = picks[i]
+			it["paid"] = int(bag_offer["cost"])
+			shelf.append(it)
+			stats["bought"] += 1
+			msg = "Kept %s." % it["name"]
+		"supplies":
+			if supplies.size() >= Balance.POCKET_SLOTS:
+				return _fail("Pockets full. Use one first.")
+			supplies.append(String(picks[i]))
+			msg = "Pocketed %s." % Perks.supply(String(picks[i]))["name"]
+		"perks":
+			if perks.size() >= perk_cap:
+				return _fail("Perk slots full. Sell one first.")
+			var pid := String(picks[i])
+			perks.append(pid)
+			_perk_shelf(pid, 1)
+			msg = "Got %s." % perk_name(pid)
+	bag_offer = {}
+	return _ok(msg)
 
 
 func _roll_perk_offers() -> void:
@@ -656,9 +893,17 @@ func pivot(to: String) -> Dictionary:
 	pivot_time = Balance.PIVOT_TIME
 	var perks_before := perk_offers.duplicate()
 	var up_before := upgrade_offer.duplicate()
+	var sup_before := supply_offers.duplicate()
+	var bag_gone := bag_offer.is_empty()
+	var bag_open := not bag_gone and bool(bag_offer["open"])
 	_prepare_home()
 	perk_offers = perks_before.filter(func(p): return perk_fits(String(p)))
 	upgrade_offer = up_before
+	supply_offers = sup_before
+	if bag_gone:
+		bag_offer = {}
+	elif bag_open and not bag_offer.is_empty():
+		bag_offer["open"] = true
 	stats["pivots"] = int(stats.get("pivots", 0)) + 1
 	var res := _ok("Sold %d item%s for $%d. Welcome to %s!" % [n, "" if n == 1 else "s", total, Catalog.MARKETS[to]["name"]])
 	res["total"] = total
@@ -815,11 +1060,14 @@ func buy(index: int) -> Dictionary:
 		return _fail("Nothing there.")
 	var o: Dictionary = stock[index]
 	var price := int(o["price"])
+	if half_off:
+		price = int(ceil(price * 0.5))
 	if cash < price:
 		return _fail("Need $%d." % price)
 	if free_slots() <= 0:
 		return _fail("Shelf's full. Sell or dump something.")
 	cash -= price
+	half_off = false
 	stock.remove_at(index)
 	var item: Dictionary = o["item"]
 	item["paid"] = price
@@ -852,7 +1100,11 @@ func haggle(index: int) -> Dictionary:
 	o["haggled"] = true
 	var chance := float(venue["haggle"]) + (0.25 if has_perk("silver_tongue") else 0.0)
 	var old := int(o["price"])
-	if rng.randf() < chance:
+	var roll := rng.randf()
+	if sure_haggle:
+		sure_haggle = false
+		roll = -1.0
+	if roll < chance:
 		o["price"] = maxi(1, int(round(old * float(venue["cut"]))))
 		stats["haggles"] = int(stats.get("haggles", 0)) + 1
 		var res := _ok("Deal! $%d -> $%d." % [old, o["price"]])
@@ -1184,6 +1436,7 @@ func end_stop() -> Dictionary:
 	listings.clear()
 	# Appraise.
 	var ap := appraise()
+	spot_mult = 0.0
 	last_appraisal = ap
 	var passed := int(ap["total"]) >= target()
 	stats["best_appraisal"] = maxi(int(stats["best_appraisal"]), int(ap["total"]))
@@ -1417,6 +1670,9 @@ func appraise() -> Dictionary:
 	if has_perk("cursed_cart"):
 		times *= 2.0
 		bonuses.append({"label": perk_name("cursed_cart"), "add": 0.0, "times": 2.0})
+	if spot_mult > 0.0:
+		add += spot_mult
+		bonuses.append({"label": "Display Spotlight", "add": spot_mult, "times": 1.0})
 	var mult := (1.0 + add) * times
 	var total := int(round(chips * mult))
 	return {"items": items, "bonuses": bonuses, "chips": chips, "mult": snappedf(mult, 0.01), "total": total}
