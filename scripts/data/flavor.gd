@@ -158,6 +158,7 @@ const WANT_NOTES := {
 	"worth": ["One serious piece. Show me you're not just shuffling junk.", "Quality over quantity. One piece. Make it count."],
 	"rookie": ["Everyone is worth the most at the start. Bring me a rookie.", "First year, first card, first mistake. Rose loved a rookie. So do I."],
 	"debut": ["Everyone writes a first book. Most of them should have stopped there. Bring me one that didn't.", "First books. First novels. First mistakes. Iris called it a debut. I call it an acquisition."],
+	"screen": ["Bring me something that was in a film. I like things that have been watched.", "A prop. A costume. Something a camera loved once. Dale sold me a few."],
 	"single": ["Three minutes. A-side, B-side. Everything that matters fits on seven inches. Bring me a single.", "Marv played a single for me every night at three. Bring me one he'd have played."],
 	"key": ["Firsts. I collect firsts. First issues, first appearances, first heirs.", "Bring me the issue where it all began. Everything begins somewhere."],
 	"vintage": ["Something older than you. Older than your parents, ideally.", "Bring me a card printed before anyone thought to keep them clean."],
@@ -235,6 +236,7 @@ const LORE_FILES := {
 	"comics": preload("res://scripts/data/lore/comics.gd"),
 	"books": preload("res://scripts/data/lore/books.gd"),
 	"vinyl": preload("res://scripts/data/lore/vinyl.gd"),
+	"pop": preload("res://scripts/data/lore/pop.gd"),
 	"coins": preload("res://scripts/data/lore/coins.gd"),
 }
 const Worlds := preload("res://scripts/data/worlds.gd")
@@ -1014,6 +1016,20 @@ static func _cc_history(def: Dictionary, item: Dictionary) -> Array:
 		out.append(["THE HYPE", _one(r, ["A DJ dropped it at a festival and the price doubled by morning.", "It was banned from the radio, which only made it more famous.",
 			"Every older sibling had one. Most lent it to someone and never got it back.", "It hit the news when a sealed copy sold for the price of a car.",
 			"Sampled so often the drum break has its own fan club."])])
+	elif kind in ["toy", "prop", "poster", "toybox"]:
+		var made: String = {"prop": "MADE FOR THE FILM", "poster": "PRINTED"}.get(kind, "MADE")
+		out.append([made, "%s, by %s." % [yt, String(def.get("maker", ""))]])
+		if def.has("record") and kind != "toybox":
+			out.append(["THE RECORD", String(def["record"]) + "."])
+		if def.has("tell"):
+			out.append(["APPRAISER'S TELL", String(def["tell"])])
+		var made_n := int(def.get("run", 1000))
+		if kind == "prop":
+			out.append(["SURVIVORS", "%s made for the production. Most were thrown away when it wrapped." % ("Only one was" if made_n <= 1 else "About %d were" % made_n)])
+		elif kind == "toybox":
+			out.append(["INSIDE", "About %d pieces, unsorted." % int(def.get("count", 20))])
+		else:
+			out.append(["SURVIVORS", "About %s made. %s: maybe %s." % [_num(made_n), "Unfolded ones" if kind == "poster" else "Still sealed ones", _num(maxi(1, made_n / r.randi_range(60, 700)))]])
 	else:
 		out.append(["PRINTED", "%s, %s. From %s, published by %s." % [yt, String(def.get("set", "")), String(def.get("set", "")), String(def.get("pub", ""))]])
 		if kind == "scard":

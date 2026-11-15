@@ -87,7 +87,7 @@ def table(world):
         return _TABLES[world]
     pairs = []
     import gen_worlds
-    if world in ("comics", "books", "vinyl", "sports"):
+    if world in ("comics", "books", "vinyl", "sports", "pop"):
         conf = gen_worlds.load_conf(world)
         for name in dir(conf):
             if name.isupper() and name not in ("BRAND_PUB", "BLURB", "TELLS", "TELLS_KNOWN", "POS_STATS", "PRICE", "GRAILS"):
@@ -150,6 +150,11 @@ def _norm(k):
 
 # ------------------------------------------------------------------ stats
 STAT_KEYS = {
+    "pop": [("manufacturer", "MAKER"), ("company", "MAKER"), ("creator", "CREATED BY"), ("createdby", "CREATED BY"), ("designer", "DESIGNED BY"),
+            ("inventor", "INVENTED BY"), ("introduced", "FIRST SOLD"), ("released", "RELEASED"), ("availability", "ON SALE"),
+            ("unitssold", "UNITS SOLD"), ("sales", "SALES"), ("type", "TYPE"), ("country", "COUNTRY"), ("materials", "MADE OF"),
+            ("firstappearance", "FIRST SEEN"), ("portrayedby", "PLAYED BY"), ("director", "DIRECTOR"), ("studio", "STUDIO"),
+            ("budget", "BUDGET"), ("boxoffice", "BOX OFFICE"), ("slogan", "SLOGAN"), ("presentin", "SEEN IN")],
     "games": [("developer", "DEVELOPER"), ("publisher", "PUBLISHER"), ("director", "DIRECTOR"), ("producer", "PRODUCER"),
               ("designer", "DESIGNER"), ("programmer", "PROGRAMMER"), ("artist", "ARTIST"), ("writer", "WRITER"), ("composer", "COMPOSER"),
               ("series", "SERIES"), ("engine", "ENGINE"), ("released", "RELEASED"), ("release", "RELEASED"), ("genre", "GENRE"), ("modes", "MODES"), ("mode", "MODES"),
@@ -300,6 +305,10 @@ def _year(world, box, sents):
 
 # ------------------------------------------------------------------ history panels
 PANELS = {
+    "pop": [("ORIGIN", r"history|origin|develop|creation|concept|design|background|invention|production|making"),
+            ("THE CRAZE", r"popularity|release|marketing|sales|launch|success|reception|fad|craze|commercial|merchandis"),
+            ("ON SCREEN", r"film|television|appearance|portrayal|character|story|plot|media|in popular culture"),
+            ("LEGACY", r"legacy|impact|influence|cultural|recall|controvers|reissue|revival|later")],
     "games": [("BEHIND THE SCENES", r"develop|production|creation|concept|design|background|history|origin|making|prototype"),
               ("LAUNCH", r"release|marketing|launch|promotion|distribution|localiz|translation|version|port"),
               ("RECEPTION", r"reception|sales|critical|commercial|review|response|performance|award"),
@@ -334,7 +343,7 @@ PANELS = {
               ("LEGACY", r"legacy|influence|accolade|ranking|value|collect|cover version|sample|impact|cultural")],
 }
 LOWDOWN = {"games": "THE LOWDOWN", "cards": "THE LOWDOWN", "coins": "THE LOWDOWN", "sports": "THE PLAYER", "comics": "THE ISSUE",
-           "books": "THE BOOK", "vinyl": "THE RECORD"}
+           "books": "THE BOOK", "vinyl": "THE RECORD", "pop": "THE LOWDOWN"}
 FUN = re.compile(r"\b(million|billion|record|first|only|last|largest|biggest|most|best-selling|bestselling|rarest|rare|highest|lowest|fewer than|never|"
                  r"banned|recalled|lawsuit|sued|secret|hidden|accident|originally|nicknamed|named after|inspired|Guinness|auction|stolen|"
                  r"destroyed|melted|unique|famous|legend|cult|controvers|censor|prototype|cancel|scrapped|surviv|unreleased|limited|"
@@ -385,6 +394,7 @@ KW_PANEL = {
 def _tidy(s):
     """Drop pronunciation guides, native spellings and inflation notes; fix spacing."""
     s = re.sub(r"\s*\((?:equivalent to|about|approx\.?) [^)]*\)", "", s)
+    s = re.sub(r"\s*\(\s*/[^/]*/[^()]*(?:\([^()]*\)[^()]*)*\)", "", s)
     s = re.sub(r"\s*\([^()]*?(?:/[^/]*/|Japanese:|Hepburn|pronounced|lit\.|romanized|Korean:|Chinese:|IPA)[^()]*\)", "", s)
     s = re.sub(r"\s+'s\b", "'s", s)
     s = re.sub(r"\(\s*[;,]?\s*\)", "", s)
@@ -432,7 +442,7 @@ def _hist(world, sents, kind, seed=""):
     if lead:
         first = lead[0]
         nxt = lead[1] if len(lead) > 1 else ""
-        out.append([LOWDOWN[world] if kind not in ("wax", "pack", "crate", "longbox", "booklot") else "THE LOWDOWN", _join(first, nxt if not PRONOUN.match(nxt) or len(first) < 140 else "", 300)])
+        out.append([LOWDOWN[world] if kind not in ("wax", "pack", "crate", "longbox", "booklot", "toybox") else "THE LOWDOWN", _join(first, nxt if not PRONOUN.match(nxt) or len(first) < 140 else "", 300)])
         used.add(first)
         if out[0][1] != first:
             used.add(nxt)
@@ -571,7 +581,7 @@ def main(worlds):
 
 def show(iid):
     defs = _defs()
-    for w in ("games", "cards", "coins", "sports", "comics", "books", "vinyl"):
+    for w in ("games", "cards", "coins", "sports", "comics", "books", "vinyl", "pop"):
         p = os.path.join(DATA, w + ".json")
         if os.path.exists(p) and iid in json.load(open(p, encoding="utf-8")):
             f = build_world(w, defs).get(iid)

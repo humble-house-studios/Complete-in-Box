@@ -116,6 +116,14 @@ const HW := {
 	"ps2_pad": [Color(0.1, 0.1, 0.11), 0.157], "vmu": [Color(0.85, 0.85, 0.85), 0.08], "xbox_duke": [Color(0.1, 0.1, 0.11), 0.26],
 	"xbox_s": [Color(0.1, 0.1, 0.11), 0.17], "zapper": [Color(0.85, 0.15, 0.12), 0.24], "rob": [Color(0.85, 0.85, 0.8), 0.25],
 	"guitar": [Color(0.1, 0.1, 0.11), 0.7], "stick": [Color(0.15, 0.15, 0.18), 0.3], "ddr": [Color(0.4, 0.4, 0.45), 0.9],
+	# Pop culture: loose toys and props (screen cars are shown as display models).
+	"pop_teddy": [Color(0.62, 0.5, 0.38), 0.3], "pop_car": [Color(0.7, 0.1, 0.1), 0.075], "pop_saber": [Color(0.15, 0.15, 0.16), 0.28],
+	"pop_fedora": [Color(0.45, 0.32, 0.18), 0.32], "pop_cube": [Color(0.9, 0.9, 0.9), 0.057], "pop_furby": [Color(0.95, 0.5, 0.7), 0.15],
+	"pop_tama": [Color(0.2, 0.45, 0.55), 0.05], "pop_slinky": [Color(0.8, 0.8, 0.8), 0.08], "pop_etch": [Color(0.85, 0.1, 0.1), 0.25],
+	"pop_8ball": [Color(0.05, 0.05, 0.05), 0.1], "pop_lava": [Color(0.1, 0.1, 0.1), 0.4], "pop_viewmaster": [Color(0.6, 0.1, 0.1), 0.12],
+	"pop_potato": [Color(0.9, 0.6, 0.3), 0.15], "pop_goldengun": [Color(0.85, 0.65, 0.2), 0.2], "pop_batmobile": [Color(0.08, 0.08, 0.08), 0.5],
+	"pop_delorean": [Color(0.6, 0.6, 0.62), 0.5], "pop_db5": [Color(0.75, 0.75, 0.75), 0.5], "pop_sled": [Color(0.8, 0.55, 0.3), 0.6],
+	"pop_volleyball": [Color(0.9, 0.9, 0.9), 0.21], "pop_ears": [Color(0.05, 0.05, 0.05), 0.2], "pop_figure": [Color(0.2, 0.4, 0.15), 0.1],
 }
 ## Default shell colour when the name gives none but the model's isn't right.
 const HW_DEFAULT := {"n64_pad": Color(0.55, 0.55, 0.58), "ps2_pad": Color(0.72, 0.72, 0.74)}
@@ -298,6 +306,10 @@ static func build(item: Dictionary, label: Texture2D = null, boxed: int = -1) ->
 	var size_key := kind
 	if Catalog.is_cc(item):
 		var real := _collectible(model, item, label)
+		# Pop pieces run from a pin badge to a car: on a table they show as display
+		# pieces, never bigger than a lunchbox (the item card fits them anyway).
+		if kind in ["prop", "poster", "toybox"] or kind == "toy" and real > 0.3:
+			real = minf(real, 0.26)
 		var holder2 := Node3D.new()
 		holder2.add_child(model)
 		_fit(model, real)
@@ -1107,6 +1119,8 @@ static func _slab_label(model: Node3D, at: Vector3, w: float, item: Dictionary, 
 		l.text = "%s\n%s" % [nm, String({10: "FINE", 9: "NEAR FINE", 8: "VERY GOOD+", 7: "VERY GOOD", 6: "GOOD"}.get(g, "GOOD"))]
 	if String(item.get("kind", "")) == "record":
 		l.text = "%s\nVINYL %.1f" % [nm, {10: 10.0, 9: 9.8, 8: 9.6, 7: 9.4, 6: 9.0}.get(g, float(g))]
+	if String(item.get("kind", "")) in ["toy", "prop", "poster"]:
+		l.text = "%s\nAFX %d" % [nm, {10: 95, 9: 90, 8: 85, 7: 80, 6: 75}.get(g, g * 10)]
 	if String(item.get("kind", "")) == "comic":
 		l.text = "%s\nCGX %.1f" % [nm, {10: 9.8, 9: 9.4, 8: 8.5, 7: 7.0, 6: 6.0}.get(g, float(g))]
 	l.font_size = 22
@@ -1408,6 +1422,266 @@ static func _crate(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 	return REAL_CC["crate"] * 1.25
 
 
+# ---------------------------------------------------------------- pop culture
+
+## Which real model a loose pop piece uses ("" = the built one).
+static func pop_form(item: Dictionary) -> String:
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var nm := String(def.get("name", item.get("name", "")))
+	var words := {"Beach Bomm": "pop_car", "Matchbocks": "pop_car", "Teddy": "pop_teddy", "Princess the Bear": "pop_teddy", "Tickle Me": "pop_teddy",
+		"Furbee": "pop_furby", "Tamagotchu": "pop_tama", "Rubek": "pop_cube", "Slinkee": "pop_slinky", "Etch-O": "pop_etch", "View-Mastor": "pop_viewmaster",
+		"Potatoe": "pop_potato", "Bat-Cruiser": "pop_batmobile", "DeLorian": "pop_delorean", "Austin Marten": "pop_db5", "Skyrunner's Laser": "pop_saber",
+		"Fedora": "pop_fedora", "Golden Gun": "pop_goldengun", "Rosebud": "pop_sled", "Wilsen": "pop_volleyball", "Mousekateer": "pop_ears",
+		"Mystic 8": "pop_8ball", "Lava Lamp": "pop_lava"}
+	for w in words:
+		if nm.contains(String(w)):
+			return String(words[w])
+	if String(def.get("plat", "")) == "FIGS" and String(def.get("kind", "")) == "toy" and not String(def.get("form", "")) in ["boxed"]:
+		return "pop_figure"
+	return ""
+
+
+## The real model, recoloured when the piece calls for it (a red Elmo, a figure's paint).
+static func _real_pop(model: Node3D, item: Dictionary, form: String) -> float:
+	if form == "" or not ResourceLoader.exists("res://assets/temp_test/models/hw_%s.glb" % form):
+		return 0.0
+	var m := Psx.prop("temp:hw_" + form)
+	model.add_child(m)
+	model.set_meta("hw", form)
+	var nm := String(item.get("name", ""))
+	if nm.contains("Tickle Me"):
+		_hw_recolor(m, form, Color(0.85, 0.12, 0.1))
+	elif form == "pop_figure":
+		var hsh := absi(hash(String(item.get("id", ""))))
+		_hw_recolor(m, form, Color.from_hsv(float(hsh % 360) / 360.0, 0.55, 0.7))
+	elif form == "pop_teddy" and nm.contains("Princess"):
+		_hw_recolor(m, form, Color(0.45, 0.25, 0.6))
+	return float(HW[form][1])
+
+
+## A loose piece with no real model: a simple stand-in by form.
+static func _pop_loose(model: Node3D, item: Dictionary, label: Texture2D, form: String) -> float:
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var col: Color = Catalog.platform(String(item["plat"]))["color"]
+	var g := RandomNumberGenerator.new()
+	g.seed = hash(String(item.get("id", "")))
+	match form:
+		"lunchbox":
+			return _lunchbox(model, item, label)
+		"badge":
+			var rim := Psx.mat(Color(0.85, 0.7, 0.3), null, Vector2.ONE, 0.1)
+			var disc := Psx.cyl(0.5, 0.08, rim, Vector3(0, 0.5, 0), model, 24)
+			disc.rotation_degrees.x = 90.0
+			Psx.quad(Vector2(0.78, 0.78), _pic_mat(label, 0.7), Vector3(0, 0.5, 0.045), model)
+			return 0.045
+		"hat":
+			var fur := Psx.mat(Color(0.45, 0.32, 0.2))
+			Psx.cyl(0.42, 0.5, fur, Vector3(0, 0.25, 0), model, 14)
+			var tail := Psx.cyl(0.08, 0.9, Psx.mat(Color(0.3, 0.22, 0.14)), Vector3(0, 0.3, -0.5), model, 8)
+			tail.rotation_degrees.x = 70.0
+			return 0.35
+		"dispenser":
+			Psx.box(Vector3(0.22, 0.9, 0.16), Psx.mat(col), Vector3(0, 0.45, 0), model)
+			Psx.box(Vector3(0.34, 0.3, 0.3), Psx.mat(Color(0.95, 0.8, 0.6)), Vector3(0, 1.05, 0), model)
+			return 0.11
+		"lamp":
+			Psx.cyl(0.25, 0.4, Psx.mat(Color(0.75, 0.75, 0.78), null, Vector2.ONE, 0.1), Vector3(0, 0.2, 0), model, 12)
+			Psx.cyl(0.2, 0.9, Psx.mat(col.lightened(0.3), null, Vector2.ONE, 0.5), Vector3(0, 0.85, 0), model, 12)
+			return 0.4
+		"vehicle":
+			Psx.box(Vector3(1.0, 0.3, 0.45), Psx.mat(col), Vector3(0, 0.25, 0), model)
+			Psx.box(Vector3(0.5, 0.22, 0.4), Psx.mat(col.darkened(0.2)), Vector3(-0.05, 0.5, 0), model)
+			for p in [Vector3(0.32, 0.1, 0.24), Vector3(-0.32, 0.1, 0.24), Vector3(0.32, 0.1, -0.24), Vector3(-0.32, 0.1, -0.24)]:
+				var wh := Psx.cyl(0.11, 0.06, Psx.mat(Color(0.08, 0.08, 0.08)), p, model, 10)
+				wh.rotation_degrees.x = 90.0
+			return 0.5 if String(item["kind"]) == "prop" else 0.08
+		"costume":
+			# On a dress form: a body, a skirt, a stand.
+			Psx.cyl(0.04, 0.9, Psx.mat(Color(0.3, 0.22, 0.15)), Vector3(0, 0.45, 0), model, 8)
+			Psx.cyl(0.35, 0.06, Psx.mat(Color(0.3, 0.22, 0.15)), Vector3(0, 0.03, 0), model, 12)
+			var cloth := Psx.mat(Color(0.95, 0.95, 0.92) if String(item.get("name", "")).contains("Subway") else (Color(0.3, 0.45, 0.85) if String(item.get("name", "")).contains("Gingham") else Color(0.85, 0.12, 0.12)))
+			Psx.box(Vector3(0.42, 0.55, 0.28), cloth, Vector3(0, 1.25, 0), model)
+			var skirt := CylinderMesh.new()
+			skirt.top_radius = 0.22
+			skirt.bottom_radius = 0.5
+			skirt.height = 0.6
+			skirt.radial_segments = 14
+			Psx.mesh(skirt, cloth, Vector3(0, 0.75, 0), model)
+			return 1.5
+		"poster":
+			pass
+	# Figures, dolls, plush and props without a model: a figure on a little stand
+	# with its picture beside it (a display card).
+	if String(item["kind"]) == "prop":
+		Psx.box(Vector3(0.9, 0.12, 0.6), Psx.mat(Color(0.12, 0.1, 0.12)), Vector3(0, 0.06, 0), model)
+		Psx.box(Vector3(0.8, 0.9, 0.04), Psx.mat(Color(0.9, 0.75, 0.35)), Vector3(0, 0.6, -0.15), model)
+		Psx.quad(Vector2(0.72, 0.82), _pic_mat(label, 0.8), Vector3(0, 0.6, -0.12), model)
+		return 0.4
+	var skin := Psx.mat(Color(0.95, 0.78, 0.62))
+	var outfit := Psx.mat(col if form != "plush" else Color.from_hsv(g.randf(), 0.4, 0.75))
+	var fh := 1.0
+	Psx.box(Vector3(0.36, 0.42, 0.2), outfit, Vector3(0, 0.62 * fh, 0), model)
+	Psx.box(Vector3(0.24, 0.24, 0.22), skin if form != "plush" else outfit, Vector3(0, 0.98 * fh, 0), model)
+	for sx in [-0.1, 0.1]:
+		Psx.box(Vector3(0.12, 0.42, 0.14), outfit.duplicate() if form == "plush" else Psx.mat(col.darkened(0.4)), Vector3(sx, 0.21, 0), model)
+	for sx in [-0.24, 0.24]:
+		Psx.box(Vector3(0.1, 0.38, 0.12), skin if form != "plush" else outfit, Vector3(sx, 0.64, 0), model)
+	if form == "doll":
+		Psx.box(Vector3(0.28, 0.4, 0.12), Psx.mat(Color(0.95, 0.85, 0.35)), Vector3(0, 0.92, -0.1), model)
+	return {"doll": 0.29, "plush": 0.3, "figure": 0.1}.get(form, 0.12)
+
+
+## A metal lunchbox: the lid art on the front, a handle on top, a latch.
+static func _lunchbox(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var col: Color = Catalog.platform(String(item["plat"]))["color"]
+	var b := Vector3(1.0, 0.77, 0.42)
+	var metal := Psx.mat(col.darkened(0.2), null, Vector2.ONE, 0.05)
+	Psx.box(b, metal, Vector3(0, b.y * 0.5, 0), model)
+	Psx.quad(Vector2(b.x * 0.94, b.y * 0.9), _pic_mat(label, 1.3), Vector3(0, b.y * 0.5, b.z * 0.5 + 0.003), model)
+	if not icon_build:
+		var bq := Psx.quad(Vector2(b.x * 0.94, b.y * 0.9), _pic_mat(Art.back(item), 1.3), Vector3(0, b.y * 0.5, -b.z * 0.5 - 0.003), model)
+		bq.rotation_degrees.y = 180.0
+	var steel := Psx.mat(Color(0.75, 0.75, 0.78), null, Vector2.ONE, 0.1)
+	Psx.box(Vector3(0.36, 0.05, 0.06), steel, Vector3(0, b.y + 0.12, 0), model)
+	for sx in [-0.17, 0.17]:
+		Psx.box(Vector3(0.04, 0.12, 0.04), steel, Vector3(sx, b.y + 0.06, 0), model)
+	Psx.box(Vector3(0.1, 0.08, 0.03), steel, Vector3(0, b.y * 0.88, b.z * 0.5 + 0.012), model)
+	return 0.2
+
+
+static func _pop_shrink(model: Node3D, size: Vector3, at: Vector3, alpha: float) -> void:
+	if icon_build:
+		return
+	var bm := StandardMaterial3D.new()
+	bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	bm.albedo_color = Color(0.9, 0.95, 1.0, alpha)
+	bm.roughness = 0.06
+	bm.metallic_specular = 1.0
+	bm.rim_enabled = true
+	bm.rim = 0.5
+	var w := Psx.box(size, bm, at, model)
+	w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## A toy: loose (the real model or a stand-in) or in its packaging.
+static func _toy(model: Node3D, item: Dictionary, label: Texture2D, cond: String, graded: bool) -> float:
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var form := String(def.get("form", "boxed"))
+	if form == "lunchbox":
+		return _lunchbox(model, item, label)
+	var packed := cond in ["CIB", "Mint", "Sealed"] or String(item.get("variant", "")) in ["Mail-Away Offer", "Hand-Painted Prototype"]
+	if not packed and not graded:
+		var r := _real_pop(model, item, pop_form(item))
+		if r > 0.0:
+			return r
+		return _pop_loose(model, item, label, form)
+	var a := float(Art.cover_size(item).x) / float(Art.cover_size(item).y)
+	var carded := form in ["carded", "vehicle", "badge"]
+	var sz := Vector3(a, 1.0, 0.03 if carded else 0.3)
+	var col: Color = Catalog.platform(String(item["plat"]))["color"]
+	Psx.box(sz, Psx.mat(col.darkened(0.3) if not carded else Color(0.92, 0.9, 0.86)), Vector3(0, 0.5, 0), model)
+	Psx.quad(Vector2(sz.x, sz.y), _pic_mat(label, a), Vector3(0, 0.5, sz.z * 0.5 + 0.003), model)
+	if not icon_build:
+		var bq := Psx.quad(Vector2(sz.x, sz.y), _pic_mat(Art.back(item), a), Vector3(0, 0.5, -sz.z * 0.5 - 0.003), model)
+		bq.rotation_degrees.y = 180.0
+	if carded:
+		# The blister bubble standing proud of the card.
+		var bub := Vector3(sz.x * 0.7, 0.54, 0.16)
+		if icon_build:
+			# Icons skip see-through plastic: just a thin rim around the bubble.
+			_clear_frame(model, Vector3(bub.x, bub.y, 0.02), Vector3(0, 0.51, sz.z * 0.5 + 0.01), 0.02)
+		else:
+			_pop_shrink(model, bub, Vector3(0, 0.51, sz.z * 0.5 + bub.z * 0.5), 0.16)
+	if cond == "Sealed" and not carded:
+		_pop_shrink(model, sz + Vector3(0.02, 0.02, 0.02), Vector3(0, 0.5, 0), 0.2)
+	if graded:
+		# An acrylic grading case with the label on top.
+		var cs := Vector3(sz.x + 0.16, 1.32, sz.z + (0.24 if carded else 0.1))
+		_clear_frame(model, cs, Vector3(0, cs.y * 0.5 - 0.02, 0), 0.04)
+		_slab_label(model, Vector3(0, 1.18, cs.z * 0.5), cs.x - 0.1, item, false)
+	elif cond == "Damaged":
+		model.rotation_degrees.z = 4.0
+	var real: float = {"carded": 0.23, "vehicle": 0.17, "badge": 0.12}.get(form, 0.3)
+	return real * (1.2 if graded else 1.0)
+
+
+## A prop: the real model or a stand-in, on a plinth, in a case once it's matched.
+static func _prop(model: Node3D, item: Dictionary, label: Texture2D, cond: String, graded: bool) -> float:
+	var def := Catalog.get_def(String(item.get("id", "")))
+	var inner := Node3D.new()
+	model.add_child(inner)
+	var real := _real_pop(inner, item, pop_form(item))
+	if real <= 0.0:
+		real = _pop_loose(inner, item, label, String(def.get("form", "prop")))
+	_fit(inner, 1.0)
+	if cond in ["Mint", "Sealed"] or graded:
+		var b := Psx.aabb(inner)
+		var base := Vector3(maxf(b.size.x, 0.6) + 0.2, 0.12, maxf(b.size.z, 0.4) + 0.2)
+		Psx.box(base, Psx.mat(Color(0.1, 0.08, 0.1)), Vector3(0, -0.06, 0), model)
+		if not icon_build:
+			_clear_frame(model, Vector3(base.x, b.size.y + 0.15, base.z), Vector3(0, (b.size.y + 0.15) * 0.5 - 0.02, 0), 0.03)
+		if graded:
+			_slab_label(model, Vector3(0, -0.02, base.z * 0.5 + 0.01), base.x * 0.6, item, false)
+		return real * 1.25
+	return real
+
+
+## A poster: folded flat when loose, framed once it's been looked after.
+static func _poster(model: Node3D, item: Dictionary, label: Texture2D, cond: String, graded: bool) -> float:
+	var a := 0.675
+	if cond in ["Loose", "Damaged"] and not graded:
+		# Folded in eighths: a quarter-size slab of paper with the corner showing.
+		Psx.box(Vector3(a * 0.5, 0.5, 0.02), Psx.mat(Color(0.93, 0.91, 0.84)), Vector3(0, 0.25, 0), model)
+		var m := _pic_mat(label, a)
+		m.set_shader_parameter("tex_fit", Vector4(0.25, 0.05, 0.5, 0.5))
+		Psx.quad(Vector2(a * 0.5, 0.5), m, Vector3(0, 0.25, 0.012), model)
+		model.rotation_degrees.x = -70.0
+		return 0.35
+	var frame := Psx.mat(Color(0.08, 0.07, 0.07) if cond != "Sealed" else Color(0.8, 0.65, 0.3), null, Vector2.ONE, 0.05)
+	Psx.box(Vector3(a + 0.08, 1.08, 0.05), frame, Vector3(0, 0.54, 0), model)
+	Psx.quad(Vector2(a, 1.0), _pic_mat(label, a), Vector3(0, 0.54, 0.027), model)
+	if not icon_build:
+		Psx.quad(Vector2(a, 1.0), _clear_mat(), Vector3(0, 0.54, 0.03), model)
+	if graded:
+		_slab_label(model, Vector3(0, 0.06, 0.04), a * 0.8, item, false)
+	return 1.04 if cond == "Sealed" or graded else 0.9
+
+
+## A box lot by aisle: shipper case, toy chest, prop crate, poster tube, lunchbox stack.
+static func _toybox(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var plat := String(item["plat"])
+	match plat:
+		"POST":
+			var tube := Psx.cyl(0.18, 1.6, Psx.mat(Color(0.7, 0.55, 0.35)), Vector3(0, 0.18, 0), model, 14)
+			tube.rotation_degrees.z = 90.0
+			for sx in [-0.8, 0.8]:
+				var cap := Psx.cyl(0.19, 0.06, Psx.mat(Color(0.9, 0.88, 0.82)), Vector3(sx, 0.18, 0), model, 14)
+				cap.rotation_degrees.z = 90.0
+			Psx.quad(Vector2(0.7, 0.32), _pic_mat(label, 0.9), Vector3(0, 0.2, 0.185), model)
+			return 0.95
+		"MEMO":
+			var g := RandomNumberGenerator.new()
+			g.seed = hash(String(item.get("id", "")))
+			for k in 4:
+				var lb := Node3D.new()
+				lb.position = Vector3(g.randf_range(-0.05, 0.05), k * 0.8, 0)
+				lb.rotation_degrees.y = g.randf_range(-12, 12)
+				model.add_child(lb)
+				Psx.box(Vector3(1.0, 0.77, 0.42), Psx.mat(Color.from_hsv(g.randf(), 0.6, 0.8), null, Vector2.ONE, 0.05), Vector3(0, 0.385, 0), lb)
+			Psx.quad(Vector2(0.9, 0.7), _pic_mat(label, 0.9), Vector3(0, 0.4, 0.215), model)
+			return 0.6
+	var b := Vector3(1.0, 0.75, 0.7)
+	var col: Color = {"TOYS": Color(0.62, 0.22, 0.2), "PROP": Color(0.6, 0.45, 0.28)}.get(plat, Color(0.66, 0.5, 0.32))
+	Psx.box(b, Psx.mat(col), Vector3(0, b.y * 0.5, 0), model)
+	if plat == "TOYS":
+		Psx.box(Vector3(b.x + 0.06, 0.12, b.z + 0.06), Psx.mat(col.darkened(0.25)), Vector3(0, b.y + 0.06, 0), model)
+	else:
+		Psx.box(Vector3(b.x * 0.98, 0.012, 0.12), Psx.mat(Color(0.82, 0.72, 0.5)), Vector3(0, b.y + 0.006, 0), model)
+	Psx.quad(Vector2(b.x * 0.86, b.y * 0.86), _pic_mat(label, 0.9), Vector3(0, b.y * 0.5, b.z * 0.5 + 0.004), model)
+	model.rotation_degrees.y = 12.0
+	return 0.55
+
+
 static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 	# Sports singles and wax use the card and pack holders (same real sizes).
 	var kind: String = {"scard": "card", "wax": "pack"}.get(String(item.get("kind", "")), String(item.get("kind", "")))
@@ -1426,6 +1700,14 @@ static func _collectible(model: Node3D, item: Dictionary, label: Texture2D) -> f
 		return _record(model, item, label, cond, graded)
 	if kind == "crate":
 		return _crate(model, item, label)
+	if kind == "toy":
+		return _toy(model, item, label, cond, graded)
+	if kind == "prop":
+		return _prop(model, item, label, cond, graded)
+	if kind == "poster":
+		return _poster(model, item, label, cond, graded)
+	if kind == "toybox":
+		return _toybox(model, item, label)
 	if kind == "card":
 		var cw := 0.716
 		if graded:

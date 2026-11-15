@@ -410,5 +410,268 @@
    0,
    0
   ]
+ },
+ "pop_teddy": {
+  "uid": "cee94954353d4e19a388e3ed4c8e64a7",
+  "name": "Teddy bear",
+  "by": "Etman",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-121/cee94954353d4e19a388e3ed4c8e64a7.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_car": {
+  "uid": "33a57e0e208a469e8034ab0ea978488b",
+  "name": "Toy Car",
+  "by": "jonasaguilar",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-041/33a57e0e208a469e8034ab0ea978488b.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "keep": [
+   2
+  ]
+ },
+ "pop_saber": {
+  "uid": "85c75ec94b614b1e860bb41c8a98b9d9",
+  "name": "Old lightsaber",
+  "by": "andrekek",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-097/85c75ec94b614b1e860bb41c8a98b9d9.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_fedora": {
+  "uid": "eb46b3407c67491f98a13df1b86950fa",
+  "name": "Fedora",
+  "by": "Marko.Korbun",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-096/eb46b3407c67491f98a13df1b86950fa.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_cube": {
+  "uid": "3b74eeb531ca4f49a0274e2887526aee",
+  "name": "Rubiks Cube",
+  "by": "Voldepreuss",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-004/3b74eeb531ca4f49a0274e2887526aee.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_furby": {
+  "uid": "d7bc295a0772493fa89ee48adeab5189",
+  "name": "Furby - Basic Animation",
+  "by": "ivi_iti",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-036/d7bc295a0772493fa89ee48adeab5189.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_tama": {
+  "uid": "2311779775cb42a5ac81c4a378af176e",
+  "name": "Tamagotchi",
+  "by": "N01506",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-109/2311779775cb42a5ac81c4a378af176e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_slinky": {
+  "uid": "74e2f89c66c94d788a840ef7dc3cfc4e",
+  "name": "Slinky Toy",
+  "by": "studiolab.dev",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-158/74e2f89c66c94d788a840ef7dc3cfc4e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_etch": {
+  "uid": "3532d18bf2ff4cbe8a2ae45e003aa713",
+  "name": "Etch A Sketch",
+  "by": "funkypixie",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-022/3532d18bf2ff4cbe8a2ae45e003aa713.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_8ball": {
+  "uid": "af61ed06db4e44ad94da4ba9f6434904",
+  "name": "Magic 8 Ball with Dice",
+  "by": "arnaullobera",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-116/af61ed06db4e44ad94da4ba9f6434904.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "keep": [
+   1,
+   2
+  ]
+ },
+ "pop_lava": {
+  "uid": "f2377c043ec1447d8e5e9cab0b9db20e",
+  "name": "Groovy Lava Lamp",
+  "by": "thelaughingdingo",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-043/f2377c043ec1447d8e5e9cab0b9db20e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_viewmaster": {
+  "uid": "c6de3e7a90aa43aaab9feafe01c98281",
+  "name": "View Master",
+  "by": "Valsirob.Vedar",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-026/c6de3e7a90aa43aaab9feafe01c98281.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_potato": {
+  "uid": "56909c8cb27a4de7a4c5273ed13e8a80",
+  "name": "Mr Potato Head",
+  "by": "Danser.com",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-123/56909c8cb27a4de7a4c5273ed13e8a80.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_goldengun": {
+  "uid": "b9d719a0bf504059a4bbcff1b20c8874",
+  "name": "James Bond Golden Gun",
+  "by": "mattyu",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-121/b9d719a0bf504059a4bbcff1b20c8874.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_batmobile": {
+  "uid": "65f649330bf64b9ea4a805fd578bda5a",
+  "name": "Batmobile (Classic Style)",
+  "by": "alshareef892007",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-086/65f649330bf64b9ea4a805fd578bda5a.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_delorean": {
+  "uid": "a36c5afa1bb24e16a3adfbcf08eb9390",
+  "name": "Delorean - time machine - low poly",
+  "by": "JellyFighter",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-144/a36c5afa1bb24e16a3adfbcf08eb9390.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_db5": {
+  "uid": "42fad153d2f04b2bb6d726b40f757df7",
+  "name": "1964 Aston Martin DB5",
+  "by": "BrodyFelch",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-125/42fad153d2f04b2bb6d726b40f757df7.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_sled": {
+  "uid": "d6e1788fac4145cea6c80a08f30958d1",
+  "name": "Wooden Sled",
+  "by": "julialemke",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-089/d6e1788fac4145cea6c80a08f30958d1.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "keep": [
+   0,
+   2
+  ]
+ },
+ "pop_volleyball": {
+  "uid": "5b94ae099617446eb4f5ea60427ccfcf",
+  "name": "Volleyball",
+  "by": "JeremyGrayson",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-136/5b94ae099617446eb4f5ea60427ccfcf.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_ears": {
+  "uid": "ce82825b2da14c4bb36f146aa71669ce",
+  "name": "Mickey Mouse Ear Hat",
+  "by": "liamandnico",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-030/ce82825b2da14c4bb36f146aa71669ce.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_figure": {
+  "uid": "8f18daa0271c4f4886315bb1b0782765",
+  "name": "Hulk action figure - posed",
+  "by": "ReoCreativeScanning",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-087/8f18daa0271c4f4886315bb1b0782765.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
  }
 }

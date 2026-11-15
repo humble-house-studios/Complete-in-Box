@@ -94,6 +94,15 @@ static func cover_size(item: Dictionary) -> Vector2i:
 			a = 0.9
 		"coin":
 			a = 1.0
+		"toy":
+			var form := String(Catalog.get_def(String(item.get("id", ""))).get("form", "boxed"))
+			a = {"carded": 0.68, "lunchbox": 1.3, "badge": 0.7, "vehicle": 0.72}.get(form, 0.8)
+		"prop":
+			a = 0.8
+		"poster":
+			a = 0.675
+		"toybox":
+			a = 0.9
 		"pack", "wax":
 			var tags: Array = item.get("tags", [])
 			a = 1.3 if tags.has("box") else (0.75 if tags.has("deck") else 0.62)

@@ -113,5 +113,6 @@ const INTRO := {
 	"title": "VINYL RECORDS",
 	"sub": "Midnight Marv's world",
 	"line": "Needle Drop Records after hours. A wall of sleeves, a deck still spinning, and Marv in the corner, still in the shrink.",
+	"line_pre": "Needle Drop Records after hours. A wall of sleeves, a deck still spinning, and Marv's chair, still warm.",
 	"scene": "recordshop",
 }

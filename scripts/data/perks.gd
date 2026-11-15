@@ -32,7 +32,7 @@ const LIST := [
 	{"id": "eagle_eye", "name": "Eagle Eye", "cost": 6, "desc": "Hunt items have a 25% chance to be a condition better."},
 	{"id": "whale", "name": "Whale Watcher", "cost": 8, "desc": "+2 Mult per GRAIL on your shelf."},
 	{"id": "lunchbox", "market": "games", "name": "Lunchbox Display", "cost": 5, "desc": "Accessories appraise for x3."},
-	{"id": "pack_rat", "market": ["cards", "sports", "comics", "books", "vinyl"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
+	{"id": "pack_rat", "market": ["cards", "sports", "comics", "books", "vinyl", "pop"], "name": "Pack Rat", "cost": 7, "desc": "Sealed packs and boxes appraise for x2."},
 	{"id": "holo_hunter", "name": "Shiny Hunter", "cost": 7, "desc": "+0.6 Mult per shiny copy: holo, 1st Edition, proof-like, cameo or toned."},
 	{"id": "gold_bug", "market": "coins", "name": "Gold Bug", "cost": 7, "desc": "Gold coins appraise for x2."},
 	{"id": "console_wars", "market": "games", "name": "Console Wars", "cost": 7, "desc": "+1 Mult per console on your shelf."},
@@ -60,6 +60,9 @@ const LIST := [
 	# Vinyl records
 	{"id": "forty_five", "market": "vinyl", "name": "45 Collector", "cost": 6, "desc": "+0.3 Mult per single (a 45, a 78 or a 12-inch) on your shelf."},
 	{"id": "golden_oldies", "market": "vinyl", "name": "Golden Oldies", "cost": 7, "desc": "Records from before 1970 appraise for x2."},
+	# Pop culture
+	{"id": "screen_used", "market": "pop", "name": "Screen Used", "cost": 6, "desc": "+0.3 Mult per screen-used prop or costume on your shelf."},
+	{"id": "saturday_morning", "market": "pop", "name": "Saturday Morning", "cost": 7, "desc": "Toys, props and posters from before 1985 appraise for x2."},
 	{"id": "hall_of_fame", "market": "sports", "name": "Hall of Famer", "cost": 7, "desc": "Cards from before 1980 appraise for x2."},
 ]
 
@@ -148,6 +151,23 @@ static func supply(id: String) -> Dictionary:
 ## Per-world names and text for the same perk (the effect never changes):
 ## THEMES[market][perk id] = [name, desc].
 const THEMES := {
+	"pop": {
+		"box_and_manual": ["Window Box", "Complete in Box pieces appraise for x1.5."],
+		"shrink_wrap": ["Never Opened", "+0.5 Mult for each Mint in Box or Mint on Card piece."],
+		"completionist": ["Collect Them All", "Aisle Set bonuses count double."],
+		"curator": ["Every Aisle", "x2 Mult if your shelf spans all 5 aisles of the toy shop."],
+		"cursed_cart": ["Cursed Doll", "x2 Mult, but -2 shelf slots. Its eyes follow you round the room."],
+		"plastic_wrap": ["Factory Sealed", "Mint on Card toys and warehouse-sealed box lots appraise for x2."],
+		"dust_sheet": ["Well Loved", "Played-with pieces appraise for x2.5."],
+		"nostalgia": ["Loose Tub Diver", "Common pieces appraise for x2."],
+		"pack_rat": ["Toy Chest Hoarder", "Box lots appraise for x2."],
+		"holo_hunter": ["Chase Variant", "+0.6 Mult per shiny copy: glow, chrome and foil."],
+		"oddity_hunter": ["Variant Hunter", "+0.4 Mult per variant copy (exclusives, mail-aways, prototypes...)."],
+		"full_page": ["Full Peg Wall", "+1 Mult for each aisle with 4+ pieces on your shelf."],
+		"hot_streak": ["Must-Have Toy", "+0.5 Mult per piece from a HOT aisle."],
+		"lucky_lots": ["Lucky Toy Chests", "Mystery lots hold +1 item and roll a tier higher."],
+		"slab_fan": ["Acrylic Cases", "+0.75 Mult per graded piece on your shelf."],
+	},
 	"vinyl": {
 		"box_and_manual": ["Inner Sleeves", "Very Good Plus records appraise for x1.5."],
 		"shrink_wrap": ["Audiophile", "+0.5 Mult for each Near Mint or sealed record."],

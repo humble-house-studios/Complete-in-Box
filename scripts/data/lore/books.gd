@@ -112,5 +112,6 @@ const INTRO := {
 	"title": "RARE BOOKS",
 	"sub": "Professor Iris's world",
 	"line": "The locked case at Foxed & Folio. Every first in its jacket, every jacket in mylar. Iris is shelved in the corner, under H.",
+	"line_pre": "The locked case at Foxed & Folio. Every first in its jacket, every jacket in mylar. Iris would have loved it.",
 	"scene": "bookshop",
 }

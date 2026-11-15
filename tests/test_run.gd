@@ -22,7 +22,7 @@ func test_catalog_is_sane() -> void:
 		assert_false(ids.has(d["id"]), "duplicate id " + d["id"])
 		ids[d["id"]] = true
 		assert_true(Catalog.PLATFORMS.has(d["plat"]), "bad platform on " + d["id"])
-		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate"].has(d["kind"]), "bad kind on " + d["id"])
+		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate", "toy", "prop", "poster", "toybox"].has(d["kind"]), "bad kind on " + d["id"])
 		assert_between(int(d["tier"]), 0, 3)
 		assert_gt(int(d["base"]), 0)
 	for t in 4:
@@ -978,8 +978,52 @@ func test_vinyl_world_and_marv() -> void:
 		assert_true(["LP", "7in", "12in", "78", "crate"].has(String(d.get("fmt", ""))), "fmt on " + String(d["id"]))
 
 
+func test_pop_world_and_dale() -> void:
+	assert_eq(Catalog.items_of("pop").size(), 100)
+	for t in 4:
+		assert_gt(Catalog.defs_of_tier(t, "pop").size(), 0, "pop tier %d" % t)
+	for slot in Venues.SLOTS:
+		assert_false(Venues.unlocked(slot, 1, "pop").is_empty(), "pop has a %s venue" % slot)
+	var r := Run.new()
+	r.start(44, {"estate": "dale", "worlds": ["games", "cards", "pop"]})
+	assert_eq(r.market, "pop")
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_true(["toy", "prop", "poster", "toybox"].has(String(o["item"]["kind"])))
+	r.phase = Run.Phase.HOME
+	r.shelf.clear()
+	r.shelf_cap = 30
+	# A prop crate opens into props from the same aisle.
+	var crate: Dictionary = Catalog.items_of("pop").filter(func(d): return String(d["kind"]) == "toybox" and String(d["plat"]) == "PROP")[0]
+	var cr := r.make_item(crate, "CIB")
+	r.shelf.append(cr)
+	assert_true(bool(r.open_pack(int(cr["uid"]))["ok"]))
+	for it in r.shelf:
+		assert_eq(String(it["plat"]), "PROP")
+		assert_ne(String(it["kind"]), "toybox")
+	# Screen-used props count for the want list.
+	var screen: Dictionary = Catalog.items_of("pop").filter(func(d): return (d["tags"] as Array).has("screen"))[0]
+	r.want = {"id": "screen", "n": 1}
+	assert_true(r.wants(r.make_item(screen, "CIB")))
+	assert_false(r.want_text().is_empty())
+	var fig: Dictionary = Catalog.items_of("pop").filter(func(d): return String(d["kind"]) == "toy")[0]
+	assert_eq(Catalog.cond_name(r.make_item(fig, "Sealed")), "Mint on Card")
+	assert_eq(Flavor.letters("dale").size(), Balance.ANTES_TO_WIN)
+	assert_eq(Flavor.diary_name("dale"), "Dale's listing notes")
+	assert_eq(Flavor.pass_lines("pop").size(), 12)
+	assert_eq(Flavor.fail_lines("pop").size(), 12)
+	for e in ["box", "collector", "leak"]:
+		assert_eq(Flavor.event_text("pop", e).size(), 2)
+	assert_false(Flavor.intro("pop").is_empty())
+	assert_eq(Perks.label("box_and_manual", "pop")["name"], "Window Box")
+	# Every piece carries its real-world record and a Wikipedia page.
+	for d in Catalog.items_of("pop"):
+		assert_false(String(d.get("wiki", "")).is_empty(), "wiki on " + String(d["id"]))
+		assert_true(["carded", "boxed", "figure", "doll", "plush", "vehicle", "prop", "costume", "hat", "poster", "lunchbox", "dispenser", "badge", "lamp", "chest"].has(String(d.get("form", ""))), "form on " + String(d["id"]))
+
+
 func test_every_estate_letter_is_short() -> void:
-	for e in ["arlo", "twins", "rose", "marv", "hector", "june", "iris"]:
+	for e in ["arlo", "twins", "rose", "marv", "hector", "june", "iris", "dale"]:
 		var ls := Flavor.letters(e)
 		assert_eq(ls.size(), Balance.ANTES_TO_WIN, e)
 		for l in ls:
@@ -1019,10 +1063,72 @@ func test_buyers_mercy_slot_trims_the_shelf() -> void:
 	assert_true(r.slots_used() <= r.shelf_cap)
 
 
+func test_rep_ladder_locks_and_opens() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	var l0 := U.rep_locks(0)
+	assert_true((l0["perks"] as Array).has("dollar_bin"))
+	assert_true((l0["supplies"] as Array).has("spotlight"))
+	assert_true((l0["calls"] as Array).has("sealed_fate"))
+	assert_true((l0["variants"] as Array).has("Misprint"))
+	assert_true((l0["home"] as Dictionary).is_empty())
+	var top := int(U.REP_LADDER[-1]["at"])
+	var lt := U.rep_locks(top)
+	for k in ["perks", "supplies", "calls", "bags", "variants"]:
+		assert_true((lt[k] as Array).is_empty(), k + " all open at the top")
+	assert_eq(int(lt["home"]["cash"]), 5)
+	assert_eq(U.rep_level(top), U.REP_LADDER.size())
+	assert_true(U.rep_next(top).is_empty())
+	# Every id on the ladder is real.
+	for r in U.REP_LADDER:
+		for id in r["ids"]:
+			match String(r["kind"]):
+				"perk": assert_false(Perks.get_def(String(id)).is_empty(), id)
+				"supply": assert_false(Perks.supply(String(id)).is_empty(), id)
+				"call": assert_false(Perks.call_def(String(id)).is_empty(), id)
+				"variant": assert_true(Catalog.VARIANTS.has(String(id)), id)
+
+
+func test_rep_locks_keep_things_out_of_a_run() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	for sd in range(30):
+		var r := Run.new()
+		r.start(700 + sd, {"locks": U.rep_locks(0)})
+		for p in r.perk_offers:
+			assert_false(["dollar_bin", "haggle_king", "cursed_cart"].has(String(p)))
+		for sp in r.supply_offers:
+			assert_false(["spotlight", "flyer", "copier"].has(String(sp)))
+		if not r.bag_offer.is_empty():
+			assert_ne(String(r.bag_offer["id"]), "perks")
+	var lt := U.rep_locks(int(U.REP_LADDER[-1]["at"]))
+	var r2 := Run.new()
+	r2.start(77, {"locks": lt})
+	var r3 := Run.new()
+	r3.start(77)
+	assert_eq(r2.supply_offers.size(), Balance.SUPPLY_OFFERS + 1)
+	assert_eq(r2.perk_offers.size(), Balance.PERK_OFFERS + 1)
+	assert_eq(r2.pocket_slots(), Balance.POCKET_SLOTS + 1)
+	assert_eq(r2.cash, r3.cash + 5)
+	assert_true(r2.supplies.has("energy"))
+	assert_eq(r2.shelf.size(), r3.shelf.size() + 1)
+
+
+func test_every_run_earns_rep() -> void:
+	var r := Run.new()
+	r.start(5)
+	r.enter_venue(String(r.venue_choices[0]))
+	r.phase = Run.Phase.OVER
+	var e := r.rep_earned()
+	assert_true(int(e["total"]) >= Balance.REP_BASE, "even a first-stop loss pays")
+	var U := preload("res://scripts/data/unlocks.gd")
+	assert_true(int(e["total"]) >= int(U.REP_LADDER[0]["at"]), "and opens the first rung")
+	r.phase = Run.Phase.WON
+	assert_true(int(r.rep_earned()["total"]) > int(e["total"]) + Balance.REP_WIN - 1)
+
+
 func test_items_carry_real_wiki_facts():
 	# Most items have real stats and history from their article (tools/wiki_facts.py).
 	var with_facts := 0
-	for w in ["games", "cards", "coins", "sports", "comics", "books", "vinyl"]:
+	for w in ["games", "cards", "coins", "sports", "comics", "books", "vinyl", "pop"]:
 		for d in Catalog.items_of(w):
 			if not Flavor.wiki(d).is_empty():
 				with_facts += 1

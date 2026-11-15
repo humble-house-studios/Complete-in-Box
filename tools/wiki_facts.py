@@ -38,7 +38,7 @@ CACHE = os.path.join(ROOT, ".cache", "wiki")
 DATA = os.path.join(HERE, "wiki")
 UA = "CollectorsCurseFacts/1.0 (game item trivia)"
 API = "https://en.wikipedia.org/w/api.php"
-WORLDS = ["games", "cards", "coins", "sports", "comics", "books", "vinyl"]
+WORLDS = ["games", "cards", "coins", "sports", "comics", "books", "vinyl", "pop"]
 
 
 # ------------------------------------------------------------------ items
@@ -120,7 +120,8 @@ def items(world):
         ids = set()
         need = {"sports": ["player", "baseball", "basketball", "football", "hockey", "soccer", "sport", "card"],
                 "comics": ["comic", "Comic"], "books": ["novel", "book", "Book", "published", "poem", "edition"],
-                "vinyl": ["album", "single", "song", "record", "Album", "Single"]}[world]
+                "vinyl": ["album", "single", "song", "record", "Album", "Single"],
+                "pop": ["toy", "Toy", "film", "character", "series", "prop", "poster", "costume", "franchise", "game", "brand", "doll", "figure"]}[world]
         for r in rows:
             tier, frac = gen_worlds.tier_of(pages[r["code"]], r, conf.GRAILS.get(r["code"], 1))
             d = conf.make_item(r, tier, frac, {"h": gen_worlds.h, "slug": gen_worlds.slug, "base_for": gen_worlds.base_for})
@@ -796,6 +797,8 @@ WD = "https://query.wikidata.org/sparql"
 WD_DIR = os.path.join(ROOT, ".cache", "wd")
 # property -> infobox-style key (the names wiki_build.STAT_KEYS reads), per world
 WD_PROPS = {
+    "pop": {"P176": "manufacturer", "P170": "creator", "P571": "introduced", "P577": "released", "P2664": "unitssold", "P287": "designer",
+            "P1441": "presentin", "P4584": "firstappearance", "P123": "publisher", "P57": "director"},
     "games": {"P178": "developer", "P123": "publisher", "P57": "director", "P162": "producer", "P287": "designer", "P86": "composer",
               "P179": "series", "P577": "released", "P136": "genre", "P404": "modes", "P408": "engine", "P2664": "unitssold",
               "P176": "manufacturer", "P2284": "introprice", "P880": "cpu", "P2928": "memory", "P155": "predecessor", "P156": "successor",
@@ -880,7 +883,7 @@ def wd_fetch(world, titles, per=40):
 
 
 # ------------------------------------------------------------------ search for the misses (Wikipedia search run by Wikidata's servers)
-HINT = {"games": "video game", "cards": "trading card", "coins": "coin", "sports": "", "comics": "comic book", "books": "book", "vinyl": "album"}
+HINT = {"pop": "toy", "games": "video game", "cards": "trading card", "coins": "coin", "sports": "", "comics": "comic book", "books": "book", "vinyl": "album"}
 FOUND = os.path.join(DATA, "search.json")
 
 

@@ -21,12 +21,18 @@ you (`Stage.PLAYER`) shrink-wrapped and tied with twine in a glass case on a pli
 with a grading slab label (`Stage.case_info`), in a dark vault of other cased
 collectors. Grade and condition come from `Run.curse_grade()` (how close you came).
 Boss twists are shown as THE BUYER'S TERMS. Shots: `tools/curse_shots.gd`.
-The twist stays hidden until your first loss: the title vault's corner case
-(`Stage._vault_case`, `Stage.vault_case`) stands under a dust sheet with a RESERVED
-plaque and a red glow under the hem (the intro flight glances past it); after a loss
-the sheet is on the floor and your last sealed self is inside (save keys `sealed`,
-`seal_grade`, `seal_cond`, `seal_ante`, `seal_lot`; `_vault_info`). The guide's PAY THE
-APPRAISER page uses its `secret` lines until then.
+The cases stay secret until you finish a run (`_revealed()`: save `sealed` or `wins` > 0):
+before that `Stage.secret` hides every case (title vault corner + collector row, the
+collectors' corners in the shops) and world intros use lore `line_pre`. After that the
+title (and launch flight) is THE BUYER'S BASEMENT (`Stage._basement`): a dark ring of one
+case per estate (`basement_cases` from `_basement_cases`, index 0 = your own case via
+`_vault_case`; freed collectors stand beside open cases; the Buyer's is under a sheet).
+Lights come on one at a time (`light_case`, `dim_cases`, `_reveal_cases`,
+`_intro_case_lights`). The estate picker becomes CHOOSE A CASE: a `< case >` carousel
+(`_case_view`, `_view_case`) that swings the camera to each case (`Stage.focus_case`);
+sealed ones can be looked at but not claimed. Save keys `sealed`, `seal_grade`,
+`seal_cond`, `seal_ante`, `seal_lot` (`_vault_info`). The guide's PAY THE APPRAISER page
+uses its `secret` lines until the first loss.
 
 ## The Buyer's Mercy
 Once a run, an appraisal that misses by 20% or less (`Balance.MERCY_SHARE`, never the final
@@ -80,6 +86,18 @@ route tab (`_event_panel`), doorbell / knock sounds, diary reread (`_open_diary`
 New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won haggles,
 `stats["haggles"]`), Oddity Hunter, Cursed Cartridge (x2 Mult, -2 shelf).
 
+## Collector Rep (every run unlocks something)
+Every run pays Rep, win or lose (`Run.rep_earned`: showed up, appraisals passed, antes,
+deals, wants, win + tier; numbers `Balance.REP_*`), saved as `rep` (old saves credited from
+`runs`/`wins`). `Unlocks.REP_LADDER` = 24 rungs that open perks, supplies, landline deals, the
+Dusty Crate bag, rare variants (Misprint, Signed, Prototype...) and Home boosts (start cash,
+pocket slot, start Energy Drink, extra supply/perk offer, cheaper rerolls, +1 starter).
+`Unlocks.rep_locks(rep)` -> `opts["locks"]` -> `Run.locks` (`rep_locked`, `home_bonus`,
+`perk_open`, `pocket_slots`; variants via `ctx["locked"]` in `Catalog.roll_variant`). No
+`locks` in opts = everything open, so bots/sim/tests are unchanged. Paid in `_pay_rep`
+(from `_record_loss` / `_record_win`), shown by `_rep_panel` on the loss + won screens; the
+whole ladder is `_open_rep_ladder` (UNLOCKS card on the title menu).
+
 ## Ten worlds (expansion in progress)
 - `scripts/data/worlds.gd` (preload as `Worlds`) = the registry: 10 worlds in unlock order
   (games, cards, sports, vinyl, comics, coins, watches, pop, books, art = "The Gallery"),
@@ -128,7 +146,7 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   camera spline from `Stage.intro_path(scene)`, signature grail rises, logo slam, `sting_<world>`.
   Shots: `tools/world_intro_shots.gd -- OUT world`.
 - Balance: opening a run in a non-retro world scales the whole run's targets (worlds.gd `target`:
-  cards 1.45, coins 1.4, sports 1.5, comics 1.25, books 1.15, vinyl 1.45) so every opening plays like retro; estates are tuned to
+  cards 1.45, coins 1.4, sports 1.5, comics 1.25, books 1.15, vinyl 1.45, pop 0.9) so every opening plays like retro; estates are tuned to
   within a few wins of Arlo. Tune with `godot --headless -s res://tools/tune_worlds.gd -- world|estate ID values...`.
 - Title vault: one small case per collector (`Stage.collector_cases`), open and empty once freed.
 - Binder: stamps cap at $15 (`STAMP_CAP`), ladder to 1,800 owned, WORLD SEAL (own a whole world) +$3.
@@ -149,6 +167,16 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   `ItemModels._record/_crate`, venues basementcrates / recordfair / recordshop (`Stage._recordshop`, bins batched
   by `_sleeves`, spinning deck) / diskogz, perks forty_five, golden_oldies, lore `lore/vinyl.gd` (case "record" =
   giant sleeve with the disc on top). Target 1.45, Marv -$2 with 5 VG+ records (25 wins = Arlo).
+- Pop culture (Cousin Dale): kinds `toy` / `prop` / `poster` / `toybox` (box lot: toy chest, prop crate, poster
+  tube, lunchbox stack; opens into any piece from its aisle; `Catalog.LOT_KINDS`), pages FIGS TOYS PROP POST MEMO,
+  def `form` (carded / boxed / figure / doll / plush / vehicle / prop / costume / hat / poster / lunchbox / dispenser /
+  badge / lamp / chest) and `record` (the real-world auction record or stat, parodied), tags `screen` (want list + perk
+  screen_used) / `fad` / `premium` / `proto`, painter `scripts/gfx/pop_art.gd` (blister cards, window boxes, lunchbox
+  lids, prop plaques, real one-sheets via `COVER_ASPECT_KIND`, else painted ones), models `ItemModels._toy/_prop/
+  _poster/_toybox`: loose pieces use real Sketchfab models (`pop_form`, forms `pop_*` in `tools/hw_models.json`,
+  baked like the consoles), packed ones a card + bubble or a box; pop pieces cap at 0.26 m on a table. Venues toyswap /
+  attictoys / toyshop (`Stage._toyshop`: peg wall, framed posters, props case, Dale in a giant blister) / propauction,
+  perks screen_used, saturday_morning, lore `lore/pop.gd` (case "toy"). Music `temp:pop`, `sting_pop`.
 - Sports cards (Grandma Rose): kinds `scard` / `wax`, pages BASE HOOP GRID PUCK FUTB, painter
   `scripts/gfx/sports_art.gd` (3 eras, real photo/scan), venues ballroom / shoebox / dugout /
   breaks, room `Stage._ballroom`, perk renames in `Perks.THEMES`, new perks rookie_fever, hall_of_fame.
@@ -160,7 +188,7 @@ in its docstring) -> `tools/wiki/<world>.json` -> `tools/wiki_build.py` (stat la
 panels like BEHIND THE SCENES / RECEPTION / COLLECTOR LORE / DID YOU KNOW, every real name through
 the generators' parody tables + `BRANDS`) -> `scripts/data/facts_<world>.gd`, read by `Flavor.wiki(def)`
 (loaded per world on first use). `Flavor.numbers/history` fall back to the made-up lore when an item
-has none (~160 of 1,700, mostly boxes and lots). Shots: `tools/fact_shots.gd -- OUT [landscape] ID...`.
+has none (~170 of 1,800, mostly boxes and lots). Shots: `tools/fact_shots.gd -- OUT [landscape] ID...`.
 
 ## Replay: estates, grade tiers, binder rewards
 All data in `scripts/data/unlocks.gd` (no class_name, preload as `Unlocks`).

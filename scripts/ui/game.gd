@@ -69,7 +69,9 @@ var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound"
 	"won_arlo": -1, "won_june": -1, "won_dale": -1, "won_rose": -1, "won_hector": -1, "won_twins": -1,
 	"won_marv": -1, "won_elsa": -1, "won_iris": -1, "won_buyer": -1, "seal_world": 0,
 	# Most of the Buyer's want list filled in one run, and true endings seen.
-	"best_wants": 0, "true_ends": 0}
+	"best_wants": 0, "true_ends": 0,
+	# Collector Rep: earned every run, win or lose; climbs Unlocks.REP_LADDER.
+	"rep": 0}
 const Unlocks := preload("res://scripts/data/unlocks.gd")
 const Worlds := preload("res://scripts/data/worlds.gd")
 ## What the last win unlocked: {"freed": estate index or -1, "tier": new tier or -1}.
@@ -267,13 +269,21 @@ func _do_refresh() -> void:
 func _sync_stage() -> void:
 	if _stage == null or _wintro_on():
 		return
+	_stage.secret = not _revealed()
 	match screen:
 		"title":
 			# The title screen stands in your world's signature room (the vault
-			# for retro) until you switch estates.
+			# for retro) until the secret is out; then it's the Buyer's
+			# basement, its cases lighting up one at a time.
 			_stage.vault_case = _vault_info()
 			_stage.collector_cases = _collector_cases()
-			_stage.show_scene(_title_scene(), [_title_hero()])
+			var ts := _title_scene()
+			if ts == "basement":
+				_stage.basement_cases = _basement_cases()
+				if _stage.scene_id != "basement":
+					_stage.cases_lit = 0
+					_reveal_cases.call_deferred(0.28)
+			_stage.show_scene(ts, [_title_hero()])
 			_sfx.music("title")
 		"home":
 			# Between stops you're home: your living room and your shelf (the
@@ -372,7 +382,14 @@ func _title_world() -> String:
 
 
 ## Retro: the title vault. Other worlds: their intro room.
+## The secret (the Buyer's cases) is out once you've finished a run.
+func _revealed() -> bool:
+	return int(_save.get("sealed", 0)) > 0 or int(_save.get("wins", 0)) > 0
+
+
 func _title_scene() -> String:
+	if _revealed():
+		return "basement"
 	var w := _title_world()
 	if w == "games":
 		return "title"
@@ -3158,7 +3175,10 @@ func _start_intro() -> void:
 	var path: Array = _stage.intro_path(_title_scene())
 	if path.is_empty():
 		path = _stage.intro_path("title")
-	_intro_world = _title_world()
+	_intro_world = _title_world() if _title_scene() != "basement" else ""
+	var basement := _title_scene() == "basement"
+	if basement:
+		_stage.dim_cases(true)
 	_cine_at(path, 0.0)
 	Art.throttle = true
 	# Letterbox bars for the film look.
@@ -3192,6 +3212,8 @@ func _start_intro() -> void:
 	var fly := create_tween().set_parallel(true)
 	fly.tween_property(black, "color:a", 0.0, 3.0).set_trans(Tween.TRANS_SINE)
 	fly.tween_method(func(t: float) -> void: _cine_at(path, t), 0.0, 1.0, fly_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	if basement:
+		_intro_case_lights(path.size(), fly_time)
 	await get_tree().create_timer(fly_time * 0.62).timeout
 	if _intro_skip:
 		return
@@ -3216,6 +3238,23 @@ func _start_intro() -> void:
 	_intro_logo(vs)
 	await get_tree().create_timer(6.5).timeout
 	_finish_intro()
+
+
+## The launch flight through the basement: each case's light comes on as the
+## camera turns to it (path point j looks at case j + 1, wrapping to yours).
+func _intro_case_lights(points: int, fly_time: float) -> void:
+	var n := _stage.basement_cases.size()
+	var segs := float(maxi(1, points - 1))
+	var t0 := 0.0
+	for j in n:
+		var u := float(j) / segs
+		var at := fly_time * acos(1.0 - 2.0 * u) / PI  # the tween eases in and out
+		await get_tree().create_timer(maxf(0.05, at - t0 + 0.15)).timeout
+		t0 = at + 0.15
+		if _intro_skip or _intro == null or _stage.scene_id != "basement":
+			return
+		_stage.light_case((j + 1) % n)
+		_sfx.play("thud")
 
 
 # ================================================================ world intros
@@ -3392,7 +3431,7 @@ func _world_intro(world: String, done: Callable = Callable()) -> void:
 	_ink_outline(sub)
 	_wintro.add_child(sub)
 	sub.create_tween().tween_property(sub, "modulate:a", 1.0, 0.6).set_delay(0.4)
-	var line := _label(String(info.get("line", "")), 20, Color("ffe7b0"), true)
+	var line := _label(String(info.get("line" if _revealed() or not info.has("line_pre") else "line_pre", "")), 20, Color("ffe7b0"), true)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.size = Vector2(vs.x * 0.84, 80)
 	line.position = Vector2(vs.x * 0.08, ctr + 156)
@@ -3624,6 +3663,8 @@ func _finish_intro() -> void:
 	if hero != null and is_instance_valid(hero):
 		hero.position.y = 0.75
 	_stage.cine_on = false
+	if _stage.scene_id == "basement":
+		_stage.dim_cases(false)
 	Art.throttle = false
 	_update_focus()
 	var tw := create_tween().set_parallel(true)
@@ -3796,6 +3837,11 @@ func _title_menu(land: bool) -> Control:
 	var chip := _vbox(2)
 	chip.add_child(_pill("WALL %d/%d" % [_coll_wall.size(), WALL_MAX], GOLD, 14))
 	v.add_child(_menu_card("collection", "COLLECTION", "%d of %d found  •  %d%%" % [found, total, int(100.0 * found / maxf(1.0, total))], Color("4f9fd9"), _open_collection, 84.0, false, chip))
+	var rp := int(_save["rep"])
+	var rnx := Unlocks.rep_next(rp)
+	var rchip := _pill("LV %d/%d" % [Unlocks.rep_level(rp), Unlocks.REP_LADDER.size()], Color("7fc8ff"), 14)
+	var rsub := "Every run unlocks more. All open." if rnx.is_empty() else "Next: %s in %d Rep" % [String(rnx["name"]), int(rnx["at"]) - rp]
+	v.add_child(_menu_card("trophy", "UNLOCKS", rsub, Color("2a6aa0"), _open_rep_ladder, 72.0, false, rchip))
 	var row := _hbox(8)
 	var th := 100.0 if not land else 92.0
 	row.add_child(_menu_tile("how_to", "HOW TO PLAY", _show_how_to, th))
@@ -3817,6 +3863,7 @@ func _records_card() -> Control:
 		h.add_child(_pill("WINS %d" % int(_save["wins"]), GOOD, 14))
 		if int(_save.get("best_wants", 0)) > 0:
 			h.add_child(_pill("WANTS %d/8" % int(_save["best_wants"]), Color("c9a227"), 14))
+
 	else:
 		h.add_child(_label("No runs yet. The vault is waiting.", 16, MUTED))
 	h.add_child(_spacer(false))
@@ -4072,6 +4119,7 @@ func _on_new_run() -> void:
 	# The very first run goes straight to the guide (Arlo, retro); after that
 	# there's always a choice (the Pruitt Twins and TCG are open from the start).
 	if int(_save["runs"]) > 0 or int(_save["estates"]) != Unlocks.START_MASK or int(_save["max_tier"]) > 0:
+		_case_view = -1
 		_open_estates()
 		return
 	_guide_then_start()
@@ -5512,7 +5560,7 @@ func _open_supply(id: String, owned: bool) -> void:
 	var d := Perks.supply(id)
 	var lines: Array = [[String(d["desc"]), INK]]
 	if not owned:
-		lines.append(["One use. You can carry %d. Pocket: %d/%d." % [Balance.POCKET_SLOTS, run.supplies.size(), Balance.POCKET_SLOTS], MUTED])
+		lines.append(["One use. You can carry %d. Pocket: %d/%d." % [run.pocket_slots(), run.supplies.size(), run.pocket_slots()], MUTED])
 		_open_sheet(String(d["name"]), lines, [
 			["Buy for %s" % _money(int(d["cost"])), func(): _act(run.buy_supply(id), "coin"), STICKER],
 		])
@@ -5605,7 +5653,7 @@ func _open_bag() -> void:
 			if run.free_slots() <= 0:
 				room = "Your shelf is full: make room, then come back. The box will wait."
 		"supplies":
-			if run.supplies.size() >= Balance.POCKET_SLOTS:
+			if run.supplies.size() >= run.pocket_slots():
 				room = "Your pockets are full: use a supply, then come back."
 		"perks":
 			if run.perks.size() >= run.perk_cap:
@@ -5641,7 +5689,7 @@ func _pocket_row(parent: Control, always: bool = false) -> void:
 	if run.supplies.is_empty() and fx.is_empty() and not always:
 		return
 	if always:
-		_section(parent, "YOUR POCKET %d/%d" % [run.supplies.size(), Balance.POCKET_SLOTS])
+		_section(parent, "YOUR POCKET %d/%d" % [run.supplies.size(), run.pocket_slots()])
 	if run.supplies.is_empty() and fx.is_empty():
 		parent.add_child(_label("Empty. Supplies are one-use tricks: carry them to a stop and use them when it counts.", 18, MUTED, true))
 		return
@@ -6119,8 +6167,9 @@ func _dev_unlock_all() -> void:
 		mask |= 1 << int(e["bit"])
 	_save["estates"] = mask
 	_save["max_tier"] = Unlocks.TIERS.size() - 1
+	_save["rep"] = maxi(int(_save["rep"]), int(Unlocks.REP_LADDER[-1]["at"]))
 	_write_save()
-	_toast_msg("Every estate, world and tier unlocked.", Color("b0a4ff"))
+	_toast_msg("Every estate, world, tier and Rep unlock opened.", Color("b0a4ff"))
 
 
 func _dev_ante() -> void:
@@ -6595,7 +6644,8 @@ func _open_shelf_item(uid: int, state: String) -> void:
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
 			actions.append(["Send to grading for %s" % _money(run.grade_cost(item)), func(): _act(run.send_to_grading(uid), "tick"), GOLD])
 	if run.pack_size(item) > 0:
-		actions.append(["RIP IT OPEN (%d cards)" % run.pack_size(item), func(): _rip_pack(uid), Color("b07cff")])
+		var rip_word: String = "OPEN IT UP (%d pieces)" if String(item["kind"]) == "toybox" else "RIP IT OPEN (%d cards)"
+		actions.append([rip_word % run.pack_size(item), func(): _rip_pack(uid), Color("b07cff")])
 	actions.append(["Dump it for %s" % _money(Balance.DUMP_VALUE), func(): _act(run.dump(uid), "buzz"), Color("5a3a3a")])
 	# A quiet extra next to Close: hanging is an end-game move (it leaves the run).
 	actions.append(["Hang on Wall", func(): _hang_from_shelf(uid), Color("2a2836"), true])
@@ -6701,6 +6751,7 @@ func _record_loss() -> void:
 	if _loss_logged or run == null or run.phase != Run.Phase.OVER:
 		return
 	_loss_logged = true
+	_pay_rep()
 	var cg := run.curse_grade()
 	_save["sealed"] = int(_save["sealed"]) + 1
 	_save["seal_grade"] = int(round(float(cg["grade"]) * 10.0))
@@ -7554,12 +7605,14 @@ func _run_opts() -> Dictionary:
 	var br := Unlocks.binder_rewards(_coll_owned)
 	return {"estate": String(Unlocks.ESTATES[_pick_estate()]["id"]), "tier": _pick_tier(),
 		"world": _pick_world(), "worlds": _open_worlds(),
-		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"], "bonus_perk_slot": br["perk_slot"]}
+		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"], "bonus_perk_slot": br["perk_slot"],
+		"locks": Unlocks.rep_locks(int(_save["rep"]))}
 
 
 ## A win frees the next sealed collector and opens the next grade tier.
 func _record_win() -> void:
 	_won_news = {"freed": -1, "tier": -1}
+	_pay_rep()
 	var key := "won_" + run.estate_id
 	_save[key] = maxi(int(_save.get(key, -1)), run.tier)
 	if run.tier + 1 < Unlocks.TIERS.size() and run.tier + 1 > int(_save["max_tier"]):
@@ -7631,27 +7684,64 @@ func _open_estates() -> void:
 	panel.anchor_bottom = 1.0
 	panel.offset_top = _margins.y + (20 if not land else 8)
 	panel.offset_bottom = -_margins.w - (20 if not land else 8)
+	var vault := _stage != null and _stage.scene_id == "basement" and screen == "title"
+	if vault:
+		# The basement shows through: pick a case and the camera turns to it.
+		dim.color.a = 0.2
+		if land:
+			panel.anchor_left = 1.0
+			panel.anchor_right = 1.0
+			panel.offset_left = -_margins.z - 600.0
+			panel.offset_right = -_margins.z - 8.0
+		else:
+			panel.anchor_top = 0.5
+			panel.offset_top = 0.0
+		if _case_view < 0 or _case_view >= Unlocks.ESTATES.size():
+			_case_view = _pick_estate()
+		_stage.focus_case(_case_view)
+		_root_box.visible = false
 	dim.add_child(panel)
 	var v := _vbox(10 if not land else 6)
 	panel.add_child(v)
 	var top := _hbox(10)
-	top.add_child(_title_label("CHOOSE YOUR INHERITANCE", 34 if not land else 30, CURSE_C))
+	top.add_child(_title_label("CHOOSE A CASE" if vault else "CHOOSE YOUR INHERITANCE", 34 if not land else 30, CURSE_C))
 	top.add_child(_spacer(false))
 	var close := _button("X", _close_sheet_sfx, PANEL_HI, 22, 64)
 	close.custom_minimum_size.x = 72
 	top.add_child(close)
 	v.add_child(top)
-	var sc := ScrollContainer.new()
-	sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	var list := _vbox(8)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sc.add_child(list)
-	v.add_child(sc)
 	var pick := _pick_estate()
-	for i in Unlocks.ESTATES.size():
-		list.add_child(_estate_card(i, i == pick))
+	if vault:
+		# One case at a time: < the case you're looking at >.
+		var n := Unlocks.ESTATES.size()
+		var crow := _hbox(8)
+		var cprev := _button("<", _view_case.bind((_case_view - 1 + n) % n), PANEL_HI, 28, 118)
+		cprev.custom_minimum_size.x = 72
+		crow.add_child(cprev)
+		var card := _estate_card(_case_view, _case_view == pick)
+		crow.add_child(card)
+		var cnext := _button(">", _view_case.bind((_case_view + 1) % n), PANEL_HI, 28, 118)
+		cnext.custom_minimum_size.x = 72
+		crow.add_child(cnext)
+		v.add_child(crow)
+		var cnt := 0
+		for i in n:
+			cnt += 1 if _estate_free(i) else 0
+		var cl := _label("CASE %d OF %d  •  %d FREED" % [_case_view + 1, n, cnt], 15, MUTED)
+		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(cl)
+		v.add_child(_spacer())
+	else:
+		var sc := ScrollContainer.new()
+		sc.scroll_deadzone = TOUCH_OWN  # finger scrolling is ours (_touch_scroll)
+		sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		var list := _vbox(8)
+		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sc.add_child(list)
+		v.add_child(sc)
+		for i in Unlocks.ESTATES.size():
+			list.add_child(_estate_card(i, i == pick))
 	# World picker: any world whose collector you've freed.
 	var open := _open_worlds()
 	var wid := _pick_world()
@@ -7703,16 +7793,39 @@ func _open_estates() -> void:
 		var hint := _label("Win a run at %s to unlock %s." % [Unlocks.TIERS[int(_save["max_tier"])]["name"], Unlocks.TIERS[int(_save["max_tier"]) + 1]["name"]], 16, MUTED, true)
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(hint)
+	if vault and not _estate_free(_case_view):
+		var sb := _button("SEALED  •  WIN A RUN TO FREE THEM", func(): _sfx.play("buzz"), Color("3a3548"), 22, 96 if not land else 80)
+		sb.add_theme_color_override("font_color", MUTED)
+		v.add_child(sb)
+		return
 	v.add_child(_mark_main(_button("CLAIM THE ESTATE  >", func():
 		_close_sheet()
 		_guide_then_start(), STICKER, 28, 96 if not land else 80)))
+
+
+## The vault picker's carousel: look at case i (and pick it if it's free).
+var _case_view := -1
+
+
+func _view_case(i: int) -> void:
+	_case_view = i
+	if _estate_free(i):
+		_save["last_estate"] = int(Unlocks.ESTATES[i]["bit"])
+		_save["last_world"] = -1
+		_write_save()
+	_sfx.play("tick")
+	_open_estates()
 
 
 func _estate_card(i: int, sel: bool) -> Button:
 	var e: Dictionary = Unlocks.ESTATES[i]
 	var free := _estate_free(i)
 	var col := GOLD if sel else (Color("7fb8ff") if free else Color(0.35, 0.33, 0.42))
-	var b := _card_shell(0, 118, col, _set_estate.bind(i) if free else func(): _toast_msg("Sealed in the Buyer's vault. Win a run to free the next collector.", MUTED), Color(0.16, 0.12, 0.05, 0.96) if sel else Color(0.08, 0.07, 0.1, 0.94))
+	var locked_tap := func():
+		if _stage != null:
+			_stage.focus_case(i)
+		_toast_msg("Still sealed in the Buyer's basement. Win a run to free the next collector." if _revealed() else "Locked. Win a run to find out who else Arlo knew.", MUTED)
+	var b := _card_shell(0, 118, col, _set_estate.bind(i) if free else locked_tap, Color(0.16, 0.12, 0.05, 0.96) if sel else Color(0.08, 0.07, 0.1, 0.94))
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var m := MarginContainer.new()
 	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -7726,7 +7839,7 @@ func _estate_card(i: int, sel: bool) -> Button:
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(v)
 	var h := _hbox(8)
-	h.add_child(_title_label(String(e["name"]).to_upper() if free else "SEALED", 26, INK if free else MUTED))
+	h.add_child(_title_label(String(e["name"]).to_upper() if free else ("SEALED" if _revealed() else "LOCKED"), 26, INK if free else MUTED))
 	h.add_child(_spacer(false))
 	var best := int(_save.get("won_" + String(e["id"]), -1))
 	var ew: Dictionary = Worlds.get_def(String(e.get("world", "games")))
@@ -7742,12 +7855,13 @@ func _estate_card(i: int, sel: bool) -> Button:
 		v.add_child(_label(String(e["line"]), 17, FLAVOR_C, true))
 		v.add_child(_label(String(e["effect"]), 17, INK, true))
 	else:
-		v.add_child(_label("A shape under a dust sheet in the Buyer's vault. Win a run to free the next collector.", 17, MUTED, true))
+		v.add_child(_label(("Shrink-wrapped in the Buyer's basement. Tap to look. Win a run to free the next collector." if _revealed() else "Someone else Arlo knew. Win a run to meet them."), 17, MUTED, true))
 	_ignore_mouse(m)
 	return b
 
 
 func _set_estate(i: int) -> void:
+	_case_view = i
 	_save["last_estate"] = int(Unlocks.ESTATES[i]["bit"])
 	_save["last_world"] = -1
 	_write_save()
@@ -7832,6 +7946,39 @@ func _check_binder_reward(id: String) -> void:
 
 ## The other collectors' cases in the title vault (every estate but Arlo's and
 ## the Buyer's): freed ones stand open.
+## One case per estate for the basement, in Unlocks.ESTATES order.
+func _basement_cases() -> Array:
+	var out: Array = []
+	for i in Unlocks.ESTATES.size():
+		var e: Dictionary = Unlocks.ESTATES[i]
+		out.append({"id": String(e["id"]), "who": String(e["who"]), "name": String(e["name"]), "freed": _estate_free(i),
+			"grade": "%.1f" % (6.0 + (absi(hash(String(e["id"]))) % 38) / 10.0)})
+	return out
+
+
+## Turns the basement's case lights on one by one, with a clunk each.
+func _reveal_cases(step: float) -> void:
+	if _stage == null or _stage.scene_id != "basement":
+		return
+	var n := _stage.basement_cases.size()
+	if fast or Lite.no3d:
+		_stage.dim_cases(false)
+		return
+	for j in n:
+		if _intro != null or not is_inside_tree() or _stage.scene_id != "basement" or screen != "title":
+			if _intro == null and _stage.scene_id == "basement":
+				_stage.dim_cases(false)
+			return
+		var k := (j + 1) % n if j < n - 1 else 0
+		await get_tree().create_timer(step).timeout
+		if _intro != null:
+			return
+		_stage.light_case(k)
+		_stage.cases_lit = 99 if j == n - 1 else _stage.cases_lit
+		if _sfx != null:
+			_sfx.play("thud")
+
+
 func _collector_cases() -> Array:
 	var out: Array = []
 	for i in Unlocks.ESTATES.size():
@@ -8050,6 +8197,7 @@ func _build_over() -> void:
 	if run.can_mercy():
 		var mb := _mark_main(_button("THE PHONE IS RINGING...  ANSWER IT", _open_mercy, Color("7a2a2a"), 24, 96 if not land else 80))
 		col.add_child(mb)
+	_rep_panel(col)
 	_unfinished_business(col)
 	_end_stats(col)
 	_wall_pick_button(col)
@@ -8060,6 +8208,93 @@ func _build_over() -> void:
 	col.add_child(_button("TITLE", func():
 		_record_loss()
 		show_title(), PANEL_HI, 24, 88 if not land else 72))
+
+
+# ================================================================ collector rep
+## Every run pays Rep, win or lose; the ladder (Unlocks.REP_LADDER) opens perks,
+## supplies, calls, bags, variants and Home boosts for the runs after.
+
+var _rep_paid_seed := -1
+var _rep_paid_amt := 0
+var _rep_before := -1
+
+
+## Adds this run's Rep to the save (once per run; endless only pays the extra).
+func _pay_rep() -> void:
+	if run == null:
+		return
+	var earned := int(run.rep_earned()["total"])
+	var already := _rep_paid_amt if _rep_paid_seed == run.seed_value else 0
+	var add := maxi(0, earned - already)
+	_rep_before = int(_save["rep"])
+	_rep_paid_seed = run.seed_value
+	_rep_paid_amt = maxi(already, earned)
+	_save["rep"] = _rep_before + add
+
+
+## The end screens' Rep card: what this run paid, the bar to the next rung, and
+## anything that just unlocked.
+func _rep_panel(col: Container) -> void:
+	if run == null:
+		return
+	var er := run.rep_earned()
+	var paid := _rep_paid_seed == run.seed_value and _rep_before >= 0
+	var before := _rep_before if paid else int(_save["rep"])
+	var after := int(_save["rep"]) if paid else before + int(er["total"])
+	var blue := Color("7fc8ff")
+	var p := _panel(Color(0.04, 0.07, 0.11, 0.92), Color(blue, 0.7), 2)
+	var v := _vbox(6)
+	p.add_child(v)
+	var h := _hbox(8)
+	h.add_child(_label("COLLECTOR REP", 16, blue))
+	h.add_child(_spacer(false))
+	h.add_child(_pill("+%d REP" % (after - before), blue, 18, Color("0a1420")))
+	v.add_child(h)
+	var parts: Array = []
+	for r in er["rows"]:
+		parts.append("%s +%d" % [String(r[0]), int(r[1])])
+	v.add_child(_label("  •  ".join(parts), 16, MUTED, true))
+	var fresh: Array = []
+	for r in Unlocks.REP_LADDER:
+		if before < int(r["at"]) and after >= int(r["at"]):
+			fresh.append(r)
+	for r in fresh:
+		var row := _hbox(8)
+		row.add_child(_pill("UNLOCKED", GOOD, 15, Color("0a1a10")))
+		row.add_child(_label(String(r["name"]), 20, INK))
+		v.add_child(row)
+		v.add_child(_label(String(r["desc"]), 16, FLAVOR_C, true))
+	var nx := Unlocks.rep_next(after)
+	if nx.is_empty():
+		v.add_child(_label("Every Rep unlock is open. The Buyer is impressed. Almost.", 17, GOLD, true))
+	else:
+		var lo := Unlocks.rep_floor(after)
+		var bar := ProgressBar.new()
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 12)
+		bar.max_value = 1.0
+		bar.value = clampf(float(after - lo) / maxf(1.0, float(int(nx["at"]) - lo)), 0.0, 1.0)
+		bar.add_theme_stylebox_override("background", _box(Color(1, 1, 1, 0.08), 4))
+		bar.add_theme_stylebox_override("fill", _box(blue, 4))
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(bar)
+		v.add_child(_label("NEXT: %s in %d Rep. %s" % [String(nx["name"]), int(nx["at"]) - after, String(nx["desc"])], 16, INK, true))
+	v.add_child(_button("SEE ALL UNLOCKS", _open_rep_ladder, Color("2a4a6a"), 18, 72))
+	col.add_child(p)
+
+
+## The whole ladder: what's open and what each rung still needs.
+func _open_rep_ladder() -> void:
+	var rep_now := int(_save["rep"])
+	var lines: Array = [["You have %d Rep (level %d of %d). Every run earns some, win or lose: passed appraisals, antes, deals, wants and wins." % [rep_now, Unlocks.rep_level(rep_now), Unlocks.REP_LADDER.size()], MUTED]]
+	for r in Unlocks.REP_LADDER:
+		var have := rep_now >= int(r["at"])
+		var kind := String({"perk": "PERK", "supply": "SUPPLY", "call": "LANDLINE", "bag": "GRAB BAG", "variant": "FINDS", "home": "HOME"}[String(r["kind"])])
+		if have:
+			lines.append(["OPEN  %s: %s. %s" % [kind, String(r["name"]), String(r["desc"])], GOOD])
+		else:
+			lines.append(["%d REP  %s: %s. %s" % [int(r["at"]), kind, String(r["name"]), String(r["desc"])], MUTED])
+	_open_sheet("COLLECTOR REP", lines, [])
 
 
 ## The loss screen's reasons to go again: how close it was, new records, the
@@ -8141,6 +8376,7 @@ func _build_won() -> void:
 		_ink_outline(hint)
 		col.add_child(hint)
 	_won_unlocks(col)
+	_rep_panel(col)
 	_end_stats(col)
 	col.add_child(_button("READ THE NEW MESSAGE", _open_letter.bind(-1), Color("1d3a26"), 22, 88 if not land else 72))
 	_wall_pick_button(col)
@@ -8727,6 +8963,16 @@ func _stat_block(item: Dictionary) -> Control:
 		"crate":
 			_stat_row(g, "CRATE", _label("about %d records  |  %s" % [int(def.get("count", 60)), Catalog.platform(String(item["plat"]))["name"]], 18, INK, true))
 			_stat_row(g, "FLIP IT?", _label("Flipping gives %d records from this crate" % run.pack_size(item), 18, Color("ffcc66"), true))
+		"toy", "prop", "poster":
+			var made_by: String = {"prop": "STUDIO", "poster": "STUDIO"}.get(String(item["kind"]), "MAKER")
+			_stat_row(g, made_by, _label("%s  |  %d" % [def.get("maker", "?"), int(def.get("year", 0))], 18, INK, true))
+			if def.has("record"):
+				_stat_row(g, "THE RECORD", _label(String(def["record"]), 17, INK, true))
+			if def.has("tell"):
+				_stat_row(g, "WATCH FOR", _label(String(def["tell"]), 17, Color("ffcc66"), true))
+		"toybox":
+			_stat_row(g, "BOX LOT", _label("about %d pieces  |  %s" % [int(def.get("count", 20)), Catalog.platform(String(item["plat"]))["name"]], 18, INK, true))
+			_stat_row(g, "OPEN IT?", _label("Opening gives %d pieces from this aisle" % run.pack_size(item), 18, Color("ffcc66"), true))
 		"coin":
 			_stat_row(g, "COIN", _label("%s  |  %s  |  %d mm" % [def.get("denom", "?"), String(def.get("metal", "?")).capitalize(), int(def.get("dia", 0))], 18, INK, true))
 			_stat_row(g, "STRUCK", _label("%s, %s" % [def.get("mint", "?"), def.get("country", "")], 18, INK, true))
@@ -8830,6 +9076,9 @@ func _on_dim_input(event: InputEvent) -> void:
 
 
 func _close_sheet() -> void:
+	if _sheet != null and is_instance_valid(_sheet) and _stage != null and screen == "title":
+		_stage.focus_case(-1)
+		_root_box.visible = true
 	if _sheet != null and is_instance_valid(_sheet):
 		_sheet.get_parent().remove_child(_sheet)
 		_sheet.queue_free()
@@ -9287,8 +9536,12 @@ func _load_save() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(SAVE_PATH) != OK:
 		return
+	var had_rep := cf.has_section_key("best", "rep")
 	for k in _save.keys():
 		_save[k] = int(cf.get_value("best", k, _save[k]))
+	# Saves from before Collector Rep: credit the runs already played.
+	if not had_rep:
+		_save["rep"] = int(_save["runs"]) * 12 + int(_save["wins"]) * 50
 	# Ten worlds: the Pruitt Twins (TCG) are free from the start now.
 	_save["estates"] = int(_save["estates"]) | Unlocks.START_MASK
 	_save["save_ver"] = 2

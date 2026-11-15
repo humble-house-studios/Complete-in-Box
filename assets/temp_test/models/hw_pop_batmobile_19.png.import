@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://bjofy1ueg5r0i"
+path="res://.godot/imported/hw_pop_batmobile_19.png-d4af6b1c65fe7ca270fba6b15a178777.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "2cfe53609b1ee05781326cb3078dfd18"
+}
+
+[deps]
+
+source_file="res://assets/temp_test/models/hw_pop_batmobile_19.png"
+dest_files=["res://.godot/imported/hw_pop_batmobile_19.png-d4af6b1c65fe7ca270fba6b15a178777.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1

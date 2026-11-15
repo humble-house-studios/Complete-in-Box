@@ -1,0 +1,123 @@
+THE 250 MOST COLLECTIBLE PIECES OF POP CULTURE
+Compiled Nov 2026 from general collector knowledge (Heritage, Hake's, Profiles in History, Bonhams,
+Christie's and Sotheby's auction records, toy-show dealer lore and the price guides), not live price
+data. Five binder pages of up to 50: Action Figures, Toys & Fads, Props & Costumes, Posters, and
+Lunchboxes & Keepsakes.
+First release ships 20 per page (100); each page grows to 50 later without code changes (append
+lines, rerun tools/gen_worlds.py pop). Order is roughly most to least valuable in top condition.
+Re-releases, store exclusives, reproduction cards and prototypes are left to the variant roll in game.
+Format: rank. Name | Why it matters (the real-world record) | Year | Page | kind (toy / prop / poster / toybox) | tags | Maker or studio | Form | Wikipedia titles (; = fallbacks)
+Tags: screen = used on screen (props and costumes), fad = a craze toy, premium = a mail-away or
+giveaway, proto = a prototype. Forms pick the 3D model and the packaging: carded (blister card),
+boxed (window box), figure / doll / plush / vehicle (loose models), prop, costume, hat, poster,
+lunchbox, dispenser, badge, lamp, chest (a box lot).
+
+== ACTION FIGURES ==
+1. Rocket-Firing Boba Fett | Kenner's 1979 mail-away prototype, pulled over choking fears; an L-slot one sold for $185,850 at Hake's in 2019 | 1979 | FIGS | toy | proto,premium | Kenner | figure | Boba Fett
+2. G.I. Joe Prototype | Don Levine's hand-made 1963 original of "America's movable fighting man"; sold for $200,000 at Heritage in 2003 | 1963 | FIGS | toy | proto | Hasbro | figure | G.I. Joe
+3. Vinyl Cape Jawa | The first-run Jawa with a vinyl cape, swapped for cloth within weeks; carded ones fetch five figures | 1978 | FIGS | toy |  | Kenner | carded | Jawa
+4. Luke Skywalker Double-Telescoping Lightsaber | An early saber that slid out in two parts; fewer than two dozen carded examples are known | 1978 | FIGS | toy |  | Kenner | carded | Luke Skywalker
+5. Star Wars Early Bird Certificate Package | Christmas 1977: an empty box with an IOU for four figures that didn't exist yet | 1977 | FIGS | toy | premium | Kenner | boxed | Star Wars (film)
+6. He-Man | Masters of the Universe sold over 70 million figures by 1986; the first carded He-Man is the one to find | 1982 | FIGS | toy |  | Mattel | carded | He-Man
+7. Optimus Prime | The 1984 Autobot leader in his window box; complete with the trailer, Roller and fists | 1984 | FIGS | toy |  | Hasbro | boxed | Optimus Prime
+8. Leonardo | The first wave of Teenage Mutant Ninja Turtles figures, 1988, soft-head on a card | 1988 | FIGS | toy |  | Playmates | carded | Leonardo (Teenage Mutant Ninja Turtles)
+9. Mego Superman | The World's Greatest Super Heroes line, 8 inches tall with real cloth costumes | 1972 | FIGS | toy |  | Mego | boxed | Mego Corporation
+10. Captain Action | The 1966 figure who changed costumes into nine different heroes | 1966 | FIGS | toy |  | Ideal | boxed | Captain Action
+11. Steve Austin, The Six Million Dollar Man | The bionic eye you could look through; over a million sold in the 70s | 1975 | FIGS | toy |  | Kenner | boxed | Steve Austin (character)
+12. Lion-O | ThunderCats with the Sword of Omens and the battle-action lever | 1985 | FIGS | toy |  | LJN | carded | Lion-O
+13. Captain Kirk | Mego's Star Trek crew, 1974, the first licensed Star Trek figures | 1974 | FIGS | toy |  | Mego | carded | James T. Kirk
+14. Super Powers Batman | Kenner's 1984 DC line with a punch you could feel, and a comic in every pack | 1984 | FIGS | toy |  | Kenner | carded | Super Powers Collection
+15. Red Ranger | Mighty Morphin Power Rangers, the toy of Christmas 1993; stores ran out by October | 1993 | FIGS | toy | fad | Bandai | carded | Mighty Morphin Power Rangers
+16. Spawn | The figure that made McFarlane Toys, 1994; sculpted like a statue, sold like a toy | 1994 | FIGS | toy |  | McFarlane Toys | carded | Spawn (character)
+17. Slimer | The Real Ghostbusters line, with a green glob that never washed off the carpet | 1986 | FIGS | toy |  | Kenner | carded | The Real Ghostbusters
+18. Micronauts Time Traveler | Mego's 1976 import with see-through bodies and swappable parts | 1976 | FIGS | toy |  | Mego | carded | Micronauts
+19. Stretch Armstrong | Filled with corn syrup; stretched to four times his size, then leaked | 1976 | FIGS | toy | fad | Kenner | boxed | Stretch Armstrong
+20. Kenner Warehouse Case Lot | A sealed shipper case from a toy distributor's warehouse, never opened | 1980 | FIGS | toybox |  | Kenner | chest | Kenner Products
+
+== TOYS & FADS ==
+1. Pink Rear-Loading Beach Bomb | The Hot Wheels prototype VW bus with surfboards in the back; the most valuable Hot Wheels car, about $150,000 | 1969 | TOYS | toy | proto | Mattel | vehicle | Hot Wheels
+2. Steiff Teddy Bear | The German bears with a button in the ear; Teddy Girl sold for 110,000 pounds at Christie's in 1994 | 1904 | TOYS | toy |  | Steiff | plush | Steiff
+3. Barbie #1 Ponytail | The 1959 original with the holes in her feet; a mint boxed one sold for $27,450 in 2006 | 1959 | TOYS | toy |  | Mattel | doll | Barbie
+4. Millennium Falcon Ultimate Collector's Series | Set 10179, 5,195 pieces, 2007; sealed boxes sell for many times the $499 shop price | 2007 | TOYS | toy |  | Lego | boxed | Lego Star Wars
+5. Princess the Bear | The 1997 Beanie Baby for Princess Diana; listed online for fortunes, sold for far less | 1997 | TOYS | toy | fad | Ty | plush | Beanie Babies
+6. Cabbage Patch Kid | Christmas 1983: shoppers fought in the aisles; each came with adoption papers | 1983 | TOYS | toy | fad | Coleco | doll | Cabbage Patch Kids
+7. Evel Knievel Stunt Cycle | Wind it up with the crank and let go; Ideal sold millions from 1973 | 1973 | TOYS | toy |  | Ideal | vehicle | Evel Knievel
+8. Furby | 1998's must-have; about 40 million sold in three years, and the NSA banned it from its offices | 1998 | TOYS | toy | fad | Tiger Electronics | plush | Furby
+9. Tamagotchi | Bandai's 1996 egg-shaped pet; more than 80 million sold and the first pet many kids lost | 1996 | TOYS | toy | fad | Bandai | boxed | Tamagotchi
+10. Rubik's Cube | 43 quintillion positions; over 350 million sold, the best-selling puzzle ever | 1980 | TOYS | toy | fad | Ideal | boxed | Rubik's Cube
+11. Tickle Me Elmo | The 1996 Christmas panic; a million sold and stores rationed them | 1996 | TOYS | toy | fad | Tyco | plush | Tickle Me Elmo
+12. Mr. Potato Head | 1952, the first toy ever advertised on television; you supplied your own potato | 1952 | TOYS | toy |  | Hasbro | boxed | Mr. Potato Head
+13. Easy-Bake Oven | Two 100-watt light bulbs and a very small cake, from 1963 | 1963 | TOYS | toy |  | Kenner | boxed | Easy-Bake Oven
+14. Etch A Sketch | Aluminium powder and two knobs, from 1960; shake to erase | 1960 | TOYS | toy |  | Ohio Art | boxed | Etch A Sketch
+15. Lite-Brite | 1967: pegs, a light bulb and a picture you could never finish | 1967 | TOYS | toy |  | Hasbro | boxed | Lite-Brite
+16. Slinky | A naval engineer dropped a spring in 1943; 400 sold in 90 minutes at Gimbels in 1945 | 1945 | TOYS | toy |  | James Industries | boxed | Slinky
+17. Matchbox Road Roller | Lesney's 1953 No. 1, sized to fit in a matchbox so it could go to school | 1953 | TOYS | toy |  | Lesney | vehicle | Matchbox (brand)
+18. View-Master | Sawyer's 1939 reels, first sold at the New York World's Fair | 1939 | TOYS | toy |  | Sawyer's | boxed | View-Master
+19. Polly Pocket | A whole house in a compact, made by a dad for his daughter in 1983 | 1989 | TOYS | toy |  | Bluebird Toys | boxed | Polly Pocket
+20. Attic Toy Chest | A painted toy chest from a loft clearance, lid stuck, something rattles | 1975 | TOYS | toybox |  | Various | chest | Toy box
+
+== PROPS & COSTUMES ==
+1. Ruby Slippers | Dorothy's sequined shoes from The Wizard of Oz; a stolen-and-recovered pair sold for $32.5 million at Heritage in 2024 | 1939 | PROP | prop | screen | MGM | prop | Ruby slippers
+2. Robby the Robot | The Forbidden Planet robot with spinning ears; sold for $5.375 million at Bonhams in 2017 | 1956 | PROP | prop | screen | MGM | prop | Robby the Robot
+3. Aston Martin DB5 | Bond's car from Goldfinger with the ejector seat; one sold for $6.4 million in 2019 | 1964 | PROP | prop | screen | Eon Productions | vehicle | Aston Martin DB5
+4. The Subway Dress | Marilyn Monroe's white halter dress from The Seven Year Itch; sold for $4.6 million in 2011 | 1955 | PROP | prop | screen | 20th Century Fox | costume | White dress of Marilyn Monroe
+5. 1966 Batmobile | George Barris turned a Lincoln Futura into the Batmobile; sold for $4.62 million in 2013 | 1966 | PROP | prop | screen | 20th Century Fox | vehicle | Batmobile
+6. The Maltese Falcon | The black bird from the 1941 film; a lead statuette sold for $4.1 million at Bonhams in 2013 | 1941 | PROP | prop | screen | Warner Bros. | prop | The Maltese Falcon (1941 film)
+7. Gingham Dress | Dorothy's blue-and-white pinafore; sold for $1.56 million at Bonhams in 2015 | 1939 | PROP | prop | screen | MGM | costume | The Wizard of Oz (1939 film)
+8. Indiana Jones's Fedora | The felt hat from Raiders of the Lost Ark; it fell off and he always grabbed it back | 1981 | PROP | prop | screen | Lucasfilm | hat | Indiana Jones
+9. DeLorean Time Machine | The car from Back to the Future, flux capacitor and all; three were built for the first film | 1985 | PROP | prop | screen | Universal | vehicle | DeLorean time machine
+10. Luke Skywalker's Lightsaber | Built from a 1940s Graflex camera flash handle with cabinet-drawer rails | 1977 | PROP | prop | screen | Lucasfilm | prop | Lightsaber
+11. Rosebud Sled | Citizen Kane's last word; Steven Spielberg bought a balsa one for $60,500 in 1982 | 1941 | PROP | prop | screen | RKO | prop | Citizen Kane
+12. Proton Pack | Ghostbusters' unlicensed nuclear accelerator, built on an army surplus backpack frame | 1984 | PROP | prop | screen | Columbia Pictures | prop | Ghostbusters
+13. Hoverboard | The Mattel-branded board from Back to the Future Part II; it never hovered | 1989 | PROP | prop | screen | Universal | prop | Hoverboard
+14. Superman Cape | Christopher Reeve's cape from the 1978 film; you'll believe a man can fly | 1978 | PROP | prop | screen | Warner Bros. | costume | Superman (1978 film)
+15. Captain Kirk's Command Chair | The chair from the original Star Trek bridge; sold for $304,750 in 2002 | 1966 | PROP | prop | screen | Desilu | prop | Star Trek: The Original Series
+16. Freddy Krueger's Glove | Steak knives welded to a gardening glove for A Nightmare on Elm Street | 1984 | PROP | prop | screen | New Line Cinema | prop | Freddy Krueger
+17. Golden Gun | Scaramanga's gun built from a pen, a lighter, a cigarette case and a cufflink | 1974 | PROP | prop | screen | Eon Productions | prop | The Man with the Golden Gun (film)
+18. Gizmo | The Gremlins puppet that kept breaking down; don't get it wet | 1984 | PROP | prop | screen | Warner Bros. | prop | Gremlins
+19. Wilson | The volleyball with the bloody handprint, Tom Hanks's co-star in Cast Away | 2000 | PROP | prop | screen | DreamWorks | prop | Cast Away
+20. Studio Prop Auction Crate | A wooden crate from a studio backlot clear-out, stencilled PROPS DEPT | 1960 | PROP | toybox |  | Various | chest | Prop maker
+
+== POSTERS ==
+1. Metropolis | Fritz Lang's 1927 robot, painted by Heinz Schulz-Neudamm; a copy sold for $1.2 million in 2012 | 1927 | POST | poster |  | UFA | poster | Metropolis (1927 film)
+2. Dracula | The Style F one-sheet, only one known; sold for $525,800 at Heritage in 2017 | 1931 | POST | poster |  | Universal | poster | Dracula (1931 English-language film)
+3. London After Midnight | A lost film's only poster; sold for $478,000 at Heritage in 2014 | 1927 | POST | poster |  | MGM | poster | London After Midnight (film)
+4. The Mummy | Boris Karloff wrapped in bandages; a one-sheet sold for $453,500 in 1997 | 1932 | POST | poster |  | Universal | poster | The Mummy (1932 film)
+5. King Kong | The 1933 one-sheet with the ape on the Empire State; six figures every time one surfaces | 1933 | POST | poster |  | RKO | poster | King Kong (1933 film)
+6. Frankenstein | Karloff's monster, 1931; only a handful of one-sheets survive | 1931 | POST | poster |  | Universal | poster | Frankenstein (1931 film)
+7. Bride of Frankenstein | The 1935 sequel's one-sheet with Elsa Lanchester's lightning hair | 1935 | POST | poster |  | Universal | poster | Bride of Frankenstein
+8. The Black Cat | Karloff and Lugosi together for the first time, 1934 | 1934 | POST | poster |  | Universal | poster | The Black Cat (1934 film)
+9. Casablanca | Bogart and Bergman, 1942; the Italian and US first-release sheets lead the field | 1942 | POST | poster |  | Warner Bros. | poster | Casablanca (film)
+10. The Wizard of Oz | The 1939 one-sheet; theatres threw them away when the run ended | 1939 | POST | poster |  | MGM | poster | The Wizard of Oz (1939 film)
+11. Gone with the Wind | The 1939 epic's burning-Atlanta style; still the top-grossing film adjusted for inflation | 1939 | POST | poster |  | Selznick International | poster | Gone with the Wind (film)
+12. Vertigo | Saul Bass's spiral, 1958; the design that made a poster an artwork | 1958 | POST | poster |  | Paramount | poster | Vertigo (film)
+13. Breakfast at Tiffany's | Audrey Hepburn with the long cigarette holder, 1961 | 1961 | POST | poster |  | Paramount | poster | Breakfast at Tiffany's (film)
+14. Psycho | Hitchcock's 1960 rule printed on the poster: no one admitted after it starts | 1960 | POST | poster |  | Paramount | poster | Psycho (1960 film)
+15. 2001: A Space Odyssey | The 1968 Cinerama style with the space station wheel | 1968 | POST | poster |  | MGM | poster | 2001: A Space Odyssey (film)
+16. Star Wars Style A | Tom Jung's 1977 one-sheet, Luke with the saber raised | 1977 | POST | poster |  | 20th Century Fox | poster | Star Wars (film)
+17. Jaws | Roger Kastel's 1975 painting of the shark rising under a swimmer | 1975 | POST | poster |  | Universal | poster | Jaws (film)
+18. Woodstock | Arnold Skolnick's dove on a guitar neck: 3 days of peace and music, 1969 | 1969 | POST | poster |  | Woodstock Ventures | poster | Woodstock
+19. The Beatles at Shea Stadium | The 1965 concert poster; 55,600 fans and nobody heard a note | 1965 | POST | poster |  | Sid Bernstein | poster | The Beatles at Shea Stadium
+20. Theatre Basement Poster Tube | A cardboard tube of folded one-sheets from an old cinema's basement | 1970 | POST | toybox |  | Various | chest | Film poster
+
+== LUNCHBOXES & KEEPSAKES ==
+1. Superman Lunchbox | Universal's 1954 box, the first superhero lunchbox; a top one passed $15,000 | 1954 | MEMO | toy |  | Universal | lunchbox | Lunchbox
+2. Hopalong Cassidy Lunchbox | Aladdin's 1950 box, the first with a character on it; 600,000 sold the first year | 1950 | MEMO | toy |  | Aladdin | lunchbox | Hopalong Cassidy
+3. Little Orphan Annie Decoder Pin | Ovaltine's 1935 radio premium; the secret message said drink more Ovaltine | 1935 | MEMO | toy | premium | Ovaltine | badge | Radio Orphan Annie's Secret Society
+4. The Beatles Lunchbox | Aladdin's 1965 box, blue, with all four on the lid | 1965 | MEMO | toy |  | Aladdin | lunchbox | The Beatles
+5. Pez Make-A-Face | 1972: a dispenser with 18 face parts, pulled because kids swallowed them | 1972 | MEMO | toy |  | Pez | dispenser | Pez
+6. Howdy Doody Marionette | The 1948 puppet from the first big children's TV show | 1948 | MEMO | toy |  | NBC | figure | Howdy Doody
+7. Captain Midnight Decoder Badge | The 1941 Code-O-Graph, mailed for an Ovaltine seal | 1941 | MEMO | toy | premium | Ovaltine | badge | Captain Midnight
+8. The Jetsons Lunchbox | Aladdin's 1963 dome-top, one of the hardest boxes to find | 1963 | MEMO | toy |  | Aladdin | lunchbox | The Jetsons
+9. Star Wars Lunchbox | King-Seeley Thermos, 1977, with the matching flask | 1977 | MEMO | toy |  | King-Seeley Thermos | lunchbox | Star Wars
+10. Kiss Lunchbox | Aladdin's 1977 box; parents complained, kids carried it anyway | 1977 | MEMO | toy |  | Aladdin | lunchbox | Kiss (band)
+11. Davy Crockett Coonskin Cap | The 1955 craze; raccoon pelt prices went from 25 cents to 8 dollars a pound | 1955 | MEMO | toy | fad | Disney | hat | Coonskin cap
+12. Mouseketeer Ears | The Mickey Mouse Club, 1955; about 24,000 pairs sold a day at the peak | 1955 | MEMO | toy | fad | Disney | hat | The Mickey Mouse Club
+13. Happy Meal Circus Wagon | McDonald's first national Happy Meal, 1979, with a stencil and a puzzle book | 1979 | MEMO | toy | premium | McDonald's | boxed | Happy Meal
+14. Garbage Pail Kids Wax Pack | Topps 1985, the parody stickers schools banned | 1985 | MEMO | toy | fad | Topps | boxed | Garbage Pail Kids
+15. Pet Rock | Gary Dahl's 1975 joke: a rock in a box with air holes; 1.5 million sold at four dollars | 1975 | MEMO | toy | fad | Rock Bottom Productions | boxed | Pet Rock
+16. Lava Lamp | Edward Craven Walker's 1963 Astro lamp, wax and water and a light bulb | 1963 | MEMO | toy |  | Crestworth | lamp | Lava lamp
+17. Mood Ring | 1975: liquid crystal in a glass stone, 250 dollars in gold, two dollars in brass | 1975 | MEMO | toy | fad | Marvin Wernick | badge | Mood ring
+18. Magic 8 Ball | Ask again later: a 20-sided die floating in blue liquid, from 1950 | 1950 | MEMO | toy |  | Alabe Crafts | figure | Magic 8 Ball
+19. Pac-Mania Fan Button | A pin-back button from the 1982 cartoon craze, still on its card | 1982 | MEMO | toy | fad | Hanna-Barbera | badge | Pin-back button
+20. Flea Market Lunchbox Stack | A wobbling tower of metal lunchboxes tied with string, some with flasks | 1970 | MEMO | toybox |  | Various | chest | Lunchbox

@@ -110,5 +110,6 @@ const INTRO := {
 	"title": "COMICS",
 	"sub": "Uncle Hector's world",
 	"line": "The back-issue wall. Every book in mylar, every key behind glass. Hector's in the last bag on the left.",
+	"line_pre": "The back-issue wall. Every book in mylar, every key behind glass. Hector's old pull list is still taped to the till.",
 	"scene": "comicshop",
 }
