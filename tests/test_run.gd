@@ -1017,3 +1017,21 @@ func test_buyers_mercy_slot_trims_the_shelf() -> void:
 	assert_true(r.take_mercy("slot")["ok"])
 	assert_eq(r.shelf_cap, cap - 1)
 	assert_true(r.slots_used() <= r.shelf_cap)
+
+
+func test_items_carry_real_wiki_facts():
+	# Most items have real stats and history from their article (tools/wiki_facts.py).
+	var with_facts := 0
+	for w in ["games", "cards", "coins", "sports", "comics", "books", "vinyl"]:
+		for d in Catalog.items_of(w):
+			if not Flavor.wiki(d).is_empty():
+				with_facts += 1
+	assert_gt(with_facts, 600)
+	var d: Dictionary = Catalog.get_def("gldn_akshun_comics_1")
+	var f := Flavor.wiki(d)
+	assert_false(f.is_empty())
+	assert_gt((f["stats"] as Array).size(), 1)
+	var hist := Flavor.history(d, {"uid": 3})
+	assert_eq(String(hist[hist.size() - 1][0]), "THIS COPY")
+	for row in Flavor.numbers(d):
+		assert_eq((row as Array).size(), 2)

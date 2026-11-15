@@ -8690,8 +8690,18 @@ func _stat_block(item: Dictionary) -> Control:
 			lst = "%d deep-cut %s games" % [more, Catalog.platform(String(def["plat"]))["short"]]
 		_stat_row(g, "RANK", _label("#%d of the %s" % [rank, lst], 18, GOLD))
 	var who := String(def.get("pub", ""))
+	var yr := int(def.get("year", 0))
+	var wf := Flavor.wiki(def)
+	if not wf.is_empty():
+		# The real maker and year from the item's article.
+		for row in wf.get("stats", []):
+			if String(row[0]) in ["PUBLISHER", "MAKER", "LABEL", "AUTHOR", "DEVELOPER"]:
+				who = String(row[1])
+				break
+		if int(wf.get("year", 0)) > 0:
+			yr = int(wf["year"])
 	if who != "":
-		_stat_row(g, "MADE BY", _label("%s, %d" % [who, int(def.get("year", 0))], 18, INK))
+		_stat_row(g, "MADE BY", _label("%s, %d" % [who, yr] if yr > 0 else who, 18, INK, true))
 	match String(item["kind"]):
 		"card":
 			_stat_row(g, "CARD", _label("%s  |  %s" % [def.get("rarity", "?"), def.get("line", "")], 18, INK, true))
@@ -8756,8 +8766,8 @@ func _stat_block(item: Dictionary) -> Control:
 		else:
 			msg += " - %d more for a set" % need
 		_stat_row(g, "SET", _label(msg, 17, GOOD if need == 0 else INK, true))
-	# By the numbers: silly-but-plausible stats tied to this item.
-	pv.add_child(_label("BY THE NUMBERS", 16, GOLD))
+	# By the numbers: real stats from the item's article (else silly-but-plausible ones).
+	pv.add_child(_label("BY THE NUMBERS" if Flavor.wiki(def).is_empty() else "THE REAL STATS", 16, GOLD))
 	var ng := GridContainer.new()
 	ng.columns = 2
 	ng.add_theme_constant_override("h_separation", 14)

@@ -153,6 +153,15 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   `scripts/gfx/sports_art.gd` (3 eras, real photo/scan), venues ballroom / shoebox / dugout /
   breaks, room `Stage._ballroom`, perk renames in `Perks.THEMES`, new perks rookie_fever, hall_of_fame.
 
+## Real item facts (Wikipedia)
+Every item card's THE REAL STATS rows and history panels come from the item's real Wikipedia
+article, parodied: `tools/wiki_facts.py` (dumps on Hugging Face + Wikidata, no API throttling; steps
+in its docstring) -> `tools/wiki/<world>.json` -> `tools/wiki_build.py` (stat labels per category,
+panels like BEHIND THE SCENES / RECEPTION / COLLECTOR LORE / DID YOU KNOW, every real name through
+the generators' parody tables + `BRANDS`) -> `scripts/data/facts_<world>.gd`, read by `Flavor.wiki(def)`
+(loaded per world on first use). `Flavor.numbers/history` fall back to the made-up lore when an item
+has none (~160 of 1,700, mostly boxes and lots). Shots: `tools/fact_shots.gd -- OUT [landscape] ID...`.
+
 ## Replay: estates, grade tiers, binder rewards
 All data in `scripts/data/unlocks.gd` (no class_name, preload as `Unlocks`).
 - ESTATES = starting decks (Arlo, Aunt June, Cousin Dale, Grandma Rose, Uncle Hector,

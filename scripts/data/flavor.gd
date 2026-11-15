@@ -932,7 +932,24 @@ static func _numbers(def: Dictionary, f: Dictionary, rng: RandomNumberGenerator)
 	return out
 
 
+## Real facts from the item's Wikipedia article (tools/wiki_facts.py), parodied:
+## {"stats": [[LABEL, value]...], "hist": [[HEADING, text]...], "year": int}
+## or {} when the item has no article. Loaded per world on first use.
+static var _wiki: Dictionary = {}
+
+
+static func wiki(def: Dictionary) -> Dictionary:
+	var w := Catalog.market_of(String(def.get("plat", "")))
+	if not _wiki.has(w):
+		var path := "res://scripts/data/facts_%s.gd" % w
+		_wiki[w] = load(path).FACTS if ResourceLoader.exists(path) else {}
+	return (_wiki[w] as Dictionary).get(String(def.get("id", "")), {})
+
+
 static func numbers(def: Dictionary) -> Array:
+	var wf := wiki(def)
+	if (wf.get("stats", []) as Array).size() >= 2:
+		return wf["stats"]
 	if Catalog.is_cc(def):
 		return _cc_numbers(def)
 	return lore(def)["numbers"]
@@ -983,7 +1000,7 @@ static func _cc_history(def: Dictionary, item: Dictionary) -> Array:
 	var yt := ("%d BC" % -year) if year < 0 else str(year)
 	var out: Array = []
 	if kind == "coin":
-		out.append(["STRUCK", "%s, %s, at %s. %s %s in %s." % [yt, String(def.get("country", "")), String(def.get("mint", "")), String(def.get("denom", "")), String(def.get("metal", "")), String(def.get("dia", "")) + " mm"]])
+		out.append(["STRUCK", "%s, %s, at %s. %s %s in %s." % [yt, String(def.get("country", "")), String(def.get("mint", "")), String(def.get("denom", "")), String(def.get("metal", "")), str(def.get("dia", "")) + " mm"]])
 		out.append(["SURVIVORS", "About %s struck. Maybe %s survive in mint state." % [_num(int(def.get("run", 1000))), _num(maxi(1, int(def.get("run", 1000)) / r.randi_range(40, 900)))]])
 		out.append(["THE STORY", _one(r, ["Melted by the millions in a later recall, which is why so few are left.", "Most went into tills and pockets and simply wore away.",
 			"A hoard turned up in a bank vault decades later and changed the market overnight.", "Collectors ignored it for a century, then all wanted one at once.",
@@ -1022,6 +1039,17 @@ static func _cc_history(def: Dictionary, item: Dictionary) -> Array:
 ## Returns [[heading, text], ...] for the item card's history panel. Every
 ## line is unique this run (copy lines per copy, the rest per item).
 static func history(def: Dictionary, item: Dictionary) -> Array:
+	var wf := wiki(def)
+	if not (wf.get("hist", []) as Array).is_empty():
+		var out: Array = (wf["hist"] as Array).duplicate()
+		if def.has("tell"):
+			out.append(["APPRAISER'S TELL", String(def["tell"])])
+		if Catalog.is_cc(def):
+			var cc := _cc_history(def, item)
+			out.append(cc[cc.size() - 1])  # THIS COPY
+		else:
+			out.append(["THIS COPY", _copy_line(def, item, lore(def))])
+		return out
 	if Catalog.is_cc(def):
 		return _cc_history(def, item)
 	var f := lore(def)
