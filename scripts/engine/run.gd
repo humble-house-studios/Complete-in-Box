@@ -92,6 +92,8 @@ var event: Dictionary = {}
 var diary_read: int = 0
 ## Collector's Curse: how many of the Buyer's letters you've opened (one per ante).
 var letters_read: int = 0
+## The Buyer's Mercy: once a run, a near miss can be bought off (see can_mercy).
+var mercy_used: bool = false
 ## Meta progression: which estate you inherited, the grade tier (0..4, each
 ## keeps the rules below it) and perks the binder has unlocked for the shop.
 var estate_id: String = "arlo"
@@ -1491,6 +1493,68 @@ func end_stop() -> Dictionary:
 
 func effective_interest_cap() -> int:
 	return interest_cap + (7 if has_perk("piggy_bank") else 0)
+
+
+# ================================================================ the Buyer's mercy
+
+## Once per run, coming up a little short isn't the end: the Buyer offers to
+## call it a pass for a price. Never on the final appraisal or in endless.
+func can_mercy() -> bool:
+	if phase != Phase.OVER or mercy_used or endless:
+		return false
+	if ante >= Balance.ANTES_TO_WIN and stop == 2:
+		return false
+	var total := int(last_appraisal.get("total", 0))
+	return float(total) >= float(target()) * Balance.MERCY_SHARE and (not shelf.is_empty() or shelf_cap > Balance.MERCY_MIN_SHELF)
+
+
+## The piece the Buyer would take: your most valuable item on the shelf.
+func mercy_piece() -> Dictionary:
+	var best: Dictionary = {}
+	for it in shelf:
+		if best.is_empty() or market_value(it) > market_value(best):
+			best = it
+	return best
+
+
+## Pay the Buyer: "piece" = your best shelf item, "slot" = one shelf slot for
+## the rest of the run (if that leaves too much, the cheapest piece is sold off).
+## The stop then counts as passed, with no payday.
+func take_mercy(kind: String) -> Dictionary:
+	if not can_mercy():
+		return _fail("The Buyer isn't offering.")
+	var msg := ""
+	if kind == "piece":
+		var it := mercy_piece()
+		if it.is_empty():
+			return _fail("Nothing on the shelf he wants.")
+		shelf.erase(it)
+		msg = "The Buyer took your %s. \"Lovely. We'll call it square.\"" % it["name"]
+	elif kind == "slot":
+		if shelf_cap <= Balance.MERCY_MIN_SHELF:
+			return _fail("Your shelf can't get any smaller.")
+		shelf_cap -= 1
+		msg = "Your shelf lost a slot. You didn't see him take it."
+		while slots_used() > shelf_cap and not shelf.is_empty():
+			var cheap: Dictionary = shelf[0]
+			for it in shelf:
+				if market_value(it) < market_value(cheap):
+					cheap = it
+			shelf.erase(cheap)
+			var c := maxi(1, int(round(market_value(cheap) * Balance.OVERFLOW_SELL)))
+			cash += c
+			msg += " No room for your %s: sold for $%d." % [cheap["name"], c]
+	else:
+		return _fail("Unknown offer.")
+	mercy_used = true
+	stats["mercy"] = kind
+	last_rewards = {}
+	for it in shelf:
+		it["held"] = int(it["held"]) + 1
+	for g in grading:
+		g["item"]["held"] = int(g["item"]["held"]) + 1
+	phase = Phase.APPRAISAL
+	return _ok(msg)
 
 
 ## After a passed appraisal: on to the next stop (or ante) and back Home.

@@ -117,6 +117,10 @@ const OPEN_DECK := 4
 const OPEN_BOX := 5
 const PULL_COND := [0, 8, 50, 34, 8]
 const OVERFLOW_SELL := 0.4
+## The Buyer's Mercy: once a run, a miss of at least this share of the target
+## can be called a pass (pay with your best piece or a shelf slot).
+const MERCY_SHARE := 0.8
+const MERCY_MIN_SHELF := 4
 
 
 static func target(ante: int, stop: int) -> int:

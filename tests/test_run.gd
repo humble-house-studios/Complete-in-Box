@@ -984,3 +984,36 @@ func test_every_estate_letter_is_short() -> void:
 		assert_eq(ls.size(), Balance.ANTES_TO_WIN, e)
 		for l in ls:
 			assert_lt(String(l[1]).length(), 320, "%s: %s" % [e, l[0]])
+
+
+func test_buyers_mercy_once_on_a_near_miss() -> void:
+	var r := _new_run(21)
+	r.enter_venue(String(r.venue_choices[0]))
+	r.phase = Run.Phase.OVER
+	r.last_appraisal = {"total": int(r.target() * 0.5)}
+	assert_false(r.can_mercy(), "a big miss gets no offer")
+	r.last_appraisal = {"total": int(ceil(r.target() * 0.9))}
+	assert_true(r.can_mercy())
+	var best := r.mercy_piece()
+	var n := r.shelf.size()
+	assert_true(r.take_mercy("piece")["ok"])
+	assert_eq(r.shelf.size(), n - 1)
+	assert_false(r.shelf.has(best))
+	assert_eq(r.phase, Run.Phase.APPRAISAL)
+	r.advance()
+	assert_eq(r.phase, Run.Phase.HOME)
+	r.phase = Run.Phase.OVER
+	assert_false(r.can_mercy(), "only once a run")
+
+
+func test_buyers_mercy_slot_trims_the_shelf() -> void:
+	var r := _new_run(22)
+	r.enter_venue(String(r.venue_choices[0]))
+	while r.free_slots() > 0:
+		r.shelf.append(_item(r, "fes_stadium", "Loose"))
+	var cap := r.shelf_cap
+	r.phase = Run.Phase.OVER
+	r.last_appraisal = {"total": r.target()}
+	assert_true(r.take_mercy("slot")["ok"])
+	assert_eq(r.shelf_cap, cap - 1)
+	assert_true(r.slots_used() <= r.shelf_cap)

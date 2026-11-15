@@ -74,6 +74,11 @@ const Unlocks := preload("res://scripts/data/unlocks.gd")
 const Worlds := preload("res://scripts/data/worlds.gd")
 ## What the last win unlocked: {"freed": estate index or -1, "tier": new tier or -1}.
 var _won_news: Dictionary = {}
+## This run's loss is written to the save once (after a Buyer's Mercy is turned down).
+var _loss_logged := true
+## Best ante / shelf before this appraisal, for the NEW BEST stickers.
+var _prev_best_ante := 0
+var _prev_best_shelf := 0
 const SEAL_CONDS := ["DAMAGED", "LOOSE", "COMPLETE IN BOX", "MINT"]
 var _stage: Stage
 var _gap: Control
@@ -6672,6 +6677,8 @@ func finish_stop() -> void:
 	res["shelf_before"] = shelf_before
 	screen = "appraisal"
 	request_refresh()
+	_prev_best_ante = int(_save["best_ante"])
+	_prev_best_shelf = int(_save["best_appraisal"])
 	if int(res["appraisal"]["total"]) > int(_save["best_appraisal"]):
 		_save["best_appraisal"] = int(res["appraisal"]["total"])
 	_save["best_ante"] = maxi(int(_save["best_ante"]), run.ante)
@@ -6682,15 +6689,71 @@ func finish_stop() -> void:
 		_save["wins"] = int(_save["wins"]) + 1
 		_record_win()
 	elif run.phase == Run.Phase.OVER:
-		# Sealed: remembered so the title vault's case shows you from now on.
-		var cg := run.curse_grade()
-		_save["sealed"] = int(_save["sealed"]) + 1
-		_save["seal_grade"] = int(round(float(cg["grade"]) * 10.0))
-		_save["seal_cond"] = maxi(0, SEAL_CONDS.find(String(cg["cond"])))
-		_save["seal_ante"] = run.ante
-		_save["seal_lot"] = run.seed_value % 9973
+		_loss_logged = false
+		if not run.can_mercy():
+			_record_loss()
 	_write_save()
 	await _play_appraisal(res)
+
+
+## Sealed: remembered so the title vault's case shows you from now on.
+func _record_loss() -> void:
+	if _loss_logged or run == null or run.phase != Run.Phase.OVER:
+		return
+	_loss_logged = true
+	var cg := run.curse_grade()
+	_save["sealed"] = int(_save["sealed"]) + 1
+	_save["seal_grade"] = int(round(float(cg["grade"]) * 10.0))
+	_save["seal_cond"] = maxi(0, SEAL_CONDS.find(String(cg["cond"])))
+	_save["seal_ante"] = run.ante
+	_save["seal_lot"] = run.seed_value % 9973
+	_write_save()
+
+
+## The Buyer's Mercy: once a run, on a near miss, the phone rings and he offers
+## to call it a pass for your best piece or a shelf slot.
+func _open_mercy() -> void:
+	if run == null or not run.can_mercy() or screen != "over":
+		return
+	if _sfx != null:
+		_sfx.play("ring")
+	var m: Array = Flavor.MERCY[absi(run.seed_value + run.ante) % Flavor.MERCY.size()]
+	var tot := int(run.last_appraisal.get("total", 0))
+	var lines: Array = [
+		[String(m[0]), FLAVOR_C],
+		[String(m[1]), INK],
+		["You were %s short (%d%% of the target). Pay him and this appraisal counts as passed. No payday, and it only works once a run." % [_money(run.target() - tot), int(100.0 * float(tot) / maxf(1.0, float(run.target())))], MUTED],
+	]
+	var actions: Array = []
+	var best := run.mercy_piece()
+	if not best.is_empty():
+		actions.append(["GIVE HIM YOUR %s  (%s)" % [String(best["name"]).to_upper(), _money(run.market_value(best))], _take_mercy.bind("piece"), Color("7a2a2a")])
+	if run.shelf_cap > Balance.MERCY_MIN_SHELF:
+		actions.append(["GIVE HIM A SHELF SLOT  (%d -> %d)" % [run.shelf_cap, run.shelf_cap - 1], _take_mercy.bind("slot"), Color("4a2a5a")])
+	actions.append(["No deal. Seal me.", _refuse_mercy, Color("3a3548"), true])
+	_open_sheet("THE BUYER IS CALLING", lines, actions)
+
+
+func _take_mercy(kind: String) -> void:
+	var res := run.take_mercy(kind)
+	if not bool(res["ok"]):
+		_act(res, "buzz")
+		return
+	if _sfx != null:
+		_sfx.play("pickup")
+	var said := Flavor.pick(Flavor.MERCY_TAKEN, run.seed_value)
+	_transition(func():
+		_after_appraisal_now()
+		_toast_msg(String(res["msg"]), GOLD), "HEADING HOME", said)
+
+
+func _refuse_mercy() -> void:
+	if run == null:
+		return
+	run.mercy_used = true
+	_toast_msg(Flavor.MERCY_REFUSED, CURSE_C)
+	_record_loss()
+	request_refresh()
 
 
 func _wait(t: float) -> void:
@@ -7382,7 +7445,18 @@ func _after_appraisal_now() -> void:
 			screen = "won"
 		_:
 			screen = "over"
+			if run.can_mercy():
+				_open_mercy_later()
 	request_refresh()
+
+
+func _open_mercy_later() -> void:
+	if not fast:
+		while _veil != null and is_instance_valid(_veil):
+			await get_tree().process_frame
+		await get_tree().create_timer(0.9).timeout
+	if is_inside_tree() and not sheet_open():
+		_open_mercy()
 
 
 func _play_lot_reveal(items: Array, worth: int, msg: String, title: String = "OPENING THE LOT...") -> void:
@@ -7973,10 +8047,54 @@ func _build_over() -> void:
 		tv.add_child(_label("NEXT TIME", 16, CURSE_C))
 		tv.add_child(_label(tip, 18, INK, true))
 		col.add_child(tp)
+	if run.can_mercy():
+		var mb := _mark_main(_button("THE PHONE IS RINGING...  ANSWER IT", _open_mercy, Color("7a2a2a"), 24, 96 if not land else 80))
+		col.add_child(mb)
+	_unfinished_business(col)
 	_end_stats(col)
 	_wall_pick_button(col)
-	col.add_child(_mark_main(_button("NEW RUN", start_new_run, STICKER, 32, 104 if not land else 88)))
-	col.add_child(_button("TITLE", show_title, PANEL_HI, 24, 88 if not land else 72))
+	var again := _button("TRY AGAIN", func():
+		_record_loss()
+		start_new_run(), STICKER, 32, 104 if not land else 88)
+	col.add_child(again if run.can_mercy() else _mark_main(again))
+	col.add_child(_button("TITLE", func():
+		_record_loss()
+		show_title(), PANEL_HI, 24, 88 if not land else 72))
+
+
+## The loss screen's reasons to go again: how close it was, new records, the
+## letter still sealed and who the next win frees.
+func _unfinished_business(col: Container) -> void:
+	var tot := int(run.last_appraisal.get("total", 0))
+	var tgt := run.target()
+	var p := _panel(Color(0.06, 0.04, 0.08, 0.92), Color(GOLD, 0.5), 2)
+	var v := _vbox(6)
+	p.add_child(v)
+	v.add_child(_label("UNFINISHED BUSINESS", 16, GOLD))
+	var pct := int(100.0 * float(tot) / maxf(1.0, float(tgt)))
+	var near := _hbox(8)
+	near.add_child(_label("Short by %s" % _money(maxi(0, tgt - tot)), 20, INK))
+	near.add_child(_spacer(false))
+	near.add_child(_pill("%d%% THERE" % pct, GOOD if pct >= 90 else (STICKER if pct >= 70 else BAD), 16))
+	v.add_child(near)
+	var bests := _hbox(8)
+	if _prev_best_ante > 0 and run.ante > _prev_best_ante:
+		bests.add_child(_pill("NEW BEST: ANTE %d" % run.ante, Color("c77dff"), 16))
+	if _prev_best_shelf > 0 and int(run.stats["best_appraisal"]) > _prev_best_shelf:
+		bests.add_child(_pill("NEW BEST SHELF " + _money(int(run.stats["best_appraisal"])), GOLD, 16))
+	if bests.get_child_count() > 0:
+		v.add_child(bests)
+	var lets := Flavor.letters(run.estate_id)
+	var nxt := maxi(run.letters_read, run.ante)
+	if nxt < lets.size():
+		var nl: Array = lets[nxt]
+		v.add_child(_label("STILL SEALED: letter %d of %d, \"%s\". It comes at ante %d." % [nxt + 1, lets.size(), String(nl[0]), nxt + 1], 18, FLAVOR_C, true))
+	for i in Unlocks.ESTATES.size():
+		if not _estate_free(i):
+			var e: Dictionary = Unlocks.ESTATES[i]
+			v.add_child(_label("Win one run to free %s from the vault. %s" % [String(e["name"]), String(e["line"])], 18, MUTED, true))
+			break
+	col.add_child(p)
 
 
 func _build_won() -> void:

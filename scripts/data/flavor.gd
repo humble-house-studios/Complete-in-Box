@@ -113,6 +113,16 @@ const PASS := [
 	"A nod. A stamp. \"Same time next stop.\"",
 ]
 
+## The Buyer's Mercy: the phone rings on a near miss. [opening line, his offer].
+const MERCY := [
+	["The appraiser's case is half packed when the phone rings. He holds it out to you.", "\"Close. So close it's almost a shame. I'll call this one a pass... for a little something.\""],
+	["The tape gun stops an inch from your wrist. Somewhere upstairs, a landline rings.", "\"Don't seal that one yet. I like how this one plays. Make it worth my while.\""],
+	["The plastic is already warm from the heat gun. Then: ring. Ring.", "\"Kid. You were THIS close. Everyone gets one favour. Arlo got one too.\""],
+]
+## Accept / decline lines once you've chosen.
+const MERCY_TAKEN := ["\"Pleasure doing business.\" The line goes dead. The case is empty again.", "\"Arlo said yes too, you know.\" Click.", "\"See you at the next appraisal.\" He sounds pleased. That's worse."]
+const MERCY_REFUSED := "\"Suit yourself.\" The heat gun comes back on."
+
 const FAIL := [
 	"The appraiser shakes his head. \"Not enough. He'll be so disappointed.\"",
 	"\"Short again.\" He's already measuring you for a box.",

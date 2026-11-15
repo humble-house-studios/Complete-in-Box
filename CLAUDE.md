@@ -28,6 +28,14 @@ the sheet is on the floor and your last sealed self is inside (save keys `sealed
 `seal_grade`, `seal_cond`, `seal_ante`, `seal_lot`; `_vault_info`). The guide's PAY THE
 APPRAISER page uses its `secret` lines until then.
 
+## The Buyer's Mercy
+Once a run, an appraisal that misses by 20% or less (`Balance.MERCY_SHARE`, never the final
+one or endless) rings the phone on the loss screen (`_open_mercy`, button THE PHONE IS RINGING):
+give the Buyer your best shelf piece or a shelf slot (`Run.can_mercy / mercy_piece / take_mercy`)
+and the stop counts as passed with no payday. The loss is only saved (`_record_loss`) once it's
+refused. Lines in `Flavor.MERCY*`. Loss screen also shows UNFINISHED BUSINESS
+(`_unfinished_business`: % of target, new bests, next sealed letter, who a win frees). Bots ignore it.
+
 ## The Buyer's want list
 One request per ante (`Run.want`, `_roll_want`, kinds per market in `Run.WANT_KINDS`:
 N pieces of a platform, console + game, Mint/Sealed, Rare+, graded, accessories, packs,
