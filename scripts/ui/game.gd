@@ -730,7 +730,7 @@ func _scrolls_in(n: Node, out: Array) -> void:
 # ================================================================ controller
 ## Xbox-style pad: stick / D-pad move focus, A presses, B backs out,
 ## LB / RB switch tabs (and guide pages, binder consoles), Start skips the
-## intro or starts a run, right stick spins the item on its turntable.
+## intro or starts a run, on the item card the left stick turns the model, the right stick scrolls.
 ## The focus frame only shows while the pad is in use.
 
 var _pad := false
@@ -1174,13 +1174,10 @@ func _glide(src: String, sc: ScrollContainer, v: float, delta: float) -> bool:
 
 
 func _pad_scroll(delta: float) -> void:
-	# Item card: either stick's up/down reads the info (left/right turns it).
+	# Item card: the right stick reads the info (the left stick turns the model).
 	var ry := 0.0
 	if _inspecting():
-		var ly := _axis(JOY_AXIS_LEFT_Y)
 		ry = _axis(JOY_AXIS_RIGHT_Y)
-		if absf(ly) > absf(ry):
-			ry = ly
 		if absf(ry) < 0.3:
 			ry = 0.0
 	elif _glides.has("card"):
@@ -1213,8 +1210,8 @@ func _inspecting() -> bool:
 
 ## Left stick moves the highlight like the D-pad; the right stick smoothly
 ## scrolls the list the highlight is in (the highlight follows into view).
-## On the item card the left stick turns the model and the right stick
-## scrolls the info (see _pad_scroll).
+## On the item card the left stick only turns the model and the right stick
+## only scrolls the info (see _pad_scroll).
 var _follow := {"L": 0.0, "R": 0.0}
 
 
@@ -8445,7 +8442,12 @@ func _turntable(item: Dictionary, col: Color) -> Control:
 	spin.add_child(m)
 	var b := Psx.aabb(m)
 	var biggest := maxf(b.size.x, maxf(b.size.y, b.size.z))
-	m.scale = Vector3.ONE * (0.95 / maxf(biggest, 0.01))
+	var sc := 0.95 / maxf(biggest, 0.01)
+	m.scale = Vector3.ONE * sc
+	# Pivot on the model's middle so it can tumble any way, not just spin.
+	var ctr := b.get_center() * sc
+	spin.position = Vector3(0, ctr.y, 0)
+	m.position = -ctr
 	_spin_model = spin
 	var key := DirectionalLight3D.new()
 	key.rotation_degrees = Vector3(-35, 30, 0)
@@ -8485,9 +8487,23 @@ func _on_spin_input(event: InputEvent) -> void:
 	elif event is InputEventScreenTouch:
 		_spin_drag = (event as InputEventScreenTouch).pressed
 	elif event is InputEventMouseMotion and _spin_drag:
-		_spin_vel = (event as InputEventMouseMotion).relative.x * 0.6
+		_spin_by((event as InputEventMouseMotion).relative * 0.012)
 	elif event is InputEventScreenDrag:
-		_spin_vel = (event as InputEventScreenDrag).relative.x * 0.6
+		_spin_by((event as InputEventScreenDrag).relative * 0.012)
+
+
+## Turn the model freely: sideways = around the up axis, up/down = tip it
+## toward / away from you (full 360 both ways, like a trackball).
+func _spin_by(d: Vector2) -> void:
+	if _spin_model == null or not is_instance_valid(_spin_model):
+		return
+	_spin_hold = 0.0
+	_manual_t = 3.0
+	_spin_vel = d.x * 60.0
+	var bs := _spin_model.transform.basis.orthonormalized()
+	bs = Basis(Vector3.UP, d.x) * bs
+	bs = Basis(Vector3.RIGHT, d.y) * bs
+	_spin_model.transform.basis = bs.orthonormalized() * _spin_model.transform.basis.get_scale().x
 
 
 func _process(delta: float) -> void:
@@ -8502,33 +8518,30 @@ func _process(delta: float) -> void:
 	if _spin_model == null or not is_instance_valid(_spin_model):
 		return
 	if _spin_hold > 0.0:
+		# FRONT / BACK: settle upright, facing that side.
 		_spin_hold -= delta
-		var cur := fmod(_spin_model.rotation.y, TAU)
-		_spin_model.rotation.y = lerp_angle(cur, _spin_goal, minf(1.0, delta * 8.0))
+		var q := Quaternion(_spin_model.transform.basis.orthonormalized())
+		var goal := Quaternion(Vector3.UP, _spin_goal)
+		_spin_model.transform.basis = Basis(q.slerp(goal, minf(1.0, delta * 8.0)))
 	elif _spin_drag:
-		_spin_model.rotation.y += _spin_vel * delta
-		_spin_vel = lerpf(_spin_vel, 0.0, 0.3)
+		pass
 	else:
-		# Right stick turns it by hand, as fast as you push; the slow auto
-		# spin waits a few seconds after you let go.
-		# Either stick left/right turns it (up/down scrolls the info).
-		var rx := 0.0
+		# Left stick turns it any way (as fast as you push); the right stick
+		# only scrolls the info. The slow auto spin waits 3 s after you let go.
+		var st := Vector2.ZERO
 		if _pad:
-			rx = _axis(JOY_AXIS_LEFT_X)
-			var rx2 := _axis(JOY_AXIS_RIGHT_X)
-			if absf(rx2) > absf(rx):
-				rx = rx2
-		if absf(rx) > 0.15:
-			_manual_t = 3.0
+			st = Vector2(_axis(JOY_AXIS_LEFT_X), _axis(JOY_AXIS_LEFT_Y))
+		if st.length() > 0.15:
+			_spin_by(st * st.length() * 4.5 * delta)
 			_spin_vel = 0.0
-			_spin_model.rotation.y += rx * absf(rx) * 4.5 * delta
-		if _manual_t > 0.0:
+		elif _manual_t > 0.0:
 			_manual_t -= delta
-			_spin_model.rotation.x = lerpf(_spin_model.rotation.x, 0.0, delta * 2.0)
+			if absf(_spin_vel) > 0.01:
+				_spin_vel = lerpf(_spin_vel, 0.0, delta * 3.0)
+				_spin_model.transform.basis = Basis(Vector3.UP, _spin_vel * delta * 0.2) * _spin_model.transform.basis
 		else:
-			_spin_vel = lerpf(_spin_vel, 0.0, delta * 2.0)
-			_spin_model.rotation.y += (0.14 + _spin_vel) * delta
-			_spin_model.rotation.x = lerpf(_spin_model.rotation.x, 0.0, delta * 2.0)
+			_spin_vel = 0.0
+			_spin_model.transform.basis = Basis(Vector3.UP, 0.14 * delta) * _spin_model.transform.basis
 
 
 ## Stat rows: value, condition and rarity bars, held/paid, set progress.
