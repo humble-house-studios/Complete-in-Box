@@ -22,7 +22,7 @@ func test_catalog_is_sane() -> void:
 		assert_false(ids.has(d["id"]), "duplicate id " + d["id"])
 		ids[d["id"]] = true
 		assert_true(Catalog.PLATFORMS.has(d["plat"]), "bad platform on " + d["id"])
-		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate"].has(d["kind"]), "bad kind on " + d["id"])
+		assert_true(["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate", "toy", "prop", "poster", "toybox"].has(d["kind"]), "bad kind on " + d["id"])
 		assert_between(int(d["tier"]), 0, 3)
 		assert_gt(int(d["base"]), 0)
 	for t in 4:
@@ -978,8 +978,52 @@ func test_vinyl_world_and_marv() -> void:
 		assert_true(["LP", "7in", "12in", "78", "crate"].has(String(d.get("fmt", ""))), "fmt on " + String(d["id"]))
 
 
+func test_pop_world_and_dale() -> void:
+	assert_eq(Catalog.items_of("pop").size(), 100)
+	for t in 4:
+		assert_gt(Catalog.defs_of_tier(t, "pop").size(), 0, "pop tier %d" % t)
+	for slot in Venues.SLOTS:
+		assert_false(Venues.unlocked(slot, 1, "pop").is_empty(), "pop has a %s venue" % slot)
+	var r := Run.new()
+	r.start(44, {"estate": "dale", "worlds": ["games", "cards", "pop"]})
+	assert_eq(r.market, "pop")
+	r.enter_venue(String(r.venue_choices[0]))
+	for o in r.stock:
+		assert_true(["toy", "prop", "poster", "toybox"].has(String(o["item"]["kind"])))
+	r.phase = Run.Phase.HOME
+	r.shelf.clear()
+	r.shelf_cap = 30
+	# A prop crate opens into props from the same aisle.
+	var crate: Dictionary = Catalog.items_of("pop").filter(func(d): return String(d["kind"]) == "toybox" and String(d["plat"]) == "PROP")[0]
+	var cr := r.make_item(crate, "CIB")
+	r.shelf.append(cr)
+	assert_true(bool(r.open_pack(int(cr["uid"]))["ok"]))
+	for it in r.shelf:
+		assert_eq(String(it["plat"]), "PROP")
+		assert_ne(String(it["kind"]), "toybox")
+	# Screen-used props count for the want list.
+	var screen: Dictionary = Catalog.items_of("pop").filter(func(d): return (d["tags"] as Array).has("screen"))[0]
+	r.want = {"id": "screen", "n": 1}
+	assert_true(r.wants(r.make_item(screen, "CIB")))
+	assert_false(r.want_text().is_empty())
+	var fig: Dictionary = Catalog.items_of("pop").filter(func(d): return String(d["kind"]) == "toy")[0]
+	assert_eq(Catalog.cond_name(r.make_item(fig, "Sealed")), "Mint on Card")
+	assert_eq(Flavor.letters("dale").size(), Balance.ANTES_TO_WIN)
+	assert_eq(Flavor.diary_name("dale"), "Dale's listing notes")
+	assert_eq(Flavor.pass_lines("pop").size(), 12)
+	assert_eq(Flavor.fail_lines("pop").size(), 12)
+	for e in ["box", "collector", "leak"]:
+		assert_eq(Flavor.event_text("pop", e).size(), 2)
+	assert_false(Flavor.intro("pop").is_empty())
+	assert_eq(Perks.label("box_and_manual", "pop")["name"], "Window Box")
+	# Every piece carries its real-world record and a Wikipedia page.
+	for d in Catalog.items_of("pop"):
+		assert_false(String(d.get("wiki", "")).is_empty(), "wiki on " + String(d["id"]))
+		assert_true(["carded", "boxed", "figure", "doll", "plush", "vehicle", "prop", "costume", "hat", "poster", "lunchbox", "dispenser", "badge", "lamp", "chest"].has(String(d.get("form", ""))), "form on " + String(d["id"]))
+
+
 func test_every_estate_letter_is_short() -> void:
-	for e in ["arlo", "twins", "rose", "marv", "hector", "june", "iris"]:
+	for e in ["arlo", "twins", "rose", "marv", "hector", "june", "iris", "dale"]:
 		var ls := Flavor.letters(e)
 		assert_eq(ls.size(), Balance.ANTES_TO_WIN, e)
 		for l in ls:

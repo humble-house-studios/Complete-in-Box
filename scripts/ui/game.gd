@@ -6635,7 +6635,8 @@ func _open_shelf_item(uid: int, state: String) -> void:
 		if run.can_grade() and int(item["grade"]) == 0 and item["cond"] != "Damaged":
 			actions.append(["Send to grading for %s" % _money(run.grade_cost(item)), func(): _act(run.send_to_grading(uid), "tick"), GOLD])
 	if run.pack_size(item) > 0:
-		actions.append(["RIP IT OPEN (%d cards)" % run.pack_size(item), func(): _rip_pack(uid), Color("b07cff")])
+		var rip_word: String = "OPEN IT UP (%d pieces)" if String(item["kind"]) == "toybox" else "RIP IT OPEN (%d cards)"
+		actions.append([rip_word % run.pack_size(item), func(): _rip_pack(uid), Color("b07cff")])
 	actions.append(["Dump it for %s" % _money(Balance.DUMP_VALUE), func(): _act(run.dump(uid), "buzz"), Color("5a3a3a")])
 	# A quiet extra next to Close: hanging is an end-game move (it leaves the run).
 	actions.append(["Hang on Wall", func(): _hang_from_shelf(uid), Color("2a2836"), true])
@@ -8851,6 +8852,16 @@ func _stat_block(item: Dictionary) -> Control:
 		"crate":
 			_stat_row(g, "CRATE", _label("about %d records  |  %s" % [int(def.get("count", 60)), Catalog.platform(String(item["plat"]))["name"]], 18, INK, true))
 			_stat_row(g, "FLIP IT?", _label("Flipping gives %d records from this crate" % run.pack_size(item), 18, Color("ffcc66"), true))
+		"toy", "prop", "poster":
+			var made_by: String = {"prop": "STUDIO", "poster": "STUDIO"}.get(String(item["kind"]), "MAKER")
+			_stat_row(g, made_by, _label("%s  |  %d" % [def.get("maker", "?"), int(def.get("year", 0))], 18, INK, true))
+			if def.has("record"):
+				_stat_row(g, "THE RECORD", _label(String(def["record"]), 17, INK, true))
+			if def.has("tell"):
+				_stat_row(g, "WATCH FOR", _label(String(def["tell"]), 17, Color("ffcc66"), true))
+		"toybox":
+			_stat_row(g, "BOX LOT", _label("about %d pieces  |  %s" % [int(def.get("count", 20)), Catalog.platform(String(item["plat"]))["name"]], 18, INK, true))
+			_stat_row(g, "OPEN IT?", _label("Opening gives %d pieces from this aisle" % run.pack_size(item), 18, Color("ffcc66"), true))
 		"coin":
 			_stat_row(g, "COIN", _label("%s  |  %s  |  %d mm" % [def.get("denom", "?"), String(def.get("metal", "?")).capitalize(), int(def.get("dia", 0))], 18, INK, true))
 			_stat_row(g, "STRUCK", _label("%s, %s" % [def.get("mint", "?"), def.get("country", "")], 18, INK, true))

@@ -968,6 +968,10 @@ func _build(id: String, items: Array) -> void:
 		"recordfair": _convention(items)
 		"basementcrates": _estate(items)
 		"diskogz": _online(items)
+		"toyshop": _toyshop(items)
+		"toyswap": _convention(items)
+		"attictoys": _estate(items)
+		"propauction": _heritage(items)
 		"cursed": _cursed(items)
 		"basement": _basement(items)
 		_: _garage(items)
@@ -1568,6 +1572,103 @@ func _recordshop(items: Array) -> void:
 	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
 
 
+## Mint on Card: a collectables shop. A peg wall of carded figures, framed
+## one-sheets, a glass case of screen-used props, toy chests by the door, and
+## Cousin Dale on the top peg in a giant blister (open once you've freed him).
+func _toyshop(items: Array) -> void:
+	_setup(Color(0.09, 0.07, 0.1), Color(0.85, 0.75, 0.72), 1.2, 7.0, 22.0)
+	_room(9, 7.5, 3.3, "woodfloor043", Color(0.55, 0.45, 0.42), "bricks105", Color(0.5, 0.48, 0.6), 1.3, Rect2(), Color(0.3, 0.26, 0.3))
+	var pool := Catalog.items_of("pop")
+	var carded := pool.filter(func(d): return String(d["kind"]) == "toy" and String(d.get("form", "")) in ["carded", "vehicle"])
+	var boxed := pool.filter(func(d): return String(d["kind"]) == "toy" and String(d.get("form", "")) == "boxed")
+	var posters := pool.filter(func(d): return String(d["kind"]) == "poster")
+	var props := pool.filter(func(d): return String(d["kind"]) == "prop")
+	var chests := pool.filter(func(d): return String(d["kind"]) == "toybox")
+	# The peg wall: pegboard, rows of carded figures, boxed toys along the top.
+	var board := Psx.mat(Color(0.78, 0.66, 0.5), Psx.tex("wood066"), Vector2(6, 2))
+	Psx.box(Vector3(8.6, 2.2, 0.05), board, Vector3(0, 1.95, -3.68), world)
+	var r := RandomNumberGenerator.new()
+	r.seed = 4400
+	for row in 3:
+		var y := 1.15 + row * 0.5
+		for k in 11:
+			var src: Array = carded if row < 2 else boxed
+			var it: Dictionary = src[(row * 11 + k * 5 + r.randi() % 3) % src.size()].duplicate()
+			it["cond"] = "Sealed" if row < 2 else "CIB"
+			var m := ItemModels.build(it)
+			m.scale = Vector3.ONE * ITEM_SCALE * (1.1 if row < 2 else 0.95)
+			m.position = Vector3(-3.75 + k * 0.75, y, -3.6)
+			world.add_child(m)
+			if row < 2:
+				Psx.box(Vector3(0.012, 0.012, 0.14), Psx.mat(Color(0.75, 0.75, 0.78)), Vector3(-3.75 + k * 0.75, y + 0.3, -3.58), world)
+	_neon("MINT ON CARD", Vector3(-1.4, 3.15, -3.6), Color(1.0, 0.4, 0.3), 56)
+	_neon("COLLECT  THEM  ALL", Vector3(2.4, 3.15, -3.6), Color(0.45, 1.0, 0.6), 30)
+	# Framed one-sheets on the side walls.
+	for k in 4:
+		var side := -1.0 if k < 2 else 1.0
+		var pt: Dictionary = posters[(k * 4 + 1) % posters.size()].duplicate()
+		pt["cond"] = "Mint"
+		var pm := ItemModels.build(pt)
+		pm.scale = Vector3.ONE * 1.25
+		pm.position = Vector3(side * 4.4, 1.35, -2.4 + (k % 2) * 1.5)
+		pm.rotation_degrees.y = -90.0 * side
+		world.add_child(pm)
+	# The glass case of props on the right, lit from inside.
+	var cp := Vector3(3.2, 0, -1.4)
+	Psx.box(Vector3(1.4, 0.8, 0.7), Psx.mat(Color(0.15, 0.12, 0.14), Psx.tex("wood066")), cp + Vector3(0, 0.4, 0), world)
+	Psx.box(Vector3(1.4, 0.6, 0.7), Psx.mat(Color(0.82, 0.9, 0.98), null, Vector2.ONE, 0.25), cp + Vector3(0, 1.1, 0), world).transparency = 0.7
+	for k in 3:
+		var pr: Dictionary = props[(k * 6 + 2) % props.size()].duplicate()
+		pr["cond"] = "CIB"
+		var prm := ItemModels.build(pr)
+		prm.scale = Vector3.ONE * ITEM_SCALE * 0.9
+		prm.position = cp + Vector3(-0.45 + k * 0.45, 0.82, 0)
+		world.add_child(prm)
+	_neon("SCREEN  USED", cp + Vector3(0, 1.75, 0.0), Color(1.0, 0.8, 0.3), 26)
+	_light(cp + Vector3(0, 1.4, 0.3), Color(1.0, 0.85, 0.6), 1.2, 2.2, 0.1)
+	_person(cp + Vector3(-0.2, 0, 0.75), 180, Color.WHITE, 1.45, "female_adult_05")
+	# Toy chests by the door.
+	for k in 2:
+		var ch: Dictionary = chests[k % chests.size()].duplicate()
+		ch["cond"] = "CIB"
+		var chm := ItemModels.build(ch)
+		chm.scale = Vector3.ONE * ITEM_SCALE * 1.4
+		chm.position = Vector3(2.8 + k * 0.7, 0.0, 0.8)
+		chm.rotation_degrees.y = -25.0 + k * 20.0
+		world.add_child(chm)
+	# The counter with your table's items and a till.
+	Psx.box(Vector3(2.6, 0.9, 0.7), Psx.mat(Color(0.2, 0.15, 0.2), Psx.tex("wood066")), Vector3(0, 0.45, 0), world)
+	Psx.box(Vector3(2.65, 0.04, 0.75), Psx.mat(Color(0.95, 0.35, 0.3), null, Vector2.ONE, 0.2), Vector3(0, 0.92, 0), world)
+	_lay_items(items, Vector3(-0.2, 0.94, 0.0), 1.9, 0.3, 4)
+	_prop("shop/cash-register", Vector3(1.1, 0.94, -0.1), -20, 0.35)
+	_person(Vector3(1.3, 0, -0.85), -15, Color(1.0, 0.95, 0.9), 1.45, "male_adult_11")
+	# Cousin Dale on the left, in a giant blister on a peg.
+	var dale: Dictionary = {}
+	for c in collector_cases:
+		if String(c.get("name", "")) == "Cousin Dale":
+			dale = c
+	var holder := world
+	var croot := Node3D.new()
+	croot.position = Vector3(-3.4, 0, 0.2)
+	croot.rotation_degrees.y = 55.0
+	croot.scale = Vector3.ONE * 0.8
+	holder.add_child(croot)
+	croot.visible = not secret
+	world = croot
+	if bool(dale.get("freed", false)):
+		_open_case(Vector3.ZERO, "Cousin Dale")
+	else:
+		_grade_case(Vector3.ZERO, "male_adult_03", {"grade": "MOC", "cond": "BLISTERED", "lot": "D-0002", "name": "COUSIN DALE",
+			"ante": "WAVE 1", "label": "dales_deals  A+++", "case": "toy"}, false)
+	world = holder
+	_spot(Vector3(-2.6, 3.1, 1.2), Vector3(-3.4, 1.0, 0.2), Color(1.0, 0.7, 0.6), 2.6, 26, 6.0)
+	_walker([Vector3(-2.4, 0, -1.4), Vector3(0.0, 0, -1.5), Vector3(2.0, 0, -1.4)], [["browse", 180], ["reach", 180], ["browse", 180]], "female_adult_01", 0.4)
+	for x in [-2.5, 0.0, 2.5]:
+		_light(Vector3(x, 3.0, -1.2), Color(1.0, 0.85, 0.8), 1.2, 4.5)
+	_light(Vector3(0, 2.6, -3.0), Color(1.0, 0.8, 0.75), 1.6, 5.0)
+	_view(Vector3(0, 1.55, 1.8), Vector3(0, 0.95, -0.1))
+
+
 ## The camera flight for a world's first-visit intro: [[pos, look], ...].
 ## Ends on the venue's usual view; with over_table (world intros) it ends high
 ## over the table, looking down on it, so the reveal shows the whole mat with
@@ -1651,6 +1752,15 @@ func _intro_path(id: String) -> Array:
 				[Vector3(-0.6, 1.7, -0.2), Vector3(-3.3, 1.1, -1.5)],  # the record spinning on the deck
 				[Vector3(-0.6, 2.1, -0.4), Vector3(-0.4, 1.0, -1.9)],  # over the bins
 				[Vector3(0.6, 2.4, -0.8), Vector3(1.8, 2.4, -3.6)],  # the wall of sleeves
+				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],
+			]
+		"toyshop":
+			# One slow sweep, turning one way: the collector's case, the walls, the table.
+			return [
+				[Vector3(0.8, 1.6, 0.6), Vector3(-3.4, 1.1, 0.2)],  # Dale, on his peg
+				[Vector3(-0.8, 2.0, -0.6), Vector3(-1.6, 1.6, -3.6)],  # the peg wall
+				[Vector3(0.4, 2.2, -0.8), Vector3(1.4, 1.9, -3.6)],
+				[Vector3(1.4, 1.8, 0.4), Vector3(3.2, 1.1, -1.4)],  # the props case
 				[Vector3(0.0, 1.5, 1.7), Vector3(0.0, 0.95, -0.1)],
 			]
 		"bookshop":
@@ -2853,6 +2963,15 @@ func _grade_case(pos: Vector3, who: String, info: Dictionary, hero: bool) -> voi
 		var dl := Psx.cyl(CASE_W * 0.18, 0.045, Psx.mat(Color(0.85, 0.2, 0.3)), Vector3(0, dtop, 0), root, 16)
 		dl.rotation_degrees.x = 90.0
 		_case_text(root, "%s\nIN SHRINK" % String(info.get("grade", "?")), Vector3(0, dtop, 0.03), 36, Color(1.0, 0.92, 0.85))
+	if String(info.get("case", "")) == "toy":
+		# Toys: the case is a giant blister pack: a printed cardback behind,
+		# a header with the peg hole on top, COLLECT THEM ALL across it.
+		var cardb := Psx.mat(Color(0.85, 0.25, 0.2))
+		Psx.box(Vector3(CASE_W + 0.3, CASE_H + 0.1, 0.05), cardb, Vector3(0, PLINTH_H + CASE_H * 0.5, -CASE_D * 0.5 - 0.06), root)
+		var htop := PLINTH_H + CASE_H + 0.26
+		Psx.box(Vector3(CASE_W + 0.3, 0.46, 0.06), Psx.mat(Color(0.95, 0.8, 0.15)), Vector3(0, htop, -CASE_D * 0.5 - 0.06), root)
+		Psx.box(Vector3(0.26, 0.08, 0.07), Psx.mat(Color(0.06, 0.05, 0.06)), Vector3(0, htop + 0.12, -CASE_D * 0.5 - 0.06), root)
+		_case_text(root, "COLLECT THEM ALL!\n%s" % String(info.get("grade", "?")), Vector3(0, htop - 0.06, -CASE_D * 0.5 - 0.025), 40, Color(0.75, 0.1, 0.1))
 	if String(info.get("case", "")) == "slab" or String(info.get("case", "")) == "comic":
 		# Sports: the case is a giant grading slab: thick clear acrylic edges
 		# and a red-and-white flip label riding on top.

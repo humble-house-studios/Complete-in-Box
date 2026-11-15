@@ -174,6 +174,11 @@ static func paint_front(c: Control, item: Dictionary, w: int) -> void:
 		va.H = H
 		va.paint_front(c, d, w)
 		return
+	if String(d.get("kind", "")) in ["toy", "prop", "poster", "toybox"]:
+		var pa := load("res://scripts/gfx/pop_art.gd")
+		pa.H = H
+		pa.paint_front(c, d, w)
+		return
 	match String(d.get("kind", "")):
 		"coin": _coin(c, d, true)
 		"pack": _pack(c, d)
@@ -202,6 +207,11 @@ static func paint_back(c: Control, item: Dictionary, w: int) -> void:
 		var va := load("res://scripts/gfx/vinyl_art.gd")
 		va.H = H
 		va.paint_back(c, d, w)
+		return
+	if String(d.get("kind", "")) in ["toy", "prop", "poster", "toybox"]:
+		var pa := load("res://scripts/gfx/pop_art.gd")
+		pa.H = H
+		pa.paint_back(c, d, w)
 		return
 	match String(d.get("kind", "")):
 		"coin": _coin(c, d, false)

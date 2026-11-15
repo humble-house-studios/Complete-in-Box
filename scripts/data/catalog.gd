@@ -68,6 +68,12 @@ const PLATFORMS := {
 	"SOUL": {"name": "Soul & Funk", "short": "SOUL", "color": Color("e08a2a"), "family": "vinyl", "market": "vinyl"},
 	"PUNK": {"name": "Punk, Indie & Metal", "short": "PUNK", "color": Color("d94f8a"), "family": "vinyl", "market": "vinyl"},
 	"HIPH": {"name": "Hip-Hop & Dance", "short": "HIP-HOP", "color": Color("8a5ad9"), "family": "vinyl", "market": "vinyl"},
+	# Pop culture (Cousin Dale's world): one binder page per aisle of the toy shop.
+	"FIGS": {"name": "Action Figures", "short": "FIGS", "color": Color("e04a3a"), "family": "pop", "market": "pop"},
+	"TOYS": {"name": "Toys & Fads", "short": "TOYS", "color": Color("3fae5a"), "family": "pop", "market": "pop"},
+	"PROP": {"name": "Props & Costumes", "short": "PROPS", "color": Color("8a5ad9"), "family": "pop", "market": "pop"},
+	"POST": {"name": "Posters", "short": "POSTER", "color": Color("e8b923"), "family": "pop", "market": "pop"},
+	"MEMO": {"name": "Lunchboxes & Keepsakes", "short": "LUNCH", "color": Color("3a8ad9"), "family": "pop", "market": "pop"},
 }
 
 ## What the run deals in: one market per collecting world (worlds.gd).
@@ -84,14 +90,17 @@ static func _build_markets() -> Dictionary:
 
 
 ## Kinds per market: games use game/console/acc/misc, cards card/pack, coins coin.
-const CC_KINDS := ["card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate"]
+const CC_KINDS := ["card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate", "toy", "prop", "poster", "toybox"]
+## Kinds you can open up for the pieces inside (packs, wax boxes, longboxes...).
+const LOT_KINDS := ["pack", "wax", "longbox", "booklot", "crate", "toybox"]
 ## Variants that count as "shiny" (Shiny Hunter, the want list).
-const SHINY := ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless", "Proof-Like", "Deep Cameo", "Rainbow Toned", "Refractor", "Gold Parallel", "Tiffany", "Foil Cover", "Virgin Cover", "Fine Binding", "Limited Edition", "Colored Vinyl", "Picture Disc"]
+const SHINY := ["Holo Foil", "Reverse Holo", "1st Edition", "Shadowless", "Proof-Like", "Deep Cameo", "Rainbow Toned", "Refractor", "Gold Parallel", "Tiffany", "Foil Cover", "Virgin Cover", "Fine Binding", "Limited Edition", "Colored Vinyl", "Picture Disc", "Glow in the Dark", "Chrome Finish", "Foil Teaser"]
 const CC := preload("res://scripts/data/catalog_cc.gd")
 const SPORTS := preload("res://scripts/data/catalog_sports.gd")
 const COMICS := preload("res://scripts/data/catalog_comics.gd")
 const BOOKS := preload("res://scripts/data/catalog_books.gd")
 const VINYL := preload("res://scripts/data/catalog_vinyl.gd")
+const POP := preload("res://scripts/data/catalog_pop.gd")
 
 const TIER_NAMES := ["Common", "Uncommon", "Rare", "GRAIL"]
 const TIER_COLORS := [Color("b8b8b8"), Color("5ec46a"), Color("4fa3ff"), Color("ffcc33")]
@@ -198,6 +207,10 @@ const COND_WORDS := {
 	"book": {"Damaged": ["Reading Copy", "READING"], "Loose": ["Good", "G"], "CIB": ["Very Good", "VG"], "Mint": ["Near Fine", "NF"], "Sealed": ["Fine", "F"]},
 	"record": {"Damaged": ["Poor", "P"], "Loose": ["Very Good", "VG"], "CIB": ["Very Good Plus", "VG+"], "Mint": ["Near Mint", "NM"], "Sealed": ["Still Sealed", "SEALED"]},
 	"crate": {"Damaged": ["Warped", "WARPED"], "Loose": ["Picked Over", "PICKED"], "CIB": ["Unflipped", "UNFLIPPED"], "Mint": ["DJ Stash", "STASH"], "Sealed": ["Dead Stock", "DEADSTOCK"]},
+	"toy": {"Damaged": ["Played With", "PLAYED"], "Loose": ["Loose", "LOOSE"], "CIB": ["Complete in Box", "CIB"], "Mint": ["Mint in Box", "MIB"], "Sealed": ["Mint on Card", "MOC"]},
+	"prop": {"Damaged": ["Distressed", "DISTRESSED"], "Loose": ["Production Made", "MADE"], "CIB": ["Screen Used", "SCREEN"], "Mint": ["Screen-Matched", "MATCHED"], "Sealed": ["Hero Prop", "HERO"]},
+	"poster": {"Damaged": ["Torn", "TORN"], "Loose": ["Folded", "FOLDED"], "CIB": ["Very Fine", "VF"], "Mint": ["Near Mint", "NM"], "Sealed": ["Unfolded Mint", "ROLLED"]},
+	"toybox": {"Damaged": ["Mildewed", "MILDEW"], "Loose": ["Picked Over", "PICKED"], "CIB": ["Untouched", "UNTOUCHED"], "Mint": ["Attic Fresh", "ATTIC"], "Sealed": ["Warehouse Sealed", "SEALED"]},
 	"booklot": {"Damaged": ["Mildewed", "MILDEW"], "Loose": ["Picked Over", "PICKED"], "CIB": ["Uncatalogued", "UNSORTED"], "Mint": ["Library Clearance", "CLEARANCE"], "Sealed": ["Sealed Estate", "ESTATE"]},
 	"coin": {"Damaged": ["Holed", "HOLED"], "Loose": ["Circulated", "CIRC"], "CIB": ["About Unc", "AU"], "Mint": ["Mint State", "MS"], "Sealed": ["Proof", "PROOF"]},
 }
@@ -205,7 +218,7 @@ const COND_WORDS := {
 ## Variants a copy can roll. mult = value multiplier, w = roll weight,
 ## kinds = which item kinds can get it. See variant_label() for family names.
 const VARIANTS := {
-	"Standard": {"mult": 1.0, "w": 70.0, "kinds": ["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate"], "color": Color("9a93ab"), "desc": "The regular retail release."},
+	"Standard": {"mult": 1.0, "w": 70.0, "kinds": ["game", "console", "acc", "misc", "card", "pack", "coin", "scard", "wax", "comic", "longbox", "book", "booklot", "record", "crate", "toy", "prop", "poster", "toybox"], "color": Color("9a93ab"), "desc": "The regular retail release."},
 	"Player's Pick": {"mult": 0.8, "w": 9.0, "kinds": ["game"], "color": Color("e6d34a"), "desc": "Budget re-release with the coloured banner. Collectors shrug."},
 	"Black Label": {"mult": 1.25, "w": 7.0, "kinds": ["game"], "color": Color("2b2b2b"), "desc": "Original print, before the budget re-releases."},
 	"First Print": {"mult": 1.6, "w": 5.0, "kinds": ["game"], "color": Color("4fa3ff"), "desc": "From the very first production run."},
@@ -213,7 +226,7 @@ const VARIANTS := {
 	"Rental Copy": {"mult": 0.6, "w": 4.0, "kinds": ["game"], "color": Color("3a6fd6"), "desc": "Blockbluster Video sticker on the front. Well loved."},
 	"Collector's Edition": {"mult": 2.2, "w": 1.2, "kinds": ["game"], "color": Color("d4af37"), "desc": "Big box, art book, pin. The works."},
 	"Signed by Dev": {"mult": 2.4, "w": 0.6, "kinds": ["game"], "color": Color("ff8a3d"), "desc": "Signed in silver marker by someone who made it."},
-	"Misprint": {"mult": 3.5, "w": 0.8, "kinds": ["game", "card", "scard", "comic", "book", "record"], "color": Color("ff5577"), "desc": "Label printed wrong at the factory. Very few escaped."},
+	"Misprint": {"mult": 3.5, "w": 0.8, "kinds": ["game", "card", "scard", "comic", "book", "record", "toy", "poster"], "color": Color("ff5577"), "desc": "Label printed wrong at the factory. Very few escaped."},
 	"Test Cart": {"mult": 6.0, "w": 0.25, "kinds": ["game"], "color": Color("5ee08a"), "desc": "Pre-release test copy with a handwritten label."},
 	"Launch Edition": {"mult": 1.4, "w": 8.0, "kinds": ["console"], "color": Color("4fa3ff"), "desc": "From the launch-day shipment."},
 	"Boxed Bundle": {"mult": 1.3, "w": 8.0, "kinds": ["console", "acc"], "color": Color("e6d34a"), "desc": "Still with the bundle box and inserts."},
@@ -229,8 +242,8 @@ const VARIANTS := {
 	"Promo Stamp": {"mult": 1.4, "w": 3.0, "kinds": ["card"], "color": Color("e6d34a"), "desc": "Event stamp in the corner. Handed out once, never again."},
 	"Signed by Artist": {"mult": 2.4, "w": 0.6, "kinds": ["card"], "color": Color("ff8a3d"), "desc": "Signed in silver by the illustrator at a con."},
 	"Playtest Card": {"mult": 6.0, "w": 0.25, "kinds": ["card"], "color": Color("5ee08a"), "desc": "Pre-release playtest print. Plain border, handwritten notes."},
-	"Heavy Pack": {"mult": 1.6, "w": 4.0, "kinds": ["pack", "wax", "longbox", "booklot", "crate"], "color": Color("e6d34a"), "desc": "Weighs a gram heavier than the rest. Probably a holo inside."},
-	"Resealed?": {"mult": 0.45, "w": 2.5, "kinds": ["pack", "wax", "longbox", "booklot", "crate"], "color": Color("b04a4a"), "desc": "The crimps look... glued. Buyer beware."},
+	"Heavy Pack": {"mult": 1.6, "w": 4.0, "kinds": ["pack", "wax", "longbox", "booklot", "crate", "toybox"], "color": Color("e6d34a"), "desc": "Weighs a gram heavier than the rest. Probably a holo inside."},
+	"Resealed?": {"mult": 0.45, "w": 2.5, "kinds": ["pack", "wax", "longbox", "booklot", "crate", "toybox"], "color": Color("b04a4a"), "desc": "The crimps look... glued. Buyer beware."},
 	# Sports cards
 	"Refractor": {"mult": 1.6, "w": 7.0, "kinds": ["scard"], "color": Color("7fe0ff"), "desc": "Chrome stock that splits light into a rainbow. Tilt it and grin."},
 	"Gold Parallel": {"mult": 2.2, "w": 3.0, "kinds": ["scard"], "color": Color("e8b923"), "desc": "Gold border, serial-numbered to 50 on the back."},
@@ -274,13 +287,34 @@ const VARIANTS := {
 	"Picture Disc": {"mult": 1.4, "w": 2.0, "kinds": ["record"], "color": Color("b07cff"), "desc": "The art is pressed into the record itself. Sounds worse, looks amazing."},
 	"Signed Sleeve": {"mult": 2.4, "w": 0.7, "kinds": ["record"], "color": Color("ff8a3d"), "desc": "Signed across the front in silver marker outside the stage door."},
 	"Test Pressing": {"mult": 5.0, "w": 0.25, "kinds": ["record"], "color": Color("5ee08a"), "desc": "One of a handful pressed to check the sound. Plain white label, written on by hand."},
+	# Pop culture: toys
+	"Re-Release": {"mult": 0.5, "w": 8.0, "kinds": ["toy", "poster"], "color": Color("9a9a9a"), "desc": "Reissued years later from the old moulds. Same toy, a different copyright date."},
+	"Reproduction Card": {"mult": 0.4, "w": 4.0, "kinds": ["toy"], "color": Color("6a8a6a"), "desc": "A real toy on a reprinted card. Too bright, too stiff."},
+	"Foreign Release": {"mult": 0.9, "w": 5.0, "kinds": ["toy"], "color": Color("ff6b6b"), "desc": "The overseas card, with the name in another language and a different photo."},
+	"Store Exclusive": {"mult": 1.3, "w": 5.0, "kinds": ["toy"], "color": Color("e6d34a"), "desc": "Only sold at one chain of shops, with their sticker on the bubble."},
+	"Mail-Away Offer": {"mult": 1.5, "w": 3.0, "kinds": ["toy"], "color": Color("4fa3ff"), "desc": "Sent for with proofs of purchase, arrived in a plain white mailer box."},
+	"Glow in the Dark": {"mult": 1.5, "w": 3.0, "kinds": ["toy"], "color": Color("9cff6a"), "desc": "Moulded in glow plastic. Turn the lights off and grin."},
+	"Chrome Finish": {"mult": 1.4, "w": 3.0, "kinds": ["toy"], "color": Color("dfe8ff"), "desc": "A shiny metallic finish from an anniversary run."},
+	"Convention Exclusive": {"mult": 1.8, "w": 1.5, "kinds": ["toy"], "color": Color("b07cff"), "desc": "Sold at one toy convention in a numbered box."},
+	"Signed by the Cast": {"mult": 2.4, "w": 0.8, "kinds": ["toy", "prop", "poster"], "color": Color("ff8a3d"), "desc": "Signed in silver marker at a convention table, with a photo of it happening."},
+	"Hand-Painted Prototype": {"mult": 6.0, "w": 0.2, "kinds": ["toy"], "color": Color("5ee08a"), "desc": "A factory sample painted by hand to show the buyers. One of a handful."},
+	# Pop culture: props and posters
+	"Stunt Double": {"mult": 0.6, "w": 6.0, "kinds": ["prop"], "color": Color("c08a5a"), "desc": "The rubber version made to be thrown, dropped and sat on."},
+	"Background Piece": {"mult": 0.45, "w": 5.0, "kinds": ["prop"], "color": Color("7a6a9a"), "desc": "It was in the film. Somewhere. Behind someone."},
+	"Studio Letter": {"mult": 1.6, "w": 4.0, "kinds": ["prop"], "color": Color("4fa3ff"), "desc": "Comes with a letter from the studio on headed paper. Collectors relax a little."},
+	"Hero Version": {"mult": 2.2, "w": 1.2, "kinds": ["prop"], "color": Color("d4af37"), "desc": "The detailed one made for close-ups. The others were for running about."},
+	"Advance Teaser": {"mult": 1.6, "w": 3.0, "kinds": ["poster"], "color": Color("4fa3ff"), "desc": "Sent out months before release, before the final artwork was ready."},
+	"Style B": {"mult": 0.8, "w": 6.0, "kinds": ["poster"], "color": Color("c08a5a"), "desc": "The second design. Fine, but everybody wants the first."},
+	"International Version": {"mult": 0.9, "w": 5.0, "kinds": ["poster"], "color": Color("ff6b6b"), "desc": "Painted for another country, with the title translated."},
+	"Foil Teaser": {"mult": 1.5, "w": 2.0, "kinds": ["poster"], "color": Color("b07cff"), "desc": "A mylar foil version for the cinema foyer. Catches every light."},
+	"Printer's Proof": {"mult": 5.0, "w": 0.25, "kinds": ["poster"], "color": Color("5ee08a"), "desc": "A test sheet from the printing works, with colour bars at the edge."},
 	# Coins
 	"Proof-Like": {"mult": 1.6, "w": 5.0, "kinds": ["coin"], "color": Color("dfe8ff"), "desc": "Mirror fields from fresh dies. Shines like a proof."},
 	"Rainbow Toned": {"mult": 1.5, "w": 6.0, "kinds": ["coin"], "color": Color("b07cff"), "desc": "Decades in an album gave it a rainbow. Collectors swoon."},
 	"Deep Cameo": {"mult": 1.9, "w": 2.5, "kinds": ["coin"], "color": Color("f5f5ff"), "desc": "Frosted design on black mirror fields."},
 	"Doubled Die": {"mult": 4.0, "w": 0.6, "kinds": ["coin"], "color": Color("ff5577"), "desc": "The die was struck twice off-line: the letters show double."},
 	"Off-Center": {"mult": 2.2, "w": 1.0, "kinds": ["coin"], "color": Color("ff8a3d"), "desc": "Struck off-centre at the mint. A famous kind of error."},
-	"Pedigree": {"mult": 2.5, "w": 0.8, "kinds": ["coin", "comic", "book", "record"], "color": Color("d4af37"), "desc": "From a famous old collection, named on the slab."},
+	"Pedigree": {"mult": 2.5, "w": 0.8, "kinds": ["coin", "comic", "book", "record", "prop", "poster"], "color": Color("d4af37"), "desc": "From a famous old collection, named on the slab."},
 	"Restrike": {"mult": 0.6, "w": 4.0, "kinds": ["coin"], "color": Color("9a9a9a"), "desc": "Struck later from the old dies. Real metal, not the real date."},
 	"Pattern": {"mult": 7.0, "w": 0.15, "kinds": ["coin"], "color": Color("5ee08a"), "desc": "A trial design that was never adopted. Hardly any exist."},
 }
@@ -325,6 +359,8 @@ static func _build_items() -> Array:
 	for d in BOOKS.ITEMS:
 		out.append(d)
 	for d in VINYL.ITEMS:
+		out.append(d)
+	for d in POP.ITEMS:
 		out.append(d)
 	return out
 
@@ -386,7 +422,13 @@ static func variant_label(item: Dictionary) -> String:
 		return "Wrong Label"
 	if v == "Pedigree" and String(item.get("kind", "")) == "record":
 		return "DJ's Own Copy"
-	if String(item.get("kind", "")) in ["longbox", "booklot", "crate"]:
+	if v == "Misprint" and String(item.get("kind", "")) == "toy":
+		return "Factory Error"
+	if v == "Misprint" and String(item.get("kind", "")) == "poster":
+		return "Misprinted Sheet"
+	if v == "Pedigree" and String(item.get("kind", "")) in ["prop", "poster"]:
+		return "Celebrity Provenance"
+	if String(item.get("kind", "")) in ["longbox", "booklot", "crate", "toybox"]:
 		if v == "Heavy Pack":
 			return "Heavy Box"
 		if v == "Resealed?":

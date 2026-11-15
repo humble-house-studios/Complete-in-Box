@@ -941,7 +941,7 @@ func perk_name(id: String) -> String:
 ## How many cards a sealed product holds when you rip it (0 = can't).
 func pack_size(item: Dictionary) -> int:
 	var k := String(item.get("kind", ""))
-	if k != "pack" and k != "wax" and k != "longbox" and k != "booklot" and k != "crate":
+	if not Catalog.LOT_KINDS.has(k):
 		return 0
 	var tags: Array = item.get("tags", [])
 	if tags.has("box"):
@@ -975,9 +975,10 @@ func open_pack(uid: int) -> Dictionary:
 	elif String(pk.get("variant", "")) == "Resealed?":
 		boost -= 3
 	var pool: Array = []
-	var single: String = {"wax": "scard", "longbox": "comic", "booklot": "book", "crate": "record"}.get(String(pk["kind"]), "card")
+	var single: String = {"wax": "scard", "longbox": "comic", "booklot": "book", "crate": "record", "toybox": "*"}.get(String(pk["kind"]), "card")
 	for d in Catalog.items_of(Catalog.market_of(plat)):
-		if String(d["plat"]) == plat and String(d["kind"]) == single:
+		# A toy chest holds whatever its aisle sells (toys, props or posters).
+		if String(d["plat"]) == plat and (String(d["kind"]) == single or single == "*" and not Catalog.LOT_KINDS.has(String(d["kind"]))):
 			pool.append(d)
 	var pulls: Array = []
 	var each := int(pk.get("paid", 0)) / maxi(1, n)
@@ -1752,7 +1753,7 @@ func appraise() -> Dictionary:
 		if it["kind"] == "acc" and has_perk("lunchbox"):
 			v *= 3.0
 			notes.append("Lunchbox x3")
-		if ["pack", "wax", "longbox", "booklot", "crate"].has(String(it["kind"])) and has_perk("pack_rat"):
+		if Catalog.LOT_KINDS.has(String(it["kind"])) and has_perk("pack_rat"):
 			v *= 2.0
 			notes.append("%s x2" % perk_name("pack_rat"))
 		if has_perk("hall_of_fame") and int(Catalog.get_def(String(it["id"])).get("year", 9999)) < 1980:
@@ -1767,6 +1768,9 @@ func appraise() -> Dictionary:
 		if has_perk("golden_oldies") and it["kind"] == "record" and int(Catalog.get_def(String(it["id"])).get("year", 9999)) < 1970:
 			v *= 2.0
 			notes.append("%s x2" % perk_name("golden_oldies"))
+		if has_perk("saturday_morning") and ["toy", "prop", "poster"].has(String(it["kind"])) and int(Catalog.get_def(String(it["id"])).get("year", 9999)) < 1985:
+			v *= 2.0
+			notes.append("%s x2" % perk_name("saturday_morning"))
 		if it["kind"] == "coin" and has_perk("gold_bug") and String(Catalog.get_def(String(it["id"])).get("metal", "")) == "gold":
 			v *= 2.0
 			notes.append("Gold Bug x2")
@@ -1822,7 +1826,7 @@ func appraise() -> Dictionary:
 			if k.has("console") and k.has("game") and k.has("acc"):
 				times *= 1.5
 				bonuses.append({"label": "%s Full Setup" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
-			elif (k.has("card") and k.has("pack") or k.has("scard") and k.has("wax") or k.has("comic") and k.has("longbox") or k.has("book") and k.has("booklot") or k.has("record") and k.has("crate")) and n >= 3:
+			elif (k.has("card") and k.has("pack") or k.has("scard") and k.has("wax") or k.has("comic") and k.has("longbox") or k.has("book") and k.has("booklot") or k.has("record") and k.has("crate") or k.has("toybox") and k.size() >= 2) and n >= 3:
 				times *= 1.5
 				bonuses.append({"label": "%s Singles + Sealed" % Catalog.platform(p)["short"], "add": 0.0, "times": 1.5})
 			elif k.has("coin"):
@@ -1844,7 +1848,10 @@ func appraise() -> Dictionary:
 	var keys := 0
 	var debuts := 0
 	var singles := 0
+	var screens := 0
 	for it in shelf:
+		if (it["tags"] as Array).has("screen"):
+			screens += 1
 		if (it["tags"] as Array).has("single"):
 			singles += 1
 		if (it["tags"] as Array).has("debut"):
@@ -1901,6 +1908,7 @@ func appraise() -> Dictionary:
 	_perk_add(bonuses, "key_issue", 0.3 * keys, "Key Issues")
 	_perk_add(bonuses, "debut_novel", 0.3 * debuts, "First Novels")
 	_perk_add(bonuses, "forty_five", 0.3 * singles, "45 Collector")
+	_perk_add(bonuses, "screen_used", 0.3 * screens, "Screen Used")
 	var sealed := calls.has("sealed_fate")
 	for b in bonuses:
 		if b.get("perk", false):
@@ -1939,6 +1947,7 @@ const WANT_KINDS := {
 	"comics": ["plat", "plat", "pack", "mint", "rare", "graded", "key", "vintage", "worth"],
 	"books": ["plat", "plat", "pack", "mint", "rare", "graded", "debut", "vintage", "worth"],
 	"vinyl": ["plat", "plat", "pack", "mint", "rare", "graded", "shiny", "single", "vintage", "worth"],
+	"pop": ["plat", "plat", "pack", "mint", "rare", "graded", "shiny", "screen", "vintage", "worth"],
 }
 
 
@@ -1963,7 +1972,7 @@ func _roll_want() -> void:
 			w["n"] = 1 if ante < 4 else 2
 		"acc":
 			w["n"] = 2 if ante < 5 else 3
-		"rookie", "key", "debut", "single":
+		"rookie", "key", "debut", "single", "screen":
 			w["n"] = 1 if ante < 4 else 2
 		"worth":
 			w["worth"] = maxi(20, int(round(target() * 0.22 / 5.0)) * 5)
@@ -2008,12 +2017,13 @@ func wants(item: Dictionary) -> bool:
 		"rare": return int(item["tier"]) >= 2
 		"graded": return int(item.get("grade", 0)) > 0
 		"acc": return String(item["kind"]) == "acc"
-		"pack": return ["pack", "wax", "longbox", "booklot", "crate"].has(String(item["kind"]))
+		"pack": return Catalog.LOT_KINDS.has(String(item["kind"]))
+		"screen": return (item.get("tags", []) as Array).has("screen")
 		"key": return (item.get("tags", []) as Array).has("key")
 		"debut": return (item.get("tags", []) as Array).has("debut")
 		"single": return (item.get("tags", []) as Array).has("single")
 		"rookie": return (item.get("tags", []) as Array).has("rc")
-		"vintage": return int(Catalog.get_def(String(item["id"])).get("year", 9999)) < {"books": 1900, "vinyl": 1970}.get(market, 1980)
+		"vintage": return int(Catalog.get_def(String(item["id"])).get("year", 9999)) < {"books": 1900, "vinyl": 1970, "pop": 1975}.get(market, 1980)
 		"shiny": return Catalog.SHINY.has(String(item.get("variant", "")))
 		"gold": return String(Catalog.get_def(String(item["id"])).get("metal", "")) == "gold"
 		"worth": return market_value(item) >= int(want["worth"])
@@ -2029,18 +2039,19 @@ func want_text() -> String:
 		"plat": return "%d %s pieces" % [n, Catalog.platform(String(want["plat"]))["short"]]
 		"setup": return "a console + a game for it"
 		"mint":
-			var words: String = {"sports": "Mint or Gem Mint", "comics": "Near Mint or Mint", "books": "Near Fine or Fine", "vinyl": "Near Mint or Sealed"}.get(market, "Mint or Sealed")
+			var words: String = {"sports": "Mint or Gem Mint", "comics": "Near Mint or Mint", "books": "Near Fine or Fine", "vinyl": "Near Mint or Sealed", "pop": "Mint in Box or Mint on Card"}.get(market, "Mint or Sealed")
 			return ("something %s" % words if n == 1 else "%d %s pieces" % [n, words])
 		"rare": return "anything Rare or better"
-		"graded": return {"books": "a graded book in a clamshell case", "vinyl": "a graded record in a slab"}.get(market, "a graded slab")
+		"graded": return {"books": "a graded book in a clamshell case", "vinyl": "a graded record in a slab", "pop": "a graded toy in an acrylic case"}.get(market, "a graded slab")
 		"acc": return "%d accessories" % n
-		"pack": return {"sports": "a sealed wax pack or box", "comics": "an unsorted longbox", "books": "a box lot of books", "vinyl": "a crate of records"}.get(market, "a sealed pack or box")
+		"pack": return {"sports": "a sealed wax pack or box", "comics": "an unsorted longbox", "books": "a box lot of books", "vinyl": "a crate of records", "pop": "a box lot (toy chest, prop crate, poster tube)"}.get(market, "a sealed pack or box")
 		"key": return "%d key issues" % n if n > 1 else "a key issue (a first appearance)"
 		"debut": return "%d authors' debuts" % n if n > 1 else "an author's first book"
+		"screen": return "%d screen-used props" % n if n > 1 else "a screen-used prop or costume"
 		"single": return "%d singles (45s, 78s or 12-inches)" % n if n > 1 else "a single (a 45, a 78 or a 12-inch)"
 		"rookie": return "%d rookie cards" % n if n > 1 else "a rookie card"
-		"vintage": return {"books": "a book from before 1900", "vinyl": "a record from before 1970", "comics": "a comic from before 1980"}.get(market, "a card from before 1980")
-		"shiny": return {"sports": "a refractor or parallel", "vinyl": "coloured vinyl or a picture disc"}.get(market, "a shiny card (holo / 1st Ed.)")
+		"vintage": return {"books": "a book from before 1900", "vinyl": "a record from before 1970", "comics": "a comic from before 1980", "pop": "a piece from before 1975"}.get(market, "a card from before 1980")
+		"shiny": return {"sports": "a refractor or parallel", "vinyl": "coloured vinyl or a picture disc", "pop": "a glow, chrome or foil variant"}.get(market, "a shiny card (holo / 1st Ed.)")
 		"gold": return "a gold coin"
 		"worth": return "one piece worth $%d+" % int(want["worth"])
 	return ""

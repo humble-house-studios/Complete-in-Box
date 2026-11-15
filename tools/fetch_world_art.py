@@ -142,10 +142,10 @@ def main():
                 data = get(url)
                 if data:
                     try:
-                        cover = getattr(conf, "COVER_ASPECT", 0.0)
+                        cover = getattr(conf, "COVER_ASPECT_KIND", {}).get(d["kind"], getattr(conf, "COVER_ASPECT", 0.0))
                         im = Image.open(io.BytesIO(data))
                         ar = im.size[0] / max(1, im.size[1])
-                        if cover > 0 and abs(ar - cover) < 0.12:
+                        if cover > 0 and abs(ar - cover) < getattr(conf, "COVER_TOLERANCE", 0.12):
                             # Shaped like the item's own cover: use it as the whole front.
                             rel = rel.replace("_photo.", "_scan.")
                             save(data, os.path.join(ROOT, rel), cover)
