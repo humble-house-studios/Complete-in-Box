@@ -102,6 +102,169 @@ static func _real_size(key: String, plat: String, item: Dictionary) -> float:
 
 static var _carts: Dictionary = {}
 
+## Real 3D models of loose hardware (test-only, assets/temp_test/models/hw_<form>.glb, made by
+## tools/fetch_hw_models.py from Creative Commons Sketchfab models). form -> [shell colour as
+## modelled (edition recolours are relative to it), real largest side in metres or 0 = platform size].
+const HW := {
+	"nes": [Color(0.8, 0.8, 0.8), 0.0], "famicom": [Color(0.8, 0.75, 0.65), 0.22], "snes": [Color(0.75, 0.75, 0.78), 0.0],
+	"sfc": [Color(0.8, 0.8, 0.8), 0.0], "n64": [Color(0.15, 0.15, 0.16), 0.0], "gamecube": [Color(0.38, 0.3, 0.75), 0.0],
+	"gb": [Color(0.75, 0.75, 0.72), 0.0], "gbc": [Color(0.6, 0.85, 0.15), 0.133], "gbasp": [Color(0.4, 0.45, 0.5), 0.0],
+	"psp": [Color(0.15, 0.5, 0.95), 0.0], "genesis": [Color(0.1, 0.1, 0.11), 0.0], "dreamcast": [Color(0.9, 0.9, 0.9), 0.0],
+	"ps1": [Color(0.8, 0.8, 0.82), 0.0], "ps2": [Color(0.1, 0.1, 0.11), 0.0], "ps2slim": [Color(0.1, 0.1, 0.11), 0.23],
+	"x360": [Color(0.1, 0.1, 0.11), 0.0], "a2600": [Color(0.15, 0.15, 0.15), 0.0], "dslite": [Color(0.1, 0.1, 0.11), 0.0],
+	"n64_pad": [Color(0.12, 0.12, 0.55), 0.16], "snes_pad": [Color(0.8, 0.8, 0.8), 0.135], "gc_pad": [Color(0.38, 0.3, 0.75), 0.15],
+	"ps2_pad": [Color(0.1, 0.1, 0.11), 0.157], "vmu": [Color(0.85, 0.85, 0.85), 0.08], "xbox_duke": [Color(0.1, 0.1, 0.11), 0.26],
+	"xbox_s": [Color(0.1, 0.1, 0.11), 0.17], "zapper": [Color(0.85, 0.15, 0.12), 0.24], "rob": [Color(0.85, 0.85, 0.8), 0.25],
+	"guitar": [Color(0.1, 0.1, 0.11), 0.7], "stick": [Color(0.15, 0.15, 0.18), 0.3], "ddr": [Color(0.4, 0.4, 0.45), 0.9],
+}
+## Default shell colour when the name gives none but the model's isn't right.
+const HW_DEFAULT := {"n64_pad": Color(0.55, 0.55, 0.58), "ps2_pad": Color(0.72, 0.72, 0.74)}
+
+
+## Which real model a loose console / accessory uses ("" = the built one).
+static func hw_form(item: Dictionary) -> String:
+	var id := String(item.get("id", ""))
+	var nm := String(item.get("name", ""))
+	var plat := String(item.get("plat", ""))
+	if String(item.get("kind", "")) == "console":
+		match plat:
+			"FES":
+				if nm.contains("(HVC-001)"):
+					return "famicom"
+				return "nes" if id == "fes_console" or nm.contains("Action Set") else ""
+			"SFES":
+				if nm.contains("SHVC-001"):
+					return "sfc"
+				return "snes" if id == "sfes_console" or nm.contains("Plumber Paint") else ""
+			"F64":
+				return "" if nm.contains("DeeDee") else "n64"
+			"FCUBE":
+				return "" if nm.contains("Player") or nm.contains("Panasonik") else "gamecube"
+			"PBOY":
+				return "gbc" if nm.contains("Color") else "gb"
+			"PBA":
+				return "gbasp" if nm.contains(" SP") else ""
+			"PSPK":
+				return "psp"
+			"GEN":
+				return "genesis" if id == "gen_console" else ""
+			"DC":
+				return "dreamcast"
+			"PST":
+				return "" if nm.contains("PocketStatia") or nm.contains("PST one") else "ps1"
+			"PST2":
+				return "ps2slim" if nm.contains("Slimline") else "ps2"
+			"XBX":
+				return "x360" if nm.contains("361") else ""
+			"A26":
+				return "" if nm.contains("Jr.") or nm.contains("Gemini") else "a2600"
+			"DUO":
+				return "dslite"
+		return ""
+	if String(item.get("kind", "")) != "acc":
+		return ""
+	if nm.contains("Dance Dance"):
+		return "ddr"
+	if nm.contains("Arcade Stick") or nm.contains("Advantage") or nm.contains("AES Controller"):
+		return "stick"
+	match plat:
+		"FES":
+			if nm.contains("Zapp"):
+				return "zapper"
+			if nm.contains("R.O.B.B."):
+				return "rob"
+		"SFES":
+			if id == "sfes_pad":
+				return "snes_pad"
+		"F64":
+			if id == "f64_pad" or (nm.contains("Controller") and not nm.contains("Pakk")):
+				return "n64_pad"
+		"FCUBE":
+			if nm.contains("WaveByrd"):
+				return "gc_pad"
+		"PST":
+			if id == "pst_dualpad" or nm.contains("Duel Analog"):
+				return "ps2_pad"
+		"PST2":
+			if nm.contains("Guitar"):
+				return "guitar"
+		"DC":
+			if id == "dc_vmd":
+				return "vmu"
+		"XBX":
+			if nm.contains("Duke") or nm.contains("Hallo Controller"):
+				return "xbox_duke"
+			if nm.contains("Controller S") or nm.contains("Crystal Controller"):
+				return "xbox_s"
+	return ""
+
+
+## Puts the real model in `model`; false if there's none (or the file is missing).
+static func _real_hw(model: Node3D, item: Dictionary, form: String) -> bool:
+	if form == "" or not ResourceLoader.exists("res://assets/temp_test/models/hw_%s.glb" % form):
+		return false
+	var m := Psx.prop("temp:hw_" + form)
+	model.add_child(m)
+	model.set_meta("hw", form)
+	var target: Color = name_color(item, Color(-1, 0, 0))[0]
+	var nm := String(item.get("name", ""))
+	if nm.contains("Jungle Green"):
+		target = Color(0.25, 0.65, 0.3)
+	if target.r < 0.0:
+		target = HW_DEFAULT.get(form, Color(-1, 0, 0))
+		if form == "x360" and not nm.contains("Elite"):
+			target = Color(0.9, 0.9, 0.9)
+	if target.r >= 0.0 and form != "famicom" and form != "sfc":
+		_hw_recolor(m, form, target)
+	return true
+
+
+## Recolours the shell (the surfaces as big as the biggest one) toward `target`:
+## plain surfaces take the colour, textured ones are multiplied (or replaced if too dark to tint).
+static func _hw_recolor(root: Node, form: String, target: Color) -> void:
+	var shell: Color = HW[form][0]
+	var surfs: Array = []
+	_surfaces(root, surfs)
+	var vols: Array = []
+	var best := 0.0
+	for e in surfs:
+		var mi: MeshInstance3D = e[0]
+		var a: Array = mi.mesh.surface_get_arrays(e[1])
+		var b := AABB()
+		var pts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		if pts.size() > 0:
+			b = AABB(pts[0], Vector3.ZERO)
+			for p in pts:
+				b = b.expand(p)
+		var v := maxf(b.size.x, 0.001) * maxf(b.size.y, 0.001) * maxf(b.size.z, 0.001)
+		vols.append(v)
+		best = maxf(best, v)
+	# Multiplying a texture only works toward a similar hue: else paint the shell flat.
+	var hue_gap := absf(wrapf(shell.h - target.h, -0.5, 0.5))
+	var flat := shell.get_luminance() < 0.18 or (shell.s > 0.3 and (hue_gap > 0.02 or target.s < 0.3))
+	for i in surfs.size():
+		if vols[i] < best * 0.4:
+			continue
+		var mat := (surfs[i][0] as MeshInstance3D).get_surface_override_material(surfs[i][1])
+		if not mat is ShaderMaterial:
+			continue
+		var sm := mat as ShaderMaterial
+		var textured: bool = sm.get_shader_parameter("use_tex") == true
+		if not textured or flat:
+			sm.set_shader_parameter("use_tex", false)
+			sm.set_shader_parameter("albedo", target)
+		else:
+			var k := Color(clampf(target.r / maxf(shell.r, 0.05), 0, 3), clampf(target.g / maxf(shell.g, 0.05), 0, 3), clampf(target.b / maxf(shell.b, 0.05), 0, 3))
+			sm.set_shader_parameter("albedo", k)
+
+
+static func _surfaces(n: Node, out: Array) -> void:
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		for i in (n as MeshInstance3D).mesh.get_surface_count():
+			out.append([n, i])
+	for c in n.get_children():
+		_surfaces(c, out)
+
 
 static func is_boxed(item: Dictionary) -> bool:
 	return ["CIB", "Mint", "Sealed"].has(String(item.get("cond", "Loose")))
@@ -153,13 +316,13 @@ static func build(item: Dictionary, label: Texture2D = null, boxed: int = -1) ->
 		if box:
 			_retail_box(model, Vector3(1.5, 1.0, 0.45), label, col, plat, false, item)
 			size_key = "console_box"
-		else:
+		elif not _real_hw(model, item, hw_form(item)):
 			_console(model, item, plat, label)
 	elif kind == "acc":
 		if box:
 			_retail_box(model, Vector3(0.9, 0.75, 0.24), label, col, plat, false, item)
 			size_key = "acc_box"
-		else:
+		elif not _real_hw(model, item, hw_form(item)):
 			_accessory(model, item, plat, col)
 	else:
 		_misc(model, String(item["id"]), label, col)
@@ -168,7 +331,10 @@ static func build(item: Dictionary, label: Texture2D = null, boxed: int = -1) ->
 		_seal(model)
 	var holder := Node3D.new()
 	holder.add_child(model)
-	_fit(model, _real_size(size_key, plat, item))
+	var real := _real_size(size_key, plat, item)
+	if model.has_meta("hw") and float(HW[model.get_meta("hw")][1]) > 0.0:
+		real = float(HW[model.get_meta("hw")][1])
+	_fit(model, real)
 	if cond == "Damaged":
 		model.rotation_degrees.z += 6.0
 		_tint(model, Color(0.7, 0.62, 0.55))

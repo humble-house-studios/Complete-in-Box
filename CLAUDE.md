@@ -97,6 +97,13 @@ New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won 
   `gen_catalog.py` / `gen_collectibles.py` add `scan` / `photo`; `BoxArt._scan` and `CCArt._card` draw them
   under the variant stickers. Wikipedia's API allows ~1 request / 30 s from cloud sessions: batch titles.
   These imports use lossy WebP (`compress/mode=1`) to keep the web build light.
+- Loose consoles + accessories real 3D models (test-only): `python3 tools/fetch_hw_models.py [FORM...]`.
+  Sketchfab CC models via the Objaverse mirror on Hugging Face (plain .glb, no Sketchfab token; `search "q"`
+  lists candidates). `tools/hw_models.json` = form -> uid, `keep`/`drop` mesh indices, `rot` (front = +Z);
+  `tools/bake_hw.gd` (`nodes` to pick parts, `bake`, `sheet`, `items` = every catalog item built by ItemModels)
+  strips all maps but colour, then glTF Transform shrinks to 256 px / simplified -> `assets/temp_test/models/hw_<form>.glb`.
+  `ItemModels.hw_form` maps items to forms, `HW` = shell colour + real size; edition colours recolour the shell
+  (`_hw_recolor`). Unmapped hardware keeps its built model.
 - Test-only sourced files live in `assets/temp_test/` (`MANIFEST.txt` = path | source). Poly Haven
   models: `python3 tools/grab_polyhaven.py <asset>` -> `Psx.prop("temp:<asset>", h)`; sounds
   `"temp:<name>"` in sfx.gd.

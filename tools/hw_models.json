@@ -1,0 +1,414 @@
+{
+ "nes": {
+  "uid": "08705418cda34bcb9ef7d1a4a504fd0f",
+  "name": "Free) Nintendo entertainment system console",
+  "by": "sungsung",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-098/08705418cda34bcb9ef7d1a4a504fd0f.glb",
+  "rot": [
+   0,
+   -90,
+   0
+  ],
+  "keep": [
+   18,
+   19,
+   20,
+   21,
+   22,
+   23
+  ]
+ },
+ "famicom": {
+  "uid": "c18c3608d42e4af59f92d5a14eae6be0",
+  "name": "Nintendo Famicom (photogrammetry test)",
+  "by": "bird219",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-157/c18c3608d42e4af59f92d5a14eae6be0.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "snes": {
+  "uid": "cb62a1ddd75841e0a6b143e53c9240bd",
+  "name": "Snes Console",
+  "by": "Druid_CZ",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-001/cb62a1ddd75841e0a6b143e53c9240bd.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "sfc": {
+  "uid": "d42c35b117974ade8842f0964f5fd59e",
+  "name": "Super nintendo",
+  "by": "so_O",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-034/d42c35b117974ade8842f0964f5fd59e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "n64": {
+  "uid": "816d53eca00e4f3192a8d23f62388472",
+  "name": "Nintendo 64",
+  "by": "Ethanboor",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-123/816d53eca00e4f3192a8d23f62388472.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "keep": [
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20
+  ]
+ },
+ "n64_pad": {
+  "uid": "816d53eca00e4f3192a8d23f62388472",
+  "name": "Nintendo 64",
+  "by": "Ethanboor",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-123/816d53eca00e4f3192a8d23f62388472.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "keep": [
+   0,
+   1,
+   4,
+   5,
+   6,
+   9,
+   10,
+   11,
+   12
+  ]
+ },
+ "gamecube": {
+  "uid": "187a584e3bff46c2aa1bd8a701211fb4",
+  "name": "GameCube console",
+  "by": "8723516",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-103/187a584e3bff46c2aa1bd8a701211fb4.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "gb": {
+  "uid": "ad2f6be906e948f793fe722bbae5d29c",
+  "name": "Nintendo Game Boy (Original 1989)",
+  "by": "lokeig",
+  "license": "CC Attribution-NonCommercial",
+  "objaverse": "glbs/000-015/ad2f6be906e948f793fe722bbae5d29c.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "keep": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21
+  ]
+ },
+ "gbc": {
+  "uid": "277998bca398436faaece92470d93372",
+  "name": "Game Boy Color",
+  "by": "pagesm",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-107/277998bca398436faaece92470d93372.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "gbasp": {
+  "uid": "e3a696cf32d24411bb9d53bef1814046",
+  "name": "Gameboy Advance SP",
+  "by": "Kreck",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-082/e3a696cf32d24411bb9d53bef1814046.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "psp": {
+  "uid": "9fe719bffd724f5b95a03e8875078f3c",
+  "name": "Sony PlayStation Portable",
+  "by": "Mraz3D",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-133/9fe719bffd724f5b95a03e8875078f3c.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "genesis": {
+  "uid": "d1487aa8b216490ba7c414b95531479e",
+  "name": "Sega_Genesis",
+  "by": "kaveshkoli3",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-075/d1487aa8b216490ba7c414b95531479e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "dreamcast": {
+  "uid": "3d8db0dd2a5d4d159ab1e09323b4dc44",
+  "name": "SEGA Dreamcast",
+  "by": "etrewartha",
+  "license": "CC Attribution-NonCommercial",
+  "objaverse": "glbs/000-127/3d8db0dd2a5d4d159ab1e09323b4dc44.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "ps1": {
+  "uid": "6934760427704b7c93d9a2db63d952c8",
+  "name": "Sony - Playstation 1",
+  "by": "rbuggie09",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-091/6934760427704b7c93d9a2db63d952c8.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "ps2": {
+  "uid": "99d0c0c7f024430ca1c6179a07d85ffa",
+  "name": "PlayStation 2",
+  "by": "temp0.crazy",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-039/99d0c0c7f024430ca1c6179a07d85ffa.glb",
+  "rot": [
+   0,
+   90,
+   0
+  ]
+ },
+ "ps2slim": {
+  "uid": "c9094975e93144ad9507306f2d970451",
+  "name": "PlayStation 2 Slim",
+  "by": "Alvaroxidis",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-092/c9094975e93144ad9507306f2d970451.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "x360": {
+  "uid": "49c0220fe1744b4ca2961abb7100bc3a",
+  "name": "XBOX 360",
+  "by": "etrewartha",
+  "license": "CC Attribution-NonCommercial",
+  "objaverse": "glbs/000-032/49c0220fe1744b4ca2961abb7100bc3a.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "a2600": {
+  "uid": "3c831c2ef3f54606893eae4d4c8a49dc",
+  "name": "Atari 2600",
+  "by": "Rafenn",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-102/3c831c2ef3f54606893eae4d4c8a49dc.glb",
+  "rot": [
+   0,
+   -90,
+   0
+  ]
+ },
+ "dslite": {
+  "uid": "ca529eb7208746e89b7a28fd2246659d",
+  "name": "Nintendo DS Lite",
+  "by": "Cianon",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-093/ca529eb7208746e89b7a28fd2246659d.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "snes_pad": {
+  "uid": "961d6215e3624c6eb861970acc953592",
+  "name": "Super Nintendo Controller",
+  "by": "Yanez-Designs",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-064/961d6215e3624c6eb861970acc953592.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "gc_pad": {
+  "uid": "21983501bac64993ac09cdc7936ffdf2",
+  "name": "Gamecube Controller",
+  "by": "CoryRichards",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-111/21983501bac64993ac09cdc7936ffdf2.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "ps2_pad": {
+  "uid": "9b0db71448a14907a6235c79bdce786a",
+  "name": "PS2 Controller",
+  "by": "rhcreations",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-090/9b0db71448a14907a6235c79bdce786a.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "vmu": {
+  "uid": "37cecdef437e4f72ba5a0e9dafdf6bd5",
+  "name": "Dreamcast vmu",
+  "by": "rkd.zone",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-092/37cecdef437e4f72ba5a0e9dafdf6bd5.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "xbox_duke": {
+  "uid": "c257486c35ad4fc28df4b466bcd27825",
+  "name": "Xbox Controller",
+  "by": "8723516",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-081/c257486c35ad4fc28df4b466bcd27825.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "xbox_s": {
+  "uid": "9887e6b0bf8e4edabbc3ed9e24aae2c1",
+  "name": "Game Controller",
+  "by": "tidominer",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-073/9887e6b0bf8e4edabbc3ed9e24aae2c1.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "zapper": {
+  "uid": "44dceff49a8b4397ac940a8fd470d471",
+  "name": "Nintendo Zapper Light Gun",
+  "by": "edcmwils",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-074/44dceff49a8b4397ac940a8fd470d471.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "rob": {
+  "uid": "ef7a624b67944a6ca158d3ea41bbe5c9",
+  "name": "Nintendo R.O.B. Robot",
+  "by": "rrrapid",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-090/ef7a624b67944a6ca158d3ea41bbe5c9.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "guitar": {
+  "uid": "bcac8f9f95a44008ad90f470326e5fca",
+  "name": "Guitar Hero Controller",
+  "by": "CamSear16",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-034/bcac8f9f95a44008ad90f470326e5fca.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "stick": {
+  "uid": "f802fa8051c643a2a4cd6995319a5715",
+  "name": "ARCADE STICK!",
+  "by": "xtello_98",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-051/f802fa8051c643a2a4cd6995319a5715.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "ddr": {
+  "uid": "be23c146009244df918834d7a28c7817",
+  "name": "Kapi DDR Pad",
+  "by": "Sayge478",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-056/be23c146009244df918834d7a28c7817.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ }
+}
