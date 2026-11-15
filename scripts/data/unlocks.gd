@@ -178,3 +178,96 @@ static func binder_rewards(owned: Dictionary) -> Dictionary:
 ## How many of a page you need for its stamp.
 static func page_need(total: int) -> int:
 	return int(ceil(float(total) * PAGE_SHARE))
+
+
+# ================================================================ collector rep
+
+## COLLECTOR REP: every run pays Rep, win or lose (Run.rep_earned), and each
+## rung of the ladder opens one more thing for every run after: perks, supplies,
+## landline deals, grab bags, rarer variants, and Home upgrades. Until a rung is
+## reached its thing is locked (rep_locks). Rungs are spaced so early runs each
+## open one or two, later ones take a couple of runs. A run started without
+## "locks" in its opts (bots, tests) has everything open.
+## kind: perk / supply / call / bag / variant (ids = variant names) / home
+## (id = a Home boost read by Run.home_bonus).
+const REP_LADDER := [
+	{"at": 5, "kind": "supply", "ids": ["spotlight"], "name": "Display Spotlight", "desc": "New supply at Home: +1 Mult at your next appraisal."},
+	{"at": 12, "kind": "perk", "ids": ["dollar_bin"], "name": "Dollar Bin Hero", "desc": "New perk: cheap finds appraise +$10."},
+	{"at": 20, "kind": "home", "ids": ["cash"], "name": "Rainy Day Jar", "desc": "Home: +$2 at the start of every run."},
+	{"at": 29, "kind": "call", "ids": ["bulk_buyer", "double_nothing"], "name": "New Callers", "desc": "Landline: Bulk Buyer and Double or Nothing can ring."},
+	{"at": 39, "kind": "variant", "ids": ["Misprint"], "name": "Misprints", "desc": "Factory misprints (x3.5 value) start turning up."},
+	{"at": 50, "kind": "perk", "ids": ["haggle_king", "hot_streak"], "name": "Haggle King + Hot Streak", "desc": "Two new perks join the shop."},
+	{"at": 62, "kind": "home", "ids": ["pocket"], "name": "Cargo Shorts", "desc": "Home: +1 pocket slot for supplies."},
+	{"at": 75, "kind": "supply", "ids": ["flyer"], "name": "Hype Flyer", "desc": "New supply: make a platform run HOT."},
+	{"at": 89, "kind": "bag", "ids": ["perks"], "name": "Dusty Crate", "desc": "New grab bag: two perks, keep one."},
+	{"at": 104, "kind": "perk", "ids": ["glass_case", "oddity_hunter"], "name": "Glass Case + Oddity Hunter", "desc": "Two new perks join the shop."},
+	{"at": 120, "kind": "home", "ids": ["start_supply"], "name": "Arlo's Thermos", "desc": "Home: start every run with an Energy Drink in your pocket."},
+	{"at": 137, "kind": "call", "ids": ["specialist", "condition_snob"], "name": "Picky Callers", "desc": "Landline: The Specialist and Condition Snob can ring."},
+	{"at": 155, "kind": "variant", "ids": ["Signed by Dev", "Signed by Artist", "Collector's Edition"], "name": "Signed + Collector's", "desc": "Signed copies and Collector's Editions turn up."},
+	{"at": 174, "kind": "home", "ids": ["supply_offer"], "name": "Second Spinner Rack", "desc": "Home: +1 supply on offer every visit."},
+	{"at": 194, "kind": "perk", "ids": ["time_capsule", "whale"], "name": "Time Capsule + Whale Watcher", "desc": "Two new perks join the shop."},
+	{"at": 215, "kind": "supply", "ids": ["copier"], "name": "Shady Copier", "desc": "New supply: copy a Common item."},
+	{"at": 237, "kind": "home", "ids": ["reroll"], "name": "Coupon Drawer", "desc": "Home: perk rerolls start $1 cheaper."},
+	{"at": 260, "kind": "perk", "ids": ["grader_buddy", "hype_beast"], "name": "Grader Buddy + Hype Beast", "desc": "Two new perks join the shop."},
+	{"at": 284, "kind": "call", "ids": ["sealed_fate"], "name": "Sealed Fate", "desc": "Landline: the Buyer's riskiest deal can ring."},
+	{"at": 309, "kind": "home", "ids": ["starter"], "name": "Arlo's Spare Key", "desc": "Home: +1 starter piece in every run."},
+	{"at": 335, "kind": "variant", "ids": ["Test Cart", "Prototype", "Playtest Card"], "name": "Prototypes", "desc": "Test carts, prototypes and playtest prints (x6-7) can turn up."},
+	{"at": 362, "kind": "home", "ids": ["perk_offer"], "name": "Fourth Card", "desc": "Home: the perk shop shows one more card."},
+	{"at": 390, "kind": "perk", "ids": ["cursed_cart"], "name": "Cursed Cartridge", "desc": "It hums at night. x2 Mult, -2 shelf."},
+	{"at": 420, "kind": "home", "ids": ["cash"], "name": "Arlo's Mattress Money", "desc": "Home: +$3 more at the start of every run."},
+]
+## How much each "cash" home rung pays, in ladder order.
+const REP_CASH := [2, 3]
+
+
+## Everything still locked at this much Rep: {"perks": [], "supplies": [],
+## "calls": [], "bags": [], "variants": [], "home": {boost: n}} (home = the
+## boosts already earned, not locked ones).
+static func rep_locks(rep: int) -> Dictionary:
+	var out := {"perks": [], "supplies": [], "calls": [], "bags": [], "variants": [], "home": {}}
+	var cash_i := 0
+	for r in REP_LADDER:
+		var have := rep >= int(r["at"])
+		var k := String(r["kind"])
+		if k == "home":
+			if have:
+				var h: Dictionary = out["home"]
+				for id in r["ids"]:
+					var add := 1
+					if String(id) == "cash":
+						add = int(REP_CASH[mini(cash_i, REP_CASH.size() - 1)])
+					h[String(id)] = int(h.get(String(id), 0)) + add
+			if "cash" in r["ids"]:
+				cash_i += 1
+			continue
+		if have:
+			continue
+		var key := String({"perk": "perks", "supply": "supplies", "call": "calls", "bag": "bags", "variant": "variants"}[k])
+		(out[key] as Array).append_array(r["ids"])
+	return out
+
+
+## How many rungs this much Rep has reached.
+static func rep_level(rep: int) -> int:
+	var n := 0
+	for r in REP_LADDER:
+		if rep >= int(r["at"]):
+			n += 1
+	return n
+
+
+## The next rung (or {} once the ladder is done).
+static func rep_next(rep: int) -> Dictionary:
+	for r in REP_LADDER:
+		if rep < int(r["at"]):
+			return r
+	return {}
+
+
+## The Rep where the current rung began (for progress bars).
+static func rep_floor(rep: int) -> int:
+	var f := 0
+	for r in REP_LADDER:
+		if rep >= int(r["at"]):
+			f = int(r["at"])
+	return f

@@ -451,9 +451,12 @@ static func variant_weights(def: Dictionary, ctx: Dictionary = {}) -> Dictionary
 	var tier := int(def.get("tier", 0))
 	var fam := String(platform(String(def.get("plat", "MISC"))).get("family", ""))
 	var slot := String(ctx.get("slot", ""))
+	var locked: Array = ctx.get("locked", [])
 	var out := {}
 	for k in VARIANTS:
 		if not (VARIANTS[k]["kinds"] as Array).has(kind):
+			continue
+		if locked.has(k):
 			continue
 		var w := float(VARIANTS[k]["w"])
 		match k:

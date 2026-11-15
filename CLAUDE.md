@@ -86,6 +86,18 @@ route tab (`_event_panel`), doorbell / knock sounds, diary reread (`_open_diary`
 New perks: Glass Case, Hot Streak, Dollar Bin Hero, Haggle King (grows with won haggles,
 `stats["haggles"]`), Oddity Hunter, Cursed Cartridge (x2 Mult, -2 shelf).
 
+## Collector Rep (every run unlocks something)
+Every run pays Rep, win or lose (`Run.rep_earned`: showed up, appraisals passed, antes,
+deals, wants, win + tier; numbers `Balance.REP_*`), saved as `rep` (old saves credited from
+`runs`/`wins`). `Unlocks.REP_LADDER` = 24 rungs that open perks, supplies, landline deals, the
+Dusty Crate bag, rare variants (Misprint, Signed, Prototype...) and Home boosts (start cash,
+pocket slot, start Energy Drink, extra supply/perk offer, cheaper rerolls, +1 starter).
+`Unlocks.rep_locks(rep)` -> `opts["locks"]` -> `Run.locks` (`rep_locked`, `home_bonus`,
+`perk_open`, `pocket_slots`; variants via `ctx["locked"]` in `Catalog.roll_variant`). No
+`locks` in opts = everything open, so bots/sim/tests are unchanged. Paid in `_pay_rep`
+(from `_record_loss` / `_record_win`), shown by `_rep_panel` on the loss + won screens; the
+whole ladder is `_open_rep_ladder` (UNLOCKS card on the title menu).
+
 ## Ten worlds (expansion in progress)
 - `scripts/data/worlds.gd` (preload as `Worlds`) = the registry: 10 worlds in unlock order
   (games, cards, sports, vinyl, comics, coins, watches, pop, books, art = "The Gallery"),

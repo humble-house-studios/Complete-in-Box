@@ -134,3 +134,15 @@ static func target(ante: int, stop: int) -> int:
 
 static func tier_weights(level: int) -> Array:
 	return TIER_WEIGHTS[clampi(level, 0, TIER_WEIGHTS.size() - 1)]
+
+
+# ---------------------------------------------------------------- collector rep
+## Rep paid at the end of every run (Run.rep_earned), win or lose. The ladder
+## it climbs is Unlocks.REP_LADDER.
+const REP_BASE := 5
+const REP_PER_PASS := 2
+const REP_PER_ANTE := 3
+const REP_DEALS_CAP := 6
+const REP_PER_WANT := 3
+const REP_WIN := 25
+const REP_PER_TIER := 6
