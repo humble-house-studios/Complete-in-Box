@@ -6811,7 +6811,7 @@ func _play_appraisal(res: Dictionary) -> void:
 	totals.add_child(_title_label("x", 30, MUTED))
 	totals.add_child(mbox)
 	score_box.add_child(totals)
-	var total_l := _title_label("= ?", 56 if not land else 40, INK)
+	var total_l := _title_label("= ?", 72 if not land else 50, INK)
 	total_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	score_box.add_child(total_l)
 	var bar := _target_bar(tgt)
@@ -6866,18 +6866,47 @@ func _play_appraisal(res: Dictionary) -> void:
 	await _wait(0.35)
 	var total := int(ap["total"])
 	var passed := bool(res["passed"])
+	# CHIPS x MULT: both boxes slam, then the score rolls up like a slot
+	# counter, filling the bar live; crossing the target notch rings out.
+	_sfx.play("stamp")
+	_punch(cbox, 1.25)
+	_punch(mbox, 1.25)
+	await _wait(0.2)
+	await _roll_total(total_l, bar, total, tgt)
 	total_l.text = "= " + _money(total)
 	_target_bar_fill(bar, total, tgt, passed)
 	total_l.add_theme_color_override("font_color", GOOD if passed else BAD)
 	_sfx.play("stamp")
 	_punch(total_l, 1.6)
+	# The verdict: a big stamp over everything, sized to how well it went.
+	var v_info := _verdict_info(total, tgt, passed)
+	var quote := Flavor.pick(Flavor.pass_lines(run.market) if passed else Flavor.fail_lines(run.market), run.ante * 3 + run.stop)
+	_verdict_banner(layer, v_info, quote)
+	var tier := int(v_info["tier"])
 	if passed:
 		_sfx.play("pass")
-		_stage.shake(0.5)
+		_stage.shake(0.5 + 0.2 * tier)
 		_coin_burst(layer, total_l)
+		if tier >= 1:
+			_flash(layer, v_info["col"])
+			_coin_burst(layer, cbox)
+			_coin_burst(layer, mbox)
+		if tier >= 2:
+			_coin_rain(layer, 40 + 40 * tier)
+		if tier >= 3:
+			_sfx.play("grail")
+			_sfx.play("win")
+	else:
+		_sfx.play("fail")
+		_stage.shake(1.4)
+		_flash(layer, BAD)
+	await _wait(1.1 + 0.25 * tier)
+	score_box.add_child(_appraisal_recap(ap, total, tgt, passed))
+	if passed:
 		var r: Dictionary = res["rewards"]
-		score_box.add_child(_label(Flavor.pick(Flavor.pass_lines(run.market), run.ante * 3 + run.stop), 16, FLAVOR_C, true))
-		score_box.add_child(_payday(r))
+		var pay := _payday(r)
+		score_box.add_child(pay)
+		await _roll_payday(pay, r)
 		if r.has("want"):
 			# The Buyer's request: a gold stamp and a chime on top of the payday.
 			await _wait(0.35)
@@ -6890,14 +6919,264 @@ func _play_appraisal(res: Dictionary) -> void:
 			_sfx.play("win")
 		btn_box.add_child(_mark_main(_button(label, _after_appraisal, STICKER, 28 if not land else 24, 96 if not land else 76)))
 	else:
-		_sfx.play("fail")
-		_stage.shake(1.4)
-		_flash(layer, BAD)
-		score_box.add_child(_label("No payday. %s" % Flavor.pick(Flavor.fail_lines(run.market), run.ante * 3 + run.stop), 18, BAD, true))
 		btn_box.add_child(_mark_main(_button("SEE RESULTS", _after_appraisal, BAD, 28 if not land else 24, 96 if not land else 76)))
 	_busy = false
 	if _pad:
 		_pad_focus.call_deferred(0)
+
+
+## Rolls "= $0" up to the score over ~1.6 s (easing out, so the last stretch
+## toward the target crawls), filling the bar as it goes. Crossing the target
+## notch pops the number green with a chime.
+func _roll_total(total_l: Label, bar: Control, total: int, tgt: int) -> void:
+	if fast or _skip or total <= 0:
+		return
+	var top := float(maxi(total, tgt)) * 1.15
+	var fill: ColorRect = bar.get_meta("fill")
+	var notch: ColorRect = bar.get_meta("notch")
+	var t0 := float(tgt) / maxf(top, 1.0)
+	notch.anchor_left = t0
+	notch.anchor_right = t0
+	fill.color = Color("4fa3ff")
+	var crossed := false
+	var steps := 28
+	for i in range(1, steps + 1):
+		if _skip or not is_inside_tree():
+			return
+		var t := float(i) / steps
+		var val := int(round(float(total) * (1.0 - pow(1.0 - t, 2.4))))
+		total_l.text = "= " + _money(val)
+		fill.anchor_right = float(val) / maxf(top, 1.0)
+		if not crossed and val >= tgt:
+			crossed = true
+			fill.color = GOOD
+			total_l.add_theme_color_override("font_color", GOOD)
+			_punch(total_l, 1.45)
+			_sfx.play("mult", 1.7)
+			_flash(notch.get_parent(), GOLD)
+		elif i % 2 == 0:
+			_punch(total_l, 1.08)
+		_sfx.play("tick", 0.9 + t * 1.1)
+		await get_tree().create_timer(0.035 + t * t * 0.07).timeout
+
+
+## How big the result was: word, colour and celebration tier (0..3).
+func _verdict_info(total: int, tgt: int, passed: bool) -> Dictionary:
+	var r := float(total) / maxf(1.0, float(tgt))
+	var pct := int(round(absf(r - 1.0) * 100.0))
+	if not passed:
+		var near := r >= 0.9
+		return {"word": "SO CLOSE..." if near else "SHORT!", "sub": "SHORT BY %s  (%d%% of target)" % [_money(tgt - total), int(r * 100.0)],
+			"col": BAD, "tier": 0}
+	var sub := "BEAT THE TARGET BY %s  (+%d%%)" % [_money(total - tgt), pct]
+	if run.phase == Run.Phase.WON:
+		return {"word": "CURSE\nBROKEN!", "sub": sub, "col": GOLD, "tier": 3}
+	if r >= 2.0:
+		return {"word": "JACKPOT!", "sub": "x%.1f THE TARGET" % r, "col": GOLD, "tier": 3}
+	if r >= 1.5:
+		return {"word": "HUGE HAUL!", "sub": sub, "col": STICKER, "tier": 2}
+	if r >= 1.2:
+		return {"word": "BIG WIN!", "sub": sub, "col": GOOD, "tier": 1}
+	if r < 1.05:
+		return {"word": "SQUEAKED BY!", "sub": sub, "col": GOOD, "tier": 0}
+	return {"word": "PASSED!", "sub": sub, "col": GOOD, "tier": 0}
+
+
+## A huge stamped word over the whole screen with spinning light rays, the
+## margin underneath and the appraiser's line; it fades itself out.
+func _verdict_banner(parent: Control, info: Dictionary, quote: String) -> void:
+	if fast:
+		return
+	var col: Color = info["col"]
+	var tier := int(info["tier"])
+	var land := is_landscape()
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(root)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.5)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dim)
+	var vs := get_viewport_rect().size
+	if bool(info.get("rays", true)) and col != BAD:
+		var rays := Control.new()
+		rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var rs := maxf(vs.x, vs.y) * 1.6
+		rays.size = Vector2(rs, rs)
+		rays.position = vs * 0.5 - rays.size * 0.5
+		rays.pivot_offset = rays.size * 0.5
+		var n := 12 + tier * 4
+		var rcol := Color(col, 0.16 + 0.05 * tier)
+		rays.draw.connect(func():
+			var c := rays.size * 0.5
+			var rad := rs * 0.5
+			for k in n:
+				var a0 := TAU * k / n
+				var a1 := a0 + TAU / n * 0.45
+				rays.draw_colored_polygon(PackedVector2Array([c, c + Vector2.from_angle(a0) * rad, c + Vector2.from_angle(a1) * rad]), rcol))
+		root.add_child(rays)
+		var spin := rays.create_tween().set_loops()
+		spin.tween_property(rays, "rotation", TAU, 14.0 - tier * 2.5).from(0.0)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(center)
+	var box := _vbox(10)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(box)
+	var w := _title_label(String(info["word"]), (112 if not land else 76) + tier * 10, col)
+	w.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	w.add_theme_constant_override("outline_size", 16)
+	box.add_child(w)
+	var sp := _pill(String(info["sub"]), col, 22 if not land else 18)
+	sp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(sp)
+	if quote != "":
+		var q := _label(quote, 18, FLAVOR_C, true)
+		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		q.custom_minimum_size.x = minf(620.0, vs.x - 48.0)
+		box.add_child(q)
+	await get_tree().process_frame
+	if not is_instance_valid(box):
+		return
+	box.pivot_offset = box.size * 0.5
+	box.scale = Vector2.ONE * 3.0
+	box.rotation = deg_to_rad(-7.0)
+	box.modulate.a = 0.0
+	var tw := box.create_tween().set_parallel(true)
+	tw.tween_property(box, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(box, "modulate:a", 1.0, 0.1)
+	tw.tween_property(box, "rotation", deg_to_rad(-4.0 if col != BAD else 3.0), 0.32)
+	if tier >= 2:
+		# The word throbs while it's up.
+		var pulse := w.create_tween().set_loops(4)
+		w.pivot_offset = w.size * 0.5
+		pulse.tween_property(w, "scale", Vector2.ONE * 1.08, 0.18).set_delay(0.3)
+		pulse.tween_property(w, "scale", Vector2.ONE, 0.18)
+	var out := root.create_tween()
+	out.tween_interval(1.5 + 0.35 * tier)
+	out.tween_property(root, "modulate:a", 0.0, 0.35)
+	out.tween_callback(root.queue_free)
+
+
+## WHAT HAPPENED: three plain lines on how the score came out.
+func _appraisal_recap(ap: Dictionary, total: int, tgt: int, passed: bool) -> Control:
+	var p := _panel(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.12), 2)
+	var v := _vbox(2)
+	p.add_child(v)
+	v.add_child(_label("WHAT HAPPENED", 15, MUTED))
+	var items: Array = ap["items"]
+	var chips := 0
+	var best: Dictionary = {}
+	for row in items:
+		chips += int(row["value"])
+		if best.is_empty() or int(row["value"]) > int(best["value"]):
+			best = row
+	var l1 := "%d item%s = %s in chips." % [items.size(), "" if items.size() == 1 else "s", _money(chips)]
+	if not best.is_empty():
+		l1 += " Best: %s (+%s)." % [String(best["name"]), _money(int(best["value"]))]
+	v.add_child(_label(l1, 16, Color("8cc4ff"), true))
+	var mult := float(ap["mult"])
+	var bonuses: Array = ap["bonuses"]
+	var l2 := "No sets or perks, so Mult stayed x1."
+	if not bonuses.is_empty():
+		var top: Dictionary = bonuses[0]
+		for b in bonuses:
+			var score := maxf(float(b.get("add", 0.0)), (float(b.get("times", 1.0)) - 1.0) * 2.0)
+			var tops := maxf(float(top.get("add", 0.0)), (float(top.get("times", 1.0)) - 1.0) * 2.0)
+			if score > tops:
+				top = b
+		l2 = "Mult x%.2f from %d bonus%s, biggest: %s." % [mult, bonuses.size(), "" if bonuses.size() == 1 else "es", String(top["label"])]
+	v.add_child(_label(l2, 16, Color("ff8fa6"), true))
+	var l3: String
+	if passed:
+		l3 = "%s x %.2f = %s, target %s. Beat it by %s." % [_money(chips), mult, _money(total), _money(tgt), _money(total - tgt)]
+	else:
+		var need := int(ceil(float(tgt - total) / maxf(mult, 0.01)))
+		l3 = "%s x %.2f = %s, target %s. One more piece worth about %s would have done it." % [_money(chips), mult, _money(total), _money(tgt), _money(need)]
+	v.add_child(_label(l3, 16, GOOD if passed else BAD, true))
+	return p
+
+
+## Counts the payday and wallet up with coin clinks.
+func _roll_payday(pay: Control, r: Dictionary) -> void:
+	var pl: Label = pay.get_meta("pay")
+	var wl: Label = pay.get_meta("wallet")
+	var amt := int(r["total"])
+	var before := run.cash - amt
+	if fast or _skip or amt <= 0:
+		return
+	var steps := 14
+	for i in range(1, steps + 1):
+		if _skip or not is_inside_tree():
+			break
+		var t := float(i) / steps
+		var a := int(round(amt * t))
+		pl.text = "+" + _money(a)
+		wl.text = "%s  >  %s" % [_money(before), _money(before + a)]
+		if i % 3 == 0:
+			_sfx.play("coin", 0.9 + t * 0.4)
+		await get_tree().create_timer(0.04).timeout
+	pl.text = "+" + _money(amt)
+	wl.text = "%s  >  %s" % [_money(before), _money(run.cash)]
+	_punch(pl, 1.4)
+	_punch(wl, 1.2)
+
+
+## Gold coins falling from the top of the screen (big wins).
+func _coin_rain(parent: Control, amount: int) -> void:
+	if fast:
+		return
+	var vs := get_viewport_rect().size
+	var p := CPUParticles2D.new()
+	p.amount = amount
+	p.one_shot = true
+	p.explosiveness = 0.25
+	p.lifetime = 2.4
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(vs.x * 0.5, 8)
+	p.direction = Vector2(0, 1)
+	p.spread = 15.0
+	p.initial_velocity_min = 150.0
+	p.initial_velocity_max = 350.0
+	p.gravity = Vector2(0, 700)
+	p.scale_amount_min = 0.9
+	p.scale_amount_max = 1.6
+	p.angular_velocity_min = -300.0
+	p.angular_velocity_max = 300.0
+	p.texture = _coin_tex()
+	var g := Gradient.new()
+	g.set_color(0, GOLD)
+	g.set_color(1, Color("ffe27a"))
+	p.color_initial_ramp = g
+	parent.add_child(p)
+	p.position = Vector2(vs.x * 0.5, -20)
+	p.emitting = true
+	get_tree().create_timer(3.2).timeout.connect(p.queue_free)
+
+
+var _coin_tex_cache: Texture2D = null
+
+
+## A small round coin with a darker rim, for particles.
+func _coin_tex() -> Texture2D:
+	if _coin_tex_cache != null:
+		return _coin_tex_cache
+	var gt := GradientTexture2D.new()
+	gt.width = 16
+	gt.height = 16
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.62, 0.78, 0.86, 0.9])
+	g.colors = PackedColorArray([Color(1, 1, 1), Color(1, 1, 1), Color(0.7, 0.6, 0.45), Color(0.7, 0.6, 0.45), Color(1, 1, 1, 0)])
+	gt.gradient = g
+	_coin_tex_cache = gt
+	return gt
 
 
 ## PAYDAY: the cash you actually get for passing, kept apart from the score.
@@ -6908,7 +7187,9 @@ func _payday(r: Dictionary) -> Control:
 	var h := _hbox(8)
 	h.add_child(_title_label("PAYDAY", 28, GOOD))
 	h.add_child(_spacer(false))
-	h.add_child(_title_label("+" + _money(int(r["total"])), 28, GOOD))
+	var pl := _title_label("+" + _money(int(r["total"])), 28, GOOD)
+	h.add_child(pl)
+	p.set_meta("pay", pl)
 	v.add_child(h)
 	var parts: Array = ["stop pay %s" % _money(int(r["base"])), "interest %s" % _money(int(r["interest"])), "leftover Time %s" % _money(int(r["time"]))]
 	if r.has("want"):
@@ -6919,7 +7200,9 @@ func _payday(r: Dictionary) -> Control:
 	var w := _hbox(8)
 	w.add_child(_label("WALLET", 18, GOLD))
 	w.add_child(_spacer(false))
-	w.add_child(_title_label("%s  >  %s" % [_money(run.cash - int(r["total"])), _money(run.cash)], 24, GOLD))
+	var wl := _title_label("%s  >  %s" % [_money(run.cash - int(r["total"])), _money(run.cash)], 24, GOLD)
+	w.add_child(wl)
+	p.set_meta("wallet", wl)
 	v.add_child(w)
 	return p
 
@@ -6938,13 +7221,13 @@ func _step_label(num: String, text: String, col: Color) -> Control:
 ## A Balatro-style counter box: small caption over a big number (meta "num").
 func _score_chip(cap: String, col: Color) -> PanelContainer:
 	var p := _panel(col.darkened(0.55), col, 3)
-	p.custom_minimum_size.x = 150
+	p.custom_minimum_size.x = 170
 	var v := _vbox(-4)
 	p.add_child(v)
 	var c := _label(cap, 14, col.lightened(0.3))
 	c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(c)
-	var n := _title_label("", 38, INK)
+	var n := _title_label("", 44, INK)
 	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(n)
 	p.set_meta("num", n)
