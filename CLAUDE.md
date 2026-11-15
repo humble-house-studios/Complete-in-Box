@@ -307,8 +307,8 @@ The web build in Safari is the test for every platform.
   panel (`_side_stick`: first push hops the highlight there, then smooth scroll with
   the highlight following, stepping where it can't scroll). Phones / popups: LEFT stick
   moves the highlight (`_stick_nav`), RIGHT stick scrolls the list it's in. Axes are read from any pad (`_axis`); stick scrolling
-  eases in and glides to a stop (`_glide`). Item card: either stick left/right turns
-  the model, up/down scrolls the info.
+  eases in and glides to a stop (`_glide`). Item card: LEFT stick only turns the model
+  (full 360 tumble, `_spin_by`; drag does the same), RIGHT stick only scrolls the info.
   Godot's ui_* stick events are removed at startup so the sticks are ours.
   Text is bigger in landscape (`FONT_SCALE` 1.36, `_fsz` floor of 15),
   Start skips the intro or starts a run. Pad mode shows a cyan focus frame,
