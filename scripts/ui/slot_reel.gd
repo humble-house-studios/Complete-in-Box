@@ -8,12 +8,12 @@ extends Control
 ## the tier colour, then fades to show the card.
 ## The mini cards copy the play cards: ink outline, cream border (silver for
 ## rare, gold for grail), platform-coloured striped face, tier-framed art
-## window with the tier's symbol, corner indices and a parchment name plate.
+## window (a burst of light with the tier's faceted gems: 1 for common up to
+## 4 for grail, drawn like the cards' tier gems), corner indices and a
+## parchment name plate.
 ## Drawn in _draw (no child nodes) so a whole table of reels stays cheap.
 ## No class_name (TV self-update): preload("res://scripts/ui/slot_reel.gd").
 
-const Subjects := preload("res://scripts/gfx/subjects.gd")
-const SYMS := ["coin", "glowing_star", "gem_stone", "crown"]
 const NAMES := ["COMMON", "UNCOMMON", "RARE!", "GRAIL!!"]
 const SHORT := ["COMMON", "UNCOMMON", "RARE", "GRAIL"]
 const HOLD := [0.3, 0.4, 0.7, 1.2]
@@ -43,7 +43,6 @@ var _hold := 0.0
 var _fade := 1.0
 var _flash := 0.0
 var _cards: Array = []  # [tier, edge colour]
-var _tex: Array = []
 var _font: Font
 
 
@@ -51,20 +50,11 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	clip_contents = true
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for k in SYMS:
-		_tex.append(_load(k))
 	_font = load("res://assets/fonts/cover/Bangers-Regular.ttf")
 	_deal()
 	for c in reveal:
 		if is_instance_valid(c):
 			(c as CanvasItem).modulate.a = 0.0
-
-
-func _load(k: String) -> Texture2D:
-	var list: Array = Subjects.SPRITES.get(k, [])
-	if list.is_empty():
-		return null
-	return CoverComp.tex(String(list[0]))
 
 
 ## Deal the strip from the odds. The landing card is the real tier; the one
@@ -305,13 +295,7 @@ func _mini_card(r: Rect2, t: int, edge: Color, a: float, blur: float, win: bool,
 	var art := Rect2(face.position + Vector2(face.size.x * 0.16, face.size.y * 0.2), Vector2(face.size.x * 0.68, face.size.y * 0.5))
 	_rrect(art.grow(3 * u), 6 * u, Color(tc if t >= 1 else Color(1, 1, 1, 0.45), a))
 	_rrect(art, 4 * u, Color(0.05, 0.04, 0.08, a))
-	var wash: float = [0.1, 0.22, 0.36, 0.5][t]
-	for k in 4:
-		draw_rect(Rect2(art.position.x, art.position.y + art.size.y * k / 4.0, art.size.x, art.size.y / 4.0 + 1), Color(tc, wash * (k + 1) / 4.0 * a))
-	var tex: Texture2D = _tex[t] if t < _tex.size() else null
-	if tex != null:
-		var s := minf(art.size.x, art.size.y) * (0.84 if t >= 2 else 0.7)
-		draw_texture_rect(tex, Rect2(art.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)), false, Color(1, 1, 1, a))
+	_tier_art(art, t, tc, a, u)
 	# Parchment name plate.
 	var nb := Rect2(face.position.x + 6 * u, art.end.y + 8 * u, face.size.x - 12 * u, face.end.y - art.end.y - 14 * u)
 	_rrect(nb, 4 * u, Color(Color("efe2c0"), a))
@@ -335,6 +319,83 @@ func _mini_card(r: Rect2, t: int, edge: Color, a: float, blur: float, win: bool,
 	# Darken cards rolling away round the drum (and the losers once it lands).
 	if shade > 0.01:
 		_rrect(r, 10 * u, Color(0.04, 0.02, 0.07, clampf(shade, 0.0, 0.85) * a))
+
+
+## Gem layouts in the art window (unit offsets from the centre, size scale).
+const GEM_SPOTS := [
+	[[Vector2(0, 0), 1.0]],
+	[[Vector2(-0.24, 0.04), 0.8], [Vector2(0.24, -0.04), 0.8]],
+	[[Vector2(0, -0.12), 0.8], [Vector2(-0.27, 0.16), 0.66], [Vector2(0.27, 0.16), 0.66]],
+	[[Vector2(0, -0.04), 1.0], [Vector2(-0.31, 0.12), 0.6], [Vector2(0.31, 0.12), 0.6], [Vector2(0, 0.3), 0.5]],
+]
+
+
+## The art window: a dark well with a burst of light in the tier colour and
+## the tier's gems, cut and lit like the play cards' tier gems.
+func _tier_art(art: Rect2, t: int, tc: Color, a: float, u: float) -> void:
+	var c := art.get_center()
+	var m := minf(art.size.x, art.size.y)
+	# Soft glow bands from the bottom up.
+	var wash: float = [0.12, 0.2, 0.3, 0.42][t]
+	for k in 4:
+		draw_rect(Rect2(art.position.x, art.position.y + art.size.y * k / 4.0, art.size.x, art.size.y / 4.0 + 1), Color(tc, wash * (k + 1) / 4.0 * a))
+	# Sunburst rays (kept inside the window), turning slowly on rares up.
+	var spin := Time.get_ticks_msec() * 0.0006 if t >= 2 else 0.0
+	var rays := 8 + t * 2
+	var rl := m * 0.5
+	for k in rays:
+		var ang := spin + TAU * k / rays
+		var hw := PI / rays * 0.45
+		draw_colored_polygon(PackedVector2Array([c, c + Vector2(cos(ang - hw), sin(ang - hw)) * rl, c + Vector2(cos(ang + hw), sin(ang + hw)) * rl]), Color(tc.lightened(0.3), (0.1 + 0.05 * t) * a))
+	# Halo under the gems.
+	for k in 3:
+		draw_circle(c, m * (0.34 - k * 0.08), Color(tc.lightened(0.2), (0.08 + 0.04 * t) * a))
+	var s := m * 0.4
+	for g in GEM_SPOTS[t]:
+		_big_gem(c + (g[0] as Vector2) * m, s * float(g[1]), tc if t > 0 else Color("d8d2c4"), a)
+	# Twinkles on rares and grails.
+	if t >= 2:
+		var tw := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.008)
+		_twinkle(c + Vector2(m * 0.36, -m * 0.3), m * 0.09 * (0.6 + 0.4 * tw), a)
+		if t == 3:
+			_twinkle(c + Vector2(-m * 0.38, -m * 0.22), m * 0.07 * (1.0 - 0.4 * tw), a)
+			_twinkle(c + Vector2(m * 0.34, m * 0.36), m * 0.06 * (0.6 + 0.4 * tw), a)
+
+
+## A big faceted gem: ink rim, coloured body, lit crown facet, dark pavilion,
+## a white glint. Same cut as the play cards' tier gems, just larger.
+func _big_gem(c: Vector2, s: float, col: Color, a: float) -> void:
+	var top := c + Vector2(0, -s * 0.62)
+	var rt := c + Vector2(s * 0.5, -s * 0.12)
+	var bot := c + Vector2(0, s * 0.62)
+	var lt := c + Vector2(-s * 0.5, -s * 0.12)
+	var tl := c + Vector2(-s * 0.26, -s * 0.5)
+	var tr := c + Vector2(s * 0.26, -s * 0.5)
+	var body := PackedVector2Array([tl, tr, rt, bot, lt])
+	# Drop shadow + ink rim.
+	var sh := PackedVector2Array()
+	var rim := PackedVector2Array()
+	for p in body:
+		sh.append(p + (p - c) * 0.18 + Vector2(s * 0.06, s * 0.1))
+		rim.append(p + (p - c) * 0.18)
+	draw_colored_polygon(sh, Color(0, 0, 0, 0.4 * a))
+	draw_colored_polygon(rim, Color(INK, a))
+	draw_colored_polygon(body, Color(col, a))
+	# Table (top band), lit; pavilion halves, one in shade.
+	var mid_l := c + Vector2(-s * 0.16, -s * 0.12)
+	var mid_r := c + Vector2(s * 0.16, -s * 0.12)
+	draw_colored_polygon(PackedVector2Array([tl, tr, mid_r, mid_l]), Color(col.lightened(0.5), a))
+	draw_colored_polygon(PackedVector2Array([tl, mid_l, lt]), Color(col.lightened(0.25), a))
+	draw_colored_polygon(PackedVector2Array([tr, rt, mid_r]), Color(col.darkened(0.1), a))
+	draw_colored_polygon(PackedVector2Array([mid_r, rt, bot]), Color(col.darkened(0.35), a))
+	draw_colored_polygon(PackedVector2Array([mid_l, mid_r, bot]), Color(col.darkened(0.12), a))
+	# Glint.
+	var gp := tl.lerp(mid_l, 0.5) + Vector2(s * 0.04, 0)
+	draw_rect(Rect2(gp - Vector2(s, s) * 0.06, Vector2(s, s) * 0.12), Color(1, 1, 1, 0.9 * a))
+
+
+func _twinkle(c: Vector2, r: float, a: float) -> void:
+	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.22, -r * 0.22), c + Vector2(r, 0), c + Vector2(r * 0.22, r * 0.22), c + Vector2(0, r), c + Vector2(-r * 0.22, r * 0.22), c + Vector2(-r, 0), c + Vector2(-r * 0.22, -r * 0.22)]), Color(1, 1, 0.9, 0.9 * a))
 
 
 func _gem(c: Vector2, s: float, col: Color, a: float) -> void:
