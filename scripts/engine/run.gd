@@ -104,6 +104,10 @@ var open_worlds: Array = []
 var start_world: String = "games"
 var tier: int = 0
 var unlocked_perks: Array = []
+## Collector Rep locks for this run (Unlocks.rep_locks): perks / supplies /
+## calls / bags / variants still locked, and "home" = earned Home boosts.
+## Empty = everything open (bots, tests).
+var locks: Dictionary = {}
 var last_rewards: Dictionary = {}
 var stats := {"bought": 0, "sold": 0, "best_flip": 0, "best_flip_name": "", "best_appraisal": 0, "profit": 0}
 
@@ -139,6 +143,8 @@ func start(p_seed: int = 0, opts: Dictionary = {}) -> void:
 		open_worlds.append(market)
 	tier = clampi(int(opts.get("tier", 0)), 0, Unlocks.TIERS.size() - 1)
 	unlocked_perks = (opts.get("perks_unlocked", []) as Array).duplicate()
+	locks = (opts.get("locks", {}) as Dictionary).duplicate(true)
+	cash += home_bonus("cash")
 	cash += int(est["cash"]) + int(opts.get("bonus_cash", 0)) - (10 if tier >= 2 else 0)
 	cash = maxi(cash, 5)
 	shelf_cap += int(est["shelf"]) + int(opts.get("bonus_shelf", 0)) - (1 if tier >= 4 else 0)
@@ -148,7 +154,9 @@ func start(p_seed: int = 0, opts: Dictionary = {}) -> void:
 		perks.append(String(pid))
 		_perk_shelf(String(pid), 1)
 	_pick_active_platforms()
-	var n_start := int(est["starters"]) if opts.has("estate") else Balance.STARTER_ITEMS
+	var n_start := (int(est["starters"]) if opts.has("estate") else Balance.STARTER_ITEMS) + home_bonus("starter")
+	if home_bonus("start_supply") > 0:
+		supplies.append("energy")
 	for i in n_start:
 		var it := make_item(_pick_def(0), "Damaged" if i < int(est.get("damaged", 0)) else String(est["cond"]))
 		it["paid"] = 0
@@ -172,6 +180,49 @@ func make_item(def: Dictionary, cond: String) -> Dictionary:
 
 func has_perk(id: String) -> bool:
 	return perks.has(id)
+
+
+## A Home boost earned on the Collector Rep ladder (0 when not earned).
+func home_bonus(id: String) -> int:
+	return int((locks.get("home", {}) as Dictionary).get(id, 0))
+
+
+## Is this perk / supply / call / bag / variant still locked by Collector Rep?
+func rep_locked(kind: String, id: String) -> bool:
+	return (locks.get(kind, []) as Array).has(id)
+
+
+func pocket_slots() -> int:
+	return Balance.POCKET_SLOTS + home_bonus("pocket")
+
+
+## Variants this run can't roll yet, for Catalog.roll_variant's ctx.
+func _vlocked() -> Array:
+	return locks.get("variants", []) as Array
+
+
+## Collector Rep this run has earned so far: rows of [label, points] and the
+## total. Paid when the run ends, win or lose.
+func rep_earned() -> Dictionary:
+	var rows: Array = []
+	rows.append(["Showed up", Balance.REP_BASE])
+	var passed := stops_played - (1 if phase == Phase.OVER else 0)
+	if passed > 0:
+		rows.append([("%d appraisals passed" if passed != 1 else "%d appraisal passed") % passed, passed * Balance.REP_PER_PASS])
+	if ante > 1:
+		rows.append(["Reached ante %d" % ante, (ante - 1) * Balance.REP_PER_ANTE])
+	var deals := int(stats.get("bought", 0)) + int(stats.get("sold", 0))
+	var dp := mini(Balance.REP_DEALS_CAP, deals / 3)
+	if dp > 0:
+		rows.append(["%d deals made" % deals, dp])
+	if wants_done > 0:
+		rows.append(["%d wants filled" % wants_done, wants_done * Balance.REP_PER_WANT])
+	if phase == Phase.WON:
+		rows.append(["Paid off the Buyer", Balance.REP_WIN + Balance.REP_PER_TIER * tier])
+	var tot := 0
+	for r in rows:
+		tot += int(r[1])
+	return {"rows": rows, "total": tot}
 
 
 ## Tuning hook for tools/tune_worlds.gd: scales the current world's targets.
@@ -445,7 +496,7 @@ func roll_item(boost: int, cond_weights: Array, hunt: bool = false) -> Dictionar
 	if hunt and has_perk("eagle_eye") and rng.randf() < 0.25:
 		ci = mini(ci + 1, Catalog.CONDITIONS.size() - 1)
 	var it := make_item(def, Catalog.CONDITIONS[ci])
-	it["variant"] = Catalog.roll_variant(def, rng, {"slot": String(venue.get("slot", ""))})
+	it["variant"] = Catalog.roll_variant(def, rng, {"slot": String(venue.get("slot", "")), "locked": _vlocked()})
 	return it
 
 
@@ -532,7 +583,7 @@ func _prepare_home() -> void:
 			var i := rng.randi_range(0, rest.size() - 1)
 			venue_choices.insert(0, rest[i]["id"])
 			rest.remove_at(i)
-	reroll_cost = maxi(0, Balance.REROLL_START - reroll_discount)
+	reroll_cost = maxi(0, Balance.REROLL_START - reroll_discount - home_bonus("reroll"))
 	_roll_perk_offers()
 	var up: Dictionary = Perks.UPGRADES[rng.randi_range(0, Perks.UPGRADES.size() - 1)]
 	upgrade_offer = up.duplicate()
@@ -552,12 +603,17 @@ func _roll_home_extras() -> void:
 	supply_offers.clear()
 	var pool: Array = []
 	for sp in Perks.SUPPLIES:
-		pool.append(String(sp["id"]))
-	while supply_offers.size() < Balance.SUPPLY_OFFERS and not pool.is_empty():
+		if not rep_locked("supplies", String(sp["id"])):
+			pool.append(String(sp["id"]))
+	var bag_pool := pool.duplicate()
+	while supply_offers.size() < Balance.SUPPLY_OFFERS + home_bonus("supply_offer") and not pool.is_empty():
 		var i := rng.randi_range(0, pool.size() - 1)
 		supply_offers.append(pool[i])
 		pool.remove_at(i)
-	var bd: Dictionary = Perks.BAGS[_weighted([55, 30, 15])]
+	var bi := _weighted([55, 30, 15])
+	if rep_locked("bags", String(Perks.BAGS[bi]["id"])):
+		bi = 0
+	var bd: Dictionary = Perks.BAGS[bi]
 	var bag := bd.duplicate()
 	bag["open"] = false
 	var picks: Array = []
@@ -573,12 +629,12 @@ func _roll_home_extras() -> void:
 			bag["cost"] = maxi(3, int(round(float(vals[vals.size() / 2]) * Balance.BAG_RATE)))
 		"supplies":
 			for i in int(bd["picks"]):
-				picks.append(String(Perks.SUPPLIES[rng.randi_range(0, Perks.SUPPLIES.size() - 1)]["id"]))
+				picks.append(String(bag_pool[rng.randi_range(0, bag_pool.size() - 1)]))
 		"perks":
 			var pp: Array = []
 			for p in Perks.LIST:
 				var pid := String(p["id"])
-				if not perks.has(pid) and not perk_offers.has(pid) and perk_fits(pid) and (not p.has("lock") or unlocked_perks.has(pid)):
+				if not perks.has(pid) and not perk_offers.has(pid) and perk_fits(pid) and perk_open(pid):
 					pp.append(pid)
 			while picks.size() < int(bd["picks"]) and not pp.is_empty():
 				var i := rng.randi_range(0, pp.size() - 1)
@@ -596,7 +652,7 @@ func _roll_home_extras() -> void:
 func buy_supply(id: String) -> Dictionary:
 	if phase != Phase.HOME or not supply_offers.has(id):
 		return _fail("Not on offer.")
-	if supplies.size() >= Balance.POCKET_SLOTS:
+	if supplies.size() >= pocket_slots():
 		return _fail("Pockets full. Use one first.")
 	var d := Perks.supply(id)
 	var cost := int(d["cost"])
@@ -752,7 +808,7 @@ func bag_pick(i: int) -> Dictionary:
 			stats["bought"] += 1
 			msg = "Kept %s." % it["name"]
 		"supplies":
-			if supplies.size() >= Balance.POCKET_SLOTS:
+			if supplies.size() >= pocket_slots():
 				return _fail("Pockets full. Use one first.")
 			supplies.append(String(picks[i]))
 			msg = "Pocketed %s." % Perks.supply(String(picks[i]))["name"]
@@ -767,13 +823,21 @@ func bag_pick(i: int) -> Dictionary:
 	return _ok(msg)
 
 
+## Can this perk show up in shops and bags (binder + Collector Rep locks)?
+func perk_open(pid: String) -> bool:
+	var p := Perks.get_def(pid)
+	if p.has("lock") and not unlocked_perks.has(pid):
+		return false
+	return not rep_locked("perks", pid)
+
+
 func _roll_perk_offers() -> void:
 	perk_offers.clear()
 	var pool: Array = []
 	for p in Perks.LIST:
-		if not perks.has(p["id"]) and perk_fits(String(p["id"])) and (not p.has("lock") or unlocked_perks.has(String(p["id"]))):
+		if not perks.has(p["id"]) and perk_fits(String(p["id"])) and perk_open(String(p["id"])):
 			pool.append(p["id"])
-	while perk_offers.size() < Balance.PERK_OFFERS and not pool.is_empty():
+	while perk_offers.size() < Balance.PERK_OFFERS + home_bonus("perk_offer") and not pool.is_empty():
 		var i := rng.randi_range(0, pool.size() - 1)
 		perk_offers.append(pool[i])
 		pool.remove_at(i)
@@ -989,7 +1053,7 @@ func open_pack(uid: int) -> Dictionary:
 			cands = pool.filter(func(d): return int(d["tier"]) == t)
 		var def: Dictionary = cands[rng.randi_range(0, cands.size() - 1)]
 		var it := make_item(def, Catalog.CONDITIONS[_weighted(Balance.PULL_COND)])
-		it["variant"] = Catalog.roll_variant(def, rng, {"slot": "shop"})
+		it["variant"] = Catalog.roll_variant(def, rng, {"slot": "shop", "locked": _vlocked()})
 		if String(pk.get("variant", "")) == "1st Edition" and Catalog.variant_weights(def).has("1st Edition"):
 			it["variant"] = "1st Edition"
 		it["paid"] = each
@@ -1589,6 +1653,8 @@ func _roll_call() -> void:
 		var id := String(c["id"])
 		if bool(c.get("once", false)) and calls.has(id):
 			continue
+		if rep_locked("calls", id):
+			continue
 		if (id == "specialist" or id == "collateral") and shelf.is_empty():
 			continue
 		if id == "sealed_fate" and perk_cap <= 1:
@@ -2075,7 +2141,7 @@ func _roll_event() -> void:
 		match k:
 			"box":
 				var it := roll_item(1, BOX_CONDS)
-				it["variant"] = Catalog.roll_variant(Catalog.get_def(String(it["id"])), rng, {"slot": "hunt"})
+				it["variant"] = Catalog.roll_variant(Catalog.get_def(String(it["id"])), rng, {"slot": "hunt", "locked": _vlocked()})
 				var price := maxi(2, int(round(market_value(it) * rng.randf_range(0.35, 1.15))))
 				if price <= cash:
 					event = {"id": "box", "item": it, "price": price}

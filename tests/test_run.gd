@@ -1017,3 +1017,65 @@ func test_buyers_mercy_slot_trims_the_shelf() -> void:
 	assert_true(r.take_mercy("slot")["ok"])
 	assert_eq(r.shelf_cap, cap - 1)
 	assert_true(r.slots_used() <= r.shelf_cap)
+
+
+func test_rep_ladder_locks_and_opens() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	var l0 := U.rep_locks(0)
+	assert_true((l0["perks"] as Array).has("dollar_bin"))
+	assert_true((l0["supplies"] as Array).has("spotlight"))
+	assert_true((l0["calls"] as Array).has("sealed_fate"))
+	assert_true((l0["variants"] as Array).has("Misprint"))
+	assert_true((l0["home"] as Dictionary).is_empty())
+	var top := int(U.REP_LADDER[-1]["at"])
+	var lt := U.rep_locks(top)
+	for k in ["perks", "supplies", "calls", "bags", "variants"]:
+		assert_true((lt[k] as Array).is_empty(), k + " all open at the top")
+	assert_eq(int(lt["home"]["cash"]), 5)
+	assert_eq(U.rep_level(top), U.REP_LADDER.size())
+	assert_true(U.rep_next(top).is_empty())
+	# Every id on the ladder is real.
+	for r in U.REP_LADDER:
+		for id in r["ids"]:
+			match String(r["kind"]):
+				"perk": assert_false(Perks.get_def(String(id)).is_empty(), id)
+				"supply": assert_false(Perks.supply(String(id)).is_empty(), id)
+				"call": assert_false(Perks.call_def(String(id)).is_empty(), id)
+				"variant": assert_true(Catalog.VARIANTS.has(String(id)), id)
+
+
+func test_rep_locks_keep_things_out_of_a_run() -> void:
+	var U := preload("res://scripts/data/unlocks.gd")
+	for sd in range(30):
+		var r := Run.new()
+		r.start(700 + sd, {"locks": U.rep_locks(0)})
+		for p in r.perk_offers:
+			assert_false(["dollar_bin", "haggle_king", "cursed_cart"].has(String(p)))
+		for sp in r.supply_offers:
+			assert_false(["spotlight", "flyer", "copier"].has(String(sp)))
+		if not r.bag_offer.is_empty():
+			assert_ne(String(r.bag_offer["id"]), "perks")
+	var lt := U.rep_locks(int(U.REP_LADDER[-1]["at"]))
+	var r2 := Run.new()
+	r2.start(77, {"locks": lt})
+	var r3 := Run.new()
+	r3.start(77)
+	assert_eq(r2.supply_offers.size(), Balance.SUPPLY_OFFERS + 1)
+	assert_eq(r2.perk_offers.size(), Balance.PERK_OFFERS + 1)
+	assert_eq(r2.pocket_slots(), Balance.POCKET_SLOTS + 1)
+	assert_eq(r2.cash, r3.cash + 5)
+	assert_true(r2.supplies.has("energy"))
+	assert_eq(r2.shelf.size(), r3.shelf.size() + 1)
+
+
+func test_every_run_earns_rep() -> void:
+	var r := Run.new()
+	r.start(5)
+	r.enter_venue(String(r.venue_choices[0]))
+	r.phase = Run.Phase.OVER
+	var e := r.rep_earned()
+	assert_true(int(e["total"]) >= Balance.REP_BASE, "even a first-stop loss pays")
+	var U := preload("res://scripts/data/unlocks.gd")
+	assert_true(int(e["total"]) >= int(U.REP_LADDER[0]["at"]), "and opens the first rung")
+	r.phase = Run.Phase.WON
+	assert_true(int(r.rep_earned()["total"]) > int(e["total"]) + Balance.REP_WIN - 1)

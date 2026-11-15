@@ -69,7 +69,9 @@ var _save := {"best_ante": 0, "best_appraisal": 0, "runs": 0, "wins": 0, "sound"
 	"won_arlo": -1, "won_june": -1, "won_dale": -1, "won_rose": -1, "won_hector": -1, "won_twins": -1,
 	"won_marv": -1, "won_elsa": -1, "won_iris": -1, "won_buyer": -1, "seal_world": 0,
 	# Most of the Buyer's want list filled in one run, and true endings seen.
-	"best_wants": 0, "true_ends": 0}
+	"best_wants": 0, "true_ends": 0,
+	# Collector Rep: earned every run, win or lose; climbs Unlocks.REP_LADDER.
+	"rep": 0}
 const Unlocks := preload("res://scripts/data/unlocks.gd")
 const Worlds := preload("res://scripts/data/worlds.gd")
 ## What the last win unlocked: {"freed": estate index or -1, "tier": new tier or -1}.
@@ -3835,6 +3837,11 @@ func _title_menu(land: bool) -> Control:
 	var chip := _vbox(2)
 	chip.add_child(_pill("WALL %d/%d" % [_coll_wall.size(), WALL_MAX], GOLD, 14))
 	v.add_child(_menu_card("collection", "COLLECTION", "%d of %d found  •  %d%%" % [found, total, int(100.0 * found / maxf(1.0, total))], Color("4f9fd9"), _open_collection, 84.0, false, chip))
+	var rp := int(_save["rep"])
+	var rnx := Unlocks.rep_next(rp)
+	var rchip := _pill("LV %d/%d" % [Unlocks.rep_level(rp), Unlocks.REP_LADDER.size()], Color("7fc8ff"), 14)
+	var rsub := "Every run unlocks more. All open." if rnx.is_empty() else "Next: %s in %d Rep" % [String(rnx["name"]), int(rnx["at"]) - rp]
+	v.add_child(_menu_card("trophy", "UNLOCKS", rsub, Color("2a6aa0"), _open_rep_ladder, 72.0, false, rchip))
 	var row := _hbox(8)
 	var th := 100.0 if not land else 92.0
 	row.add_child(_menu_tile("how_to", "HOW TO PLAY", _show_how_to, th))
@@ -3856,6 +3863,7 @@ func _records_card() -> Control:
 		h.add_child(_pill("WINS %d" % int(_save["wins"]), GOOD, 14))
 		if int(_save.get("best_wants", 0)) > 0:
 			h.add_child(_pill("WANTS %d/8" % int(_save["best_wants"]), Color("c9a227"), 14))
+
 	else:
 		h.add_child(_label("No runs yet. The vault is waiting.", 16, MUTED))
 	h.add_child(_spacer(false))
@@ -5552,7 +5560,7 @@ func _open_supply(id: String, owned: bool) -> void:
 	var d := Perks.supply(id)
 	var lines: Array = [[String(d["desc"]), INK]]
 	if not owned:
-		lines.append(["One use. You can carry %d. Pocket: %d/%d." % [Balance.POCKET_SLOTS, run.supplies.size(), Balance.POCKET_SLOTS], MUTED])
+		lines.append(["One use. You can carry %d. Pocket: %d/%d." % [run.pocket_slots(), run.supplies.size(), run.pocket_slots()], MUTED])
 		_open_sheet(String(d["name"]), lines, [
 			["Buy for %s" % _money(int(d["cost"])), func(): _act(run.buy_supply(id), "coin"), STICKER],
 		])
@@ -5645,7 +5653,7 @@ func _open_bag() -> void:
 			if run.free_slots() <= 0:
 				room = "Your shelf is full: make room, then come back. The box will wait."
 		"supplies":
-			if run.supplies.size() >= Balance.POCKET_SLOTS:
+			if run.supplies.size() >= run.pocket_slots():
 				room = "Your pockets are full: use a supply, then come back."
 		"perks":
 			if run.perks.size() >= run.perk_cap:
@@ -5681,7 +5689,7 @@ func _pocket_row(parent: Control, always: bool = false) -> void:
 	if run.supplies.is_empty() and fx.is_empty() and not always:
 		return
 	if always:
-		_section(parent, "YOUR POCKET %d/%d" % [run.supplies.size(), Balance.POCKET_SLOTS])
+		_section(parent, "YOUR POCKET %d/%d" % [run.supplies.size(), run.pocket_slots()])
 	if run.supplies.is_empty() and fx.is_empty():
 		parent.add_child(_label("Empty. Supplies are one-use tricks: carry them to a stop and use them when it counts.", 18, MUTED, true))
 		return
@@ -6159,8 +6167,9 @@ func _dev_unlock_all() -> void:
 		mask |= 1 << int(e["bit"])
 	_save["estates"] = mask
 	_save["max_tier"] = Unlocks.TIERS.size() - 1
+	_save["rep"] = maxi(int(_save["rep"]), int(Unlocks.REP_LADDER[-1]["at"]))
 	_write_save()
-	_toast_msg("Every estate, world and tier unlocked.", Color("b0a4ff"))
+	_toast_msg("Every estate, world, tier and Rep unlock opened.", Color("b0a4ff"))
 
 
 func _dev_ante() -> void:
@@ -6741,6 +6750,7 @@ func _record_loss() -> void:
 	if _loss_logged or run == null or run.phase != Run.Phase.OVER:
 		return
 	_loss_logged = true
+	_pay_rep()
 	var cg := run.curse_grade()
 	_save["sealed"] = int(_save["sealed"]) + 1
 	_save["seal_grade"] = int(round(float(cg["grade"]) * 10.0))
@@ -7594,12 +7604,14 @@ func _run_opts() -> Dictionary:
 	var br := Unlocks.binder_rewards(_coll_owned)
 	return {"estate": String(Unlocks.ESTATES[_pick_estate()]["id"]), "tier": _pick_tier(),
 		"world": _pick_world(), "worlds": _open_worlds(),
-		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"], "bonus_perk_slot": br["perk_slot"]}
+		"perks_unlocked": br["perks"], "bonus_cash": br["cash"], "bonus_shelf": br["shelf"], "bonus_perk_slot": br["perk_slot"],
+		"locks": Unlocks.rep_locks(int(_save["rep"]))}
 
 
 ## A win frees the next sealed collector and opens the next grade tier.
 func _record_win() -> void:
 	_won_news = {"freed": -1, "tier": -1}
+	_pay_rep()
 	var key := "won_" + run.estate_id
 	_save[key] = maxi(int(_save.get(key, -1)), run.tier)
 	if run.tier + 1 < Unlocks.TIERS.size() and run.tier + 1 > int(_save["max_tier"]):
@@ -8184,6 +8196,7 @@ func _build_over() -> void:
 	if run.can_mercy():
 		var mb := _mark_main(_button("THE PHONE IS RINGING...  ANSWER IT", _open_mercy, Color("7a2a2a"), 24, 96 if not land else 80))
 		col.add_child(mb)
+	_rep_panel(col)
 	_unfinished_business(col)
 	_end_stats(col)
 	_wall_pick_button(col)
@@ -8194,6 +8207,93 @@ func _build_over() -> void:
 	col.add_child(_button("TITLE", func():
 		_record_loss()
 		show_title(), PANEL_HI, 24, 88 if not land else 72))
+
+
+# ================================================================ collector rep
+## Every run pays Rep, win or lose; the ladder (Unlocks.REP_LADDER) opens perks,
+## supplies, calls, bags, variants and Home boosts for the runs after.
+
+var _rep_paid_seed := -1
+var _rep_paid_amt := 0
+var _rep_before := -1
+
+
+## Adds this run's Rep to the save (once per run; endless only pays the extra).
+func _pay_rep() -> void:
+	if run == null:
+		return
+	var earned := int(run.rep_earned()["total"])
+	var already := _rep_paid_amt if _rep_paid_seed == run.seed_value else 0
+	var add := maxi(0, earned - already)
+	_rep_before = int(_save["rep"])
+	_rep_paid_seed = run.seed_value
+	_rep_paid_amt = maxi(already, earned)
+	_save["rep"] = _rep_before + add
+
+
+## The end screens' Rep card: what this run paid, the bar to the next rung, and
+## anything that just unlocked.
+func _rep_panel(col: Container) -> void:
+	if run == null:
+		return
+	var er := run.rep_earned()
+	var paid := _rep_paid_seed == run.seed_value and _rep_before >= 0
+	var before := _rep_before if paid else int(_save["rep"])
+	var after := int(_save["rep"]) if paid else before + int(er["total"])
+	var blue := Color("7fc8ff")
+	var p := _panel(Color(0.04, 0.07, 0.11, 0.92), Color(blue, 0.7), 2)
+	var v := _vbox(6)
+	p.add_child(v)
+	var h := _hbox(8)
+	h.add_child(_label("COLLECTOR REP", 16, blue))
+	h.add_child(_spacer(false))
+	h.add_child(_pill("+%d REP" % (after - before), blue, 18, Color("0a1420")))
+	v.add_child(h)
+	var parts: Array = []
+	for r in er["rows"]:
+		parts.append("%s +%d" % [String(r[0]), int(r[1])])
+	v.add_child(_label("  •  ".join(parts), 16, MUTED, true))
+	var fresh: Array = []
+	for r in Unlocks.REP_LADDER:
+		if before < int(r["at"]) and after >= int(r["at"]):
+			fresh.append(r)
+	for r in fresh:
+		var row := _hbox(8)
+		row.add_child(_pill("UNLOCKED", GOOD, 15, Color("0a1a10")))
+		row.add_child(_label(String(r["name"]), 20, INK))
+		v.add_child(row)
+		v.add_child(_label(String(r["desc"]), 16, FLAVOR_C, true))
+	var nx := Unlocks.rep_next(after)
+	if nx.is_empty():
+		v.add_child(_label("Every Rep unlock is open. The Buyer is impressed. Almost.", 17, GOLD, true))
+	else:
+		var lo := Unlocks.rep_floor(after)
+		var bar := ProgressBar.new()
+		bar.show_percentage = false
+		bar.custom_minimum_size = Vector2(0, 12)
+		bar.max_value = 1.0
+		bar.value = clampf(float(after - lo) / maxf(1.0, float(int(nx["at"]) - lo)), 0.0, 1.0)
+		bar.add_theme_stylebox_override("background", _box(Color(1, 1, 1, 0.08), 4))
+		bar.add_theme_stylebox_override("fill", _box(blue, 4))
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(bar)
+		v.add_child(_label("NEXT: %s in %d Rep. %s" % [String(nx["name"]), int(nx["at"]) - after, String(nx["desc"])], 16, INK, true))
+	v.add_child(_button("SEE ALL UNLOCKS", _open_rep_ladder, Color("2a4a6a"), 18, 72))
+	col.add_child(p)
+
+
+## The whole ladder: what's open and what each rung still needs.
+func _open_rep_ladder() -> void:
+	var rep_now := int(_save["rep"])
+	var lines: Array = [["You have %d Rep (level %d of %d). Every run earns some, win or lose: passed appraisals, antes, deals, wants and wins." % [rep_now, Unlocks.rep_level(rep_now), Unlocks.REP_LADDER.size()], MUTED]]
+	for r in Unlocks.REP_LADDER:
+		var have := rep_now >= int(r["at"])
+		var kind := String({"perk": "PERK", "supply": "SUPPLY", "call": "LANDLINE", "bag": "GRAB BAG", "variant": "FINDS", "home": "HOME"}[String(r["kind"])])
+		if have:
+			lines.append(["OPEN  %s: %s. %s" % [kind, String(r["name"]), String(r["desc"])], GOOD])
+		else:
+			lines.append(["%d REP  %s: %s. %s" % [int(r["at"]), kind, String(r["name"]), String(r["desc"])], MUTED])
+	_open_sheet("COLLECTOR REP", lines, [])
 
 
 ## The loss screen's reasons to go again: how close it was, new records, the
@@ -8275,6 +8375,7 @@ func _build_won() -> void:
 		_ink_outline(hint)
 		col.add_child(hint)
 	_won_unlocks(col)
+	_rep_panel(col)
 	_end_stats(col)
 	col.add_child(_button("READ THE NEW MESSAGE", _open_letter.bind(-1), Color("1d3a26"), 22, 88 if not land else 72))
 	_wall_pick_button(col)
@@ -9414,8 +9515,12 @@ func _load_save() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(SAVE_PATH) != OK:
 		return
+	var had_rep := cf.has_section_key("best", "rep")
 	for k in _save.keys():
 		_save[k] = int(cf.get_value("best", k, _save[k]))
+	# Saves from before Collector Rep: credit the runs already played.
+	if not had_rep:
+		_save["rep"] = int(_save["runs"]) * 12 + int(_save["wins"]) * 50
 	# Ten worlds: the Pruitt Twins (TCG) are free from the start now.
 	_save["estates"] = int(_save["estates"]) | Unlocks.START_MASK
 	_save["save_ver"] = 2
