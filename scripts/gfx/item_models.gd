@@ -123,7 +123,14 @@ const HW := {
 	"pop_8ball": [Color(0.05, 0.05, 0.05), 0.1], "pop_lava": [Color(0.1, 0.1, 0.1), 0.4], "pop_viewmaster": [Color(0.6, 0.1, 0.1), 0.12],
 	"pop_potato": [Color(0.9, 0.6, 0.3), 0.15], "pop_goldengun": [Color(0.85, 0.65, 0.2), 0.2], "pop_batmobile": [Color(0.08, 0.08, 0.08), 0.5],
 	"pop_delorean": [Color(0.6, 0.6, 0.62), 0.5], "pop_db5": [Color(0.75, 0.75, 0.75), 0.5], "pop_sled": [Color(0.8, 0.55, 0.3), 0.6],
-	"pop_volleyball": [Color(0.9, 0.9, 0.9), 0.21], "pop_ears": [Color(0.05, 0.05, 0.05), 0.2], "pop_figure": [Color(0.2, 0.4, 0.15), 0.1],
+	"pop_volleyball": [Color(0.9, 0.9, 0.9), 0.21], "pop_ears": [Color(0.05, 0.05, 0.05), 0.2], "pop_saber2": [Color(0.7, 0.7, 0.72), 0.28],
+	"pop_boba": [Color(0.4, 0.5, 0.35), 0.095], "pop_jawa": [Color(0.4, 0.25, 0.15), 0.06], "pop_hero": [Color(0.85, 0.85, 0.85), 0.1],
+	"pop_optimus": [Color(0.8, 0.1, 0.1), 0.15], "pop_leo": [Color(0.4, 0.55, 0.25), 0.12], "pop_kirk": [Color(0.8, 0.7, 0.3), 0.2],
+	"pop_batman": [Color(0.1, 0.1, 0.1), 0.12], "pop_slimer": [Color(0.3, 0.45, 0.2), 0.1], "pop_vwbus": [Color(0.8, 0.1, 0.1), 0.075],
+	"pop_falcon": [Color(0.55, 0.55, 0.55), 0.6], "pop_doll": [Color(0.6, 0.6, 0.6), 0.29], "pop_oven": [Color(0.85, 0.25, 0.1), 0.3],
+	"pop_robby": [Color(0.3, 0.5, 0.6), 0.5], "pop_mannequin": [Color(0.1, 0.1, 0.1), 1.5], "pop_chair": [Color(0.1, 0.1, 0.1), 1.0],
+	"pop_proton": [Color(0.1, 0.1, 0.1), 0.5], "pop_gizmo": [Color(0.8, 0.7, 0.55), 0.2], "pop_hoverboard": [Color(0.9, 0.4, 0.6), 0.6],
+	"pop_cape": [Color(0.5, 0.15, 0.15), 0.5], "pop_tinbox": [Color(0.35, 0.45, 0.3), 0.2], "pop_petrock": [Color(0.5, 0.5, 0.45), 0.08],
 }
 ## Default shell colour when the name gives none but the model's isn't right.
 const HW_DEFAULT := {"n64_pad": Color(0.55, 0.55, 0.58), "ps2_pad": Color(0.72, 0.72, 0.74)}
@@ -1428,16 +1435,23 @@ static func _crate(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 static func pop_form(item: Dictionary) -> String:
 	var def := Catalog.get_def(String(item.get("id", "")))
 	var nm := String(def.get("name", item.get("name", "")))
-	var words := {"Beach Bomm": "pop_car", "Matchbocks": "pop_car", "Teddy": "pop_teddy", "Princess the Bear": "pop_teddy", "Tickle Me": "pop_teddy",
+	var words := {"Beach Bomm": "pop_vwbus", "Matchbocks": "pop_car", "Bobo Fett": "pop_boba", "Jawwa": "pop_jawa", "Optimal Prime": "pop_optimus",
+		"Leonardoh": "pop_leo", "Captain Kirque's": "pop_chair", "Captain Kirque": "pop_kirk", "Bat-Guy": "pop_batman", "Slymer": "pop_slimer",
+		"Millennial Falcon": "pop_falcon", "Barbee": "pop_doll", "Easy-Baik": "pop_oven", "Robbie the Robot": "pop_robby", "Subway Dress": "pop_mannequin",
+		"Gingham Dress": "pop_mannequin", "Super-Fellow Cape": "pop_cape", "Proton Pack": "pop_proton", "Gizmoe": "pop_gizmo", "Hoverboard": "pop_hoverboard",
+		"Pet Rock": "pop_petrock", "Teddy": "pop_teddy", "Princess the Bear": "pop_teddy", "Tickle Me": "pop_teddy",
 		"Furbee": "pop_furby", "Tamagotchu": "pop_tama", "Rubek": "pop_cube", "Slinkee": "pop_slinky", "Etch-O": "pop_etch", "View-Mastor": "pop_viewmaster",
-		"Potatoe": "pop_potato", "Bat-Cruiser": "pop_batmobile", "DeLorian": "pop_delorean", "Austin Marten": "pop_db5", "Skyrunner's Laser": "pop_saber",
+		"Potatoe": "pop_potato", "Bat-Cruiser": "pop_batmobile", "DeLorian": "pop_delorean", "Austin Marten": "pop_db5", "Skyrunner's Laser": "pop_saber2",
 		"Fedora": "pop_fedora", "Golden Gun": "pop_goldengun", "Rosebud": "pop_sled", "Wilsen": "pop_volleyball", "Mousekateer": "pop_ears",
 		"Mystic 8": "pop_8ball", "Lava Lamp": "pop_lava"}
 	for w in words:
 		if nm.contains(String(w)):
 			return String(words[w])
-	if String(def.get("plat", "")) == "FIGS" and String(def.get("kind", "")) == "toy" and not String(def.get("form", "")) in ["boxed"]:
-		return "pop_figure"
+	if String(def.get("form", "")) == "lunchbox":
+		return "pop_tinbox"
+	# A figure with no model of its own: the real photo stands in if there is one, else a blank hero figure.
+	if String(def.get("plat", "")) == "FIGS" and String(def.get("kind", "")) == "toy" and String(def.get("cut", "")) == "":
+		return "pop_hero"
 	return ""
 
 
@@ -1451,9 +1465,19 @@ static func _real_pop(model: Node3D, item: Dictionary, form: String) -> float:
 	var nm := String(item.get("name", ""))
 	if nm.contains("Tickle Me"):
 		_hw_recolor(m, form, Color(0.85, 0.12, 0.1))
-	elif form == "pop_figure":
+	elif form == "pop_hero":
 		var hsh := absi(hash(String(item.get("id", ""))))
 		_hw_recolor(m, form, Color.from_hsv(float(hsh % 360) / 360.0, 0.55, 0.7))
+	elif form == "pop_vwbus":
+		_hw_recolor(m, form, Color(0.95, 0.45, 0.65))
+	elif form == "pop_mannequin":
+		_hw_recolor(m, form, Color(0.96, 0.95, 0.9) if nm.contains("Subway") else Color(0.35, 0.5, 0.85))
+	elif form == "pop_cape":
+		_hw_recolor(m, form, Color(0.85, 0.1, 0.12))
+	elif form == "pop_tinbox":
+		# A real tin lunchbox: the shell takes the aisle colour and the lid gets this box's art.
+		_hw_recolor(m, form, Color(0.55, 0.12, 0.12))
+		model.set_meta("lid_art", true)
 	elif form == "pop_teddy" and nm.contains("Princess"):
 		_hw_recolor(m, form, Color(0.45, 0.25, 0.6))
 	return float(HW[form][1])
@@ -1465,6 +1489,8 @@ static func _pop_loose(model: Node3D, item: Dictionary, label: Texture2D, form: 
 	var col: Color = Catalog.platform(String(item["plat"]))["color"]
 	var g := RandomNumberGenerator.new()
 	g.seed = hash(String(item.get("id", "")))
+	if form != "lunchbox" and String(def.get("cut", "")) != "" and ResourceLoader.exists(String(def["cut"])):
+		return _standee(model, load(String(def["cut"])), form, String(item["kind"]))
 	match form:
 		"lunchbox":
 			return _lunchbox(model, item, label)
@@ -1531,6 +1557,57 @@ static func _pop_loose(model: Node3D, item: Dictionary, label: Texture2D, form: 
 	return {"doll": 0.29, "plush": 0.3, "figure": 0.1}.get(form, 0.12)
 
 
+## The real piece as a cut-out photo standing on a clear acrylic display base
+## (both faces printed), for pieces with no 3D model yet.
+static func _standee(model: Node3D, cut: Texture2D, form: String, kind: String) -> float:
+	var a := float(cut.get_width()) / maxf(1.0, cut.get_height())
+	var sz := Vector2(a, 1.0) if a <= 1.0 else Vector2(1.0, 1.0 / a)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = cut
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 0.6
+	var base_h := 0.04
+	Psx.quad(sz, m, Vector3(0, base_h + sz.y * 0.5, 0), model)
+	# A thin dark edge behind so it reads as a solid piece from an angle.
+	var back := StandardMaterial3D.new()
+	back.albedo_texture = cut
+	back.albedo_color = Color(0.35, 0.33, 0.36)
+	back.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	back.alpha_scissor_threshold = 0.5
+	back.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for dz in [-0.012, -0.024]:
+		Psx.quad(sz, back, Vector3(0, base_h + sz.y * 0.5, dz), model)
+	if not icon_build:
+		Psx.box(Vector3(sz.x * 0.9, base_h, 0.3), _clear_mat(), Vector3(0, base_h * 0.5, -0.01), model)
+	var real: float = {"plush": 0.3, "doll": 0.29, "figure": 0.1, "vehicle": 0.08, "hat": 0.3, "dispenser": 0.11, "lamp": 0.4, "badge": 0.045,
+		"costume": 1.5, "prop": 0.4, "boxed": 0.25, "carded": 0.12}.get(form, 0.2)
+	if kind == "prop" and form == "vehicle":
+		real = 0.5
+	return real
+
+
+## The real tin lunchbox model with this box's lithographed lid on the front.
+static func _real_lunchbox(model: Node3D, item: Dictionary, label: Texture2D) -> float:
+	var inner := Node3D.new()
+	model.add_child(inner)
+	if _real_pop(inner, item, "pop_tinbox") <= 0.0:
+		model.remove_child(inner)
+		inner.free()
+		return _lunchbox(model, item, label)
+	_fit(inner, 1.0)
+	var b := Psx.aabb(inner)
+	var w := b.size.x * 0.84
+	var h := b.size.y * 0.66
+	Psx.quad(Vector2(w, h), _pic_mat(label, 1.3), Vector3(b.get_center().x, b.position.y + b.size.y * 0.46, b.end.z + 0.004), model)
+	if not icon_build:
+		var bq := Psx.quad(Vector2(w, h), _pic_mat(Art.back(item), 1.3), Vector3(b.get_center().x, b.position.y + b.size.y * 0.46, b.position.z - 0.004), model)
+		bq.rotation_degrees.y = 180.0
+	return 0.2
+
+
 ## A metal lunchbox: the lid art on the front, a handle on top, a latch.
 static func _lunchbox(model: Node3D, item: Dictionary, label: Texture2D) -> float:
 	var col: Color = Catalog.platform(String(item["plat"]))["color"]
@@ -1568,7 +1645,7 @@ static func _toy(model: Node3D, item: Dictionary, label: Texture2D, cond: String
 	var def := Catalog.get_def(String(item.get("id", "")))
 	var form := String(def.get("form", "boxed"))
 	if form == "lunchbox":
-		return _lunchbox(model, item, label)
+		return _real_lunchbox(model, item, label)
 	var packed := cond in ["CIB", "Mint", "Sealed"] or String(item.get("variant", "")) in ["Mail-Away Offer", "Hand-Painted Prototype"]
 	if not packed and not graded:
 		var r := _real_pop(model, item, pop_form(item))

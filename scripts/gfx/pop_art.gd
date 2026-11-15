@@ -66,6 +66,10 @@ static func _img(c: Control, t: Texture2D, r: Rect2, tint := Color.WHITE) -> voi
 
 ## The picture: the def's photo, or a subject render on a soft wash.
 static func _art(c: Control, r: Rect2, d: Dictionary, tint := Color.WHITE, wash := true) -> void:
+	var cut := _tex(String(d.get("cut", "")))
+	if cut != null:
+		_cut_art(c, r, d, cut, tint, wash)
+		return
 	var t := _tex(String(d.get("photo", "")))
 	if t != null:
 		_img(c, t, r, tint)
@@ -84,6 +88,34 @@ static func _art(c: Control, r: Rect2, d: Dictionary, tint := Color.WHITE, wash 
 	var ref := String(subs[0]) if not subs.is_empty() else String(SUBJ.get(String(d["plat"]), "robot"))
 	CoverComp.cg(holder, g, ref, Vector2(r.size.x * 0.5, r.size.y * 0.95), r.size.y * 0.8, g.randf() < 0.5)
 	holder.modulate = tint
+
+
+## The real piece, cut out of its photo, standing in the window on a soft
+## studio wash with a contact shadow: how it looks through a real bubble.
+static func _cut_art(c: Control, r: Rect2, d: Dictionary, cut: Texture2D, tint: Color, wash: bool) -> void:
+	var holder := Control.new()
+	holder.position = r.position
+	holder.size = r.size
+	holder.clip_contents = true
+	c.add_child(holder)
+	if wash:
+		var pc: Color = Catalog.platform(String(d["plat"]))["color"]
+		CoverComp.gradient(holder, Rect2(Vector2.ZERO, r.size), Color.from_hsv(pc.h, 0.18, 0.98), Color.from_hsv(pc.h, 0.35, 0.78), true)
+	var a := float(cut.get_width()) / maxf(1.0, cut.get_height())
+	var box := r.size * 0.92
+	var sz := Vector2(box.y * a, box.y) if box.y * a <= box.x else Vector2(box.x, box.x / a)
+	var at := Vector2((r.size.x - sz.x) * 0.5, r.size.y - sz.y - r.size.y * 0.03)
+	# Contact shadow under the piece.
+	BoxArt.poly(holder, PackedVector2Array([at + Vector2(sz.x * 0.15, sz.y), at + Vector2(sz.x * 0.85, sz.y), at + Vector2(sz.x * 0.75, sz.y + 4), at + Vector2(sz.x * 0.25, sz.y + 4)]), Color(0, 0, 0, 0.25))
+	var tr := TextureRect.new()
+	tr.texture = cut
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.position = at
+	tr.size = sz
+	tr.modulate = tint
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	holder.add_child(tr)
 
 
 static func _base(d: Dictionary, g: RandomNumberGenerator) -> Color:
@@ -125,8 +157,11 @@ static func paint_front(c: Control, d: Dictionary, w: int) -> void:
 				_img(c, scan, Rect2(0, 0, W, H))
 			_folds(c, d)
 		_:
+			var boxshot := _tex(String(d.get("box", "")))
 			if v == "Hand-Painted Prototype":
 				_sample(c, d)
+			elif boxshot != null and v != "Mail-Away Offer":
+				_box_front(c, d, boxshot)
 			elif v == "Mail-Away Offer":
 				_mailer(c, d)
 			else:
@@ -143,6 +178,28 @@ static func paint_front(c: Control, d: Dictionary, w: int) -> void:
 
 
 # ---------------------------------------------------------------- toys
+
+## The real box (or lunchbox lid) photographed and cut out: a lunchbox lid fills
+## the front edge to edge; a box stands on the aisle's colour.
+static func _box_front(c: Control, d: Dictionary, t: Texture2D) -> void:
+	if String(d.get("form", "")) == "lunchbox":
+		BoxArt.rect(c, Rect2(0, 0, W, H), Color(0.12, 0.1, 0.12))
+		_img(c, t, Rect2(0, 0, W, H))
+		return
+	var pc: Color = Catalog.platform(String(d["plat"]))["color"]
+	CoverComp.gradient(c, Rect2(0, 0, W, H), pc.lightened(0.35), pc.darkened(0.35), true)
+	var a := float(t.get_width()) / maxf(1.0, t.get_height())
+	var box := Vector2(W, H) * 0.97
+	var sz := Vector2(box.y * a, box.y) if box.y * a <= box.x else Vector2(box.x, box.x / a)
+	var tr := TextureRect.new()
+	tr.texture = t
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.position = (Vector2(W, H) - sz) * 0.5
+	tr.size = sz
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	c.add_child(tr)
+
 
 ## A blister card hanging from its peg hole, the toy in the bubble.
 static func _carded(c: Control, d: Dictionary) -> void:
@@ -379,7 +436,7 @@ static func _box_lot(c: Control, d: Dictionary, back := false) -> void:
 
 static func _sticker(c: Control, txt: String, ctr: Vector2, r: float, col: Color, ink := Color(0.05, 0.05, 0.05)) -> void:
 	BoxArt.circle(c, ctr, r, col, 18)
-	_t(c, txt, ctr - Vector2(r, r * 0.8), Vector2(r * 2, r * 1.6), int(r * 0.5), ink, "russo", HORIZONTAL_ALIGNMENT_CENTER, Color(0, 0, 0, 0), true)
+	_t(c, txt, ctr - Vector2(r * 0.95, r * 0.8), Vector2(r * 1.9, r * 1.6), int(r * 0.36), ink, "russo", HORIZONTAL_ALIGNMENT_CENTER, Color(0, 0, 0, 0), true)
 
 
 static func _variant(c: Control, d: Dictionary) -> void:

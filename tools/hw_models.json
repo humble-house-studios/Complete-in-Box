@@ -438,18 +438,6 @@
    2
   ]
  },
- "pop_saber": {
-  "uid": "85c75ec94b614b1e860bb41c8a98b9d9",
-  "name": "Old lightsaber",
-  "by": "andrekek",
-  "license": "CC Attribution",
-  "objaverse": "glbs/000-097/85c75ec94b614b1e860bb41c8a98b9d9.glb",
-  "rot": [
-   0,
-   0,
-   0
-  ]
- },
  "pop_fedora": {
   "uid": "eb46b3407c67491f98a13df1b86950fa",
   "name": "Fedora",
@@ -662,12 +650,264 @@
    0
   ]
  },
- "pop_figure": {
-  "uid": "8f18daa0271c4f4886315bb1b0782765",
-  "name": "Hulk action figure - posed",
-  "by": "ReoCreativeScanning",
+ "pop_boba": {
+  "uid": "69bac23d3bb4457b9805d171de02cf93",
+  "name": "Boba Fett",
+  "by": "SonicBlade",
   "license": "CC Attribution",
-  "objaverse": "glbs/000-087/8f18daa0271c4f4886315bb1b0782765.glb",
+  "objaverse": "glbs/000-064/69bac23d3bb4457b9805d171de02cf93.glb",
+  "rot": [
+   -90,
+   0,
+   0
+  ]
+ },
+ "pop_jawa": {
+  "uid": "2ae1b5cee0264898b42c6bd168b8f53f",
+  "name": "Jawa",
+  "by": "dradial",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-068/2ae1b5cee0264898b42c6bd168b8f53f.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_hero": {
+  "uid": "f70d04b8513741eeba1c8f3c5b0f84f4",
+  "name": "Lowpoly Smooth Hero Figure",
+  "by": "pacres",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-028/f70d04b8513741eeba1c8f3c5b0f84f4.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_optimus": {
+  "uid": "f308292fc5964b8f98d0c0acdd999b99",
+  "name": "optimus prime",
+  "by": "Thomas_Lomax",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-124/f308292fc5964b8f98d0c0acdd999b99.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_leo": {
+  "uid": "58557aaf93e746c69c459e92af94c881",
+  "name": "Ninja Turtle Leonardo 1",
+  "by": "Lycortas",
+  "license": "CC",
+  "objaverse": "glbs/000-076/58557aaf93e746c69c459e92af94c881.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_kirk": {
+  "uid": "3820a48598d44405bc95bc5696b90a1f",
+  "name": "Captain Kirk",
+  "by": "kembas",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-050/3820a48598d44405bc95bc5696b90a1f.glb",
+  "rot": [
+   -90,
+   0,
+   0
+  ]
+ },
+ "pop_batman": {
+  "uid": "28717167aead4010b774b67d56aedbe0",
+  "name": "Batman 1989",
+  "by": "hl_models",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-051/28717167aead4010b774b67d56aedbe0.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_slimer": {
+  "uid": "d76a8a8bb87b4ee3afe4231d1f687707",
+  "name": "Ghostbuster's Slimer",
+  "by": "nomthewise",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-147/d76a8a8bb87b4ee3afe4231d1f687707.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_vwbus": {
+  "uid": "931d18f3e94b4cd580440bdc85436734",
+  "name": "Free Low-poly Vintage Hippy Camper Van",
+  "by": "robinmikart",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-108/931d18f3e94b4cd580440bdc85436734.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_falcon": {
+  "uid": "187e47e141584c68afa5251532e18580",
+  "name": "the millennium falcon",
+  "by": "Serafim123",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-151/187e47e141584c68afa5251532e18580.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_doll": {
+  "uid": "96db468a1e7348979542fcc55fa4f072",
+  "name": "Fashion Doll",
+  "by": "chin4grci4",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-063/96db468a1e7348979542fcc55fa4f072.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_oven": {
+  "uid": "a1b5d5c02c184429aded90b0c931762e",
+  "name": "Cute Kitchen Oven",
+  "by": "CocoJinjo",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-155/a1b5d5c02c184429aded90b0c931762e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_robby": {
+  "uid": "2ab7c9c020e0479da2a92c2dd779d506",
+  "name": "Retro Robot",
+  "by": "matthew.leiher",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-113/2ab7c9c020e0479da2a92c2dd779d506.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_mannequin": {
+  "uid": "edce03ca9ee8410b8e0485504597389b",
+  "name": "Mannequin (1900s): M size",
+  "by": "alekseimoskvin1",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-120/edce03ca9ee8410b8e0485504597389b.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_chair": {
+  "uid": "83c57e559b024479957ceecbb9ed5cf5",
+  "name": "Captain's Chair",
+  "by": "Ryzekiel",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-062/83c57e559b024479957ceecbb9ed5cf5.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_proton": {
+  "uid": "013a1841f12742328a90e37c94fd46b9",
+  "name": "Ghostbusters Proton Blaster",
+  "by": "re1monsen",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-090/013a1841f12742328a90e37c94fd46b9.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_gizmo": {
+  "uid": "5eab1633a4874eb08558a45f0a7e842f",
+  "name": "Gizmo PVC toy figure from Comic Spain (1980-90)",
+  "by": "nomthewise",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-097/5eab1633a4874eb08558a45f0a7e842f.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_hoverboard": {
+  "uid": "b35e4131eb3f4727a2a89c55c5a5bc82",
+  "name": "Hoverboard - Back to the Future",
+  "by": "robillonmathis71",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-055/b35e4131eb3f4727a2a89c55c5a5bc82.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_cape": {
+  "uid": "574cd71bfd80459f906548729b11c4e6",
+  "name": "Superman Cape",
+  "by": "TummyTums",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-114/574cd71bfd80459f906548729b11c4e6.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_tinbox": {
+  "uid": "5637b92ae3814e8c9947afee3ed2289e",
+  "name": "TMNT Vintage TIn Lunch Box",
+  "by": "DanielGilbreath",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-102/5637b92ae3814e8c9947afee3ed2289e.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_petrock": {
+  "uid": "1da2916d9ee74c239eb681d344017f5a",
+  "name": "Pet Rock",
+  "by": "normajanethmr",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-042/1da2916d9ee74c239eb681d344017f5a.glb",
+  "rot": [
+   0,
+   0,
+   0
+  ]
+ },
+ "pop_saber2": {
+  "uid": "0f147fea04a34318ae0a7b4973f63ad5",
+  "name": "Luke Skywalker's Lightsaber",
+  "by": "FWTeastwood",
+  "license": "CC Attribution",
+  "objaverse": "glbs/000-045/0f147fea04a34318ae0a7b4973f63ad5.glb",
   "rot": [
    0,
    0,

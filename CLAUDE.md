@@ -177,6 +177,13 @@ whole ladder is `_open_rep_ladder` (UNLOCKS card on the title menu).
   baked like the consoles), packed ones a card + bubble or a box; pop pieces cap at 0.26 m on a table. Venues toyswap /
   attictoys / toyshop (`Stage._toyshop`: peg wall, framed posters, props case, Dale in a giant blister) / propauction,
   perks screen_used, saturday_morning, lore `lore/pop.gd` (case "toy"). Music `temp:pop`, `sting_pop`.
+  Real photos: `python3 tools/fetch_pop_photos.py find|sheet OUT|save` (Openverse = Flickr/Commons collector photos,
+  one query per piece in `QUERY`; pick by eye from the contact sheets into `PICKS`; rembg cuts the backdrop out) ->
+  `<id>_cut.png` (the real piece: drawn in the bubble / window / plaque by `pop_art._cut_art`, and stood up in 3D as
+  `ItemModels._standee` when there's no model) or `<id>_box.png` (the real box / lunchbox lid as the whole front,
+  `_box_front`). Loose models: a named model (`pop_form` words) > the cut-out photo > `pop_hero` (blank figure, tinted).
+  Lunchboxes use the real tin model (`pop_tinbox`) with this box's lid art. Wikimedia throttles cloud machines hard;
+  Openverse doesn't.
 - Sports cards (Grandma Rose): kinds `scard` / `wax`, pages BASE HOOP GRID PUCK FUTB, painter
   `scripts/gfx/sports_art.gd` (3 eras, real photo/scan), venues ballroom / shoebox / dugout /
   breaks, room `Stage._ballroom`, perk renames in `Perks.THEMES`, new perks rookie_fever, hall_of_fame.
