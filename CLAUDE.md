@@ -21,12 +21,18 @@ you (`Stage.PLAYER`) shrink-wrapped and tied with twine in a glass case on a pli
 with a grading slab label (`Stage.case_info`), in a dark vault of other cased
 collectors. Grade and condition come from `Run.curse_grade()` (how close you came).
 Boss twists are shown as THE BUYER'S TERMS. Shots: `tools/curse_shots.gd`.
-The twist stays hidden until your first loss: the title vault's corner case
-(`Stage._vault_case`, `Stage.vault_case`) stands under a dust sheet with a RESERVED
-plaque and a red glow under the hem (the intro flight glances past it); after a loss
-the sheet is on the floor and your last sealed self is inside (save keys `sealed`,
-`seal_grade`, `seal_cond`, `seal_ante`, `seal_lot`; `_vault_info`). The guide's PAY THE
-APPRAISER page uses its `secret` lines until then.
+The cases stay secret until you finish a run (`_revealed()`: save `sealed` or `wins` > 0):
+before that `Stage.secret` hides every case (title vault corner + collector row, the
+collectors' corners in the shops) and world intros use lore `line_pre`. After that the
+title (and launch flight) is THE BUYER'S BASEMENT (`Stage._basement`): a dark ring of one
+case per estate (`basement_cases` from `_basement_cases`, index 0 = your own case via
+`_vault_case`; freed collectors stand beside open cases; the Buyer's is under a sheet).
+Lights come on one at a time (`light_case`, `dim_cases`, `_reveal_cases`,
+`_intro_case_lights`). The estate picker becomes CHOOSE A CASE: a `< case >` carousel
+(`_case_view`, `_view_case`) that swings the camera to each case (`Stage.focus_case`);
+sealed ones can be looked at but not claimed. Save keys `sealed`, `seal_grade`,
+`seal_cond`, `seal_ante`, `seal_lot` (`_vault_info`). The guide's PAY THE APPRAISER page
+uses its `secret` lines until the first loss.
 
 ## The Buyer's Mercy
 Once a run, an appraisal that misses by 20% or less (`Balance.MERCY_SHARE`, never the final

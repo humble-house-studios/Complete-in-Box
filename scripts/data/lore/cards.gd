@@ -6,6 +6,7 @@ const INTRO := {
 	"title": "TRADING CARDS",
 	"sub": "The Pruitt Twins' world",
 	"line": "A wall of sealed boxes, a grading counter, and two cases side by side. Share nicely.",
+	"line_pre": "A wall of sealed boxes, a grading counter, and the Pruitt twins' binders. Share nicely.",
 	"scene": "cardshop",
 }
 
